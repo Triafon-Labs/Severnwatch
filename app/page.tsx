@@ -1,5 +1,8 @@
 import { Container, Stack, Typography } from "@mui/material";
 import CsoSpillCard from "@/components/CsoSpillCard";
+import RainfallCard from "@/components/RainfallCard";
+import WaterQualityMap from "@/components/WaterQualityMap";
+import WaterQualityExplainer from "@/components/WaterQualityExplainer";
 
 export default function HomePage() {
   return (
@@ -10,6 +13,11 @@ export default function HomePage() {
           and citizen science water quality.
         </Typography>
         <CsoSpillCard />
+        <RainfallCard />
+        <Stack spacing={1.5}>
+          <WaterQualityMap />
+          <WaterQualityExplainer />
+        </Stack>
       </Stack>
     </Container>
   );
