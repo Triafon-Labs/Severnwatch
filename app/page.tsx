@@ -1,4 +1,5 @@
 import { Container, Stack, Typography } from "@mui/material";
+import CsoSpillCard from "@/components/CsoSpillCard";
 
 export default function HomePage() {
   return (
@@ -8,6 +9,7 @@ export default function HomePage() {
           River Severn conditions at Worcester - sewage spill status, rainfall,
           and citizen science water quality.
         </Typography>
+        <CsoSpillCard />
       </Stack>
     </Container>
   );
