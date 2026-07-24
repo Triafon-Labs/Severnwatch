@@ -88,20 +88,19 @@ export async function GET() {
         );
         if (waypointDistance === null) return null; // outside the catchment corridor
 
-        let state: CsoState | null = null;
+        let state: CsoState;
         if (attributes.Status === 1) {
           state = "Ongoing";
-        } else if (
-          attributes.Status === 0 &&
-          attributes.LatestEventEnd !== null &&
-          now - attributes.LatestEventEnd <= recentCutoffMs
-        ) {
-          state = "Recent";
+        } else if (attributes.Status === 0) {
+          state =
+            attributes.LatestEventEnd !== null &&
+            now - attributes.LatestEventEnd <= recentCutoffMs
+              ? "Recent"
+              : "Not discharging";
+        } else {
+          // -1 (monitor offline) and any other unrecognized status code.
+          state = "Offline";
         }
-        // Status === -1 (monitor offline) and any other unmatched status
-        // fall through to state === null and get dropped below - a dead
-        // monitor isn't actionable, so it's not worth surfacing.
-        if (state === null) return null;
 
         const startMs = attributes.StatusStart;
         const endMs = state === "Recent" ? attributes.LatestEventEnd : null;
@@ -124,30 +123,41 @@ export async function GET() {
         };
       })
       .filter((o): o is CsoOutfall & { locationName: string | null } => o !== null)
-      // Ongoing spills always take priority over Recent entries, so a live
-      // spill farther away is never bumped out by a closer but less urgent
-      // one; ties broken by distance.
+      // Ongoing spills take priority, then Recent, then quiet/offline
+      // monitors - so a live spill farther away is never bumped out by a
+      // closer but less urgent entry; ties broken by distance.
       .sort((a, b) => {
-        const priority: Record<CsoState, number> = { Ongoing: 0, Recent: 1 };
+        const priority: Record<CsoState, number> = {
+          Ongoing: 0,
+          Recent: 1,
+          "Not discharging": 2,
+          Offline: 3,
+        };
         return priority[a.state] - priority[b.state] || a.distanceKm - b.distanceKm;
-      })
-      .slice(0, SEWAGE_MAX_RESULTS);
+      });
 
     // Reverse-geocode sequentially (not in parallel) to stay well within
-    // Nominatim's "no bursts" usage policy - there are at most
-    // SEWAGE_MAX_RESULTS of these, so the added latency is small and this
-    // whole route is cached for 5 minutes anyway.
-    for (let i = 0; i < outfalls.length; i++) {
-      outfalls[i].locationName = await reverseGeocode(
-        outfalls[i].latitude,
-        outfalls[i].longitude
-      );
-      if (i < outfalls.length - 1) await sleep(1000);
+    // Nominatim's "no bursts" usage policy. Only the actionable outfalls
+    // (Ongoing/Recent) are worth the round-trip, capped at
+    // SEWAGE_MAX_RESULTS - the rest of the corridor's monitors are still
+    // returned below, just identified by watercourse/distance instead of a
+    // resolved place name.
+    const toGeocode = outfalls
+      .map((o, index) => ({ o, index }))
+      .filter(({ o }) => o.state === "Ongoing" || o.state === "Recent")
+      .slice(0, SEWAGE_MAX_RESULTS);
+
+    for (let i = 0; i < toGeocode.length; i++) {
+      const { o, index } = toGeocode[i];
+      outfalls[index].locationName = await reverseGeocode(o.latitude, o.longitude);
+      if (i < toGeocode.length - 1) await sleep(1000);
     }
 
     // Explicit name-based exclusion as a safety net for localities that are
     // geographically close to an included waypoint but were deliberately
-    // left out (see CATCHMENT_EXCLUDED_LOCALITIES).
+    // left out (see CATCHMENT_EXCLUDED_LOCALITIES). Only meaningful for
+    // geocoded (Ongoing/Recent) entries - ungeocoded ones have no name to
+    // check and rely solely on the waypoint radius filter above.
     const inScopeOutfalls = outfalls.filter(
       (o) => !isExcludedLocality(o.locationName)
     );
