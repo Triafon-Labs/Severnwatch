@@ -1,4 +1,6 @@
 import { Container, Stack, Typography } from "@mui/material";
+import WaterQualityMap from "@/components/WaterQualityMap";
+import WaterQualityExplainer from "@/components/WaterQualityExplainer";
 
 export default function HomePage() {
   return (
@@ -8,6 +10,10 @@ export default function HomePage() {
           River Severn conditions at Worcester - sewage spill status, rainfall,
           and citizen science water quality.
         </Typography>
+        <Stack spacing={1.5}>
+          <WaterQualityMap />
+          <WaterQualityExplainer />
+        </Stack>
       </Stack>
     </Container>
   );
