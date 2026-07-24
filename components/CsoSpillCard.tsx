@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -17,11 +16,10 @@ import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { formatDistanceToNow } from "date-fns";
-import { CsoOutfall, CsoResponse } from "@/types";
+import { CsoOutfall } from "@/types";
 import { SEVERN_TRENT_MAP_URL } from "@/lib/config";
 import { formatDuration, formatAsOf } from "@/lib/format";
-
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // matches the route's 5-min cache
+import { useCsoData } from "@/hooks/useCsoData";
 
 const relativeTime = (iso: string | null): string =>
   iso ? formatDistanceToNow(new Date(iso), { addSuffix: true }) : "unknown time";
@@ -51,36 +49,7 @@ const OutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => (
 );
 
 const CsoSpillCard: React.FC = () => {
-  const [data, setData] = useState<CsoResponse | null>(null);
-  const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const res = await fetch("/api/sewage");
-        if (!res.ok) throw new Error("Failed to fetch");
-        const body: CsoResponse = await res.json();
-        if (!cancelled) {
-          setData(body);
-          setError(false);
-        }
-      } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    const interval = setInterval(load, REFRESH_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
+  const { data, loading, error } = useCsoData();
 
   const outfalls = data?.outfalls ?? [];
   const ongoing = outfalls.filter((o) => o.state === "Ongoing");

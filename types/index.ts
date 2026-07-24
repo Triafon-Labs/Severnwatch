@@ -3,14 +3,15 @@
 
 // CSO (Combined Sewer Overflow) spill status, from a water company's
 // near-real-time Event Duration Monitoring (EDM) feed.
-export type CsoState = "Ongoing" | "Recent";
+export type CsoState = "Ongoing" | "Recent" | "Not discharging" | "Offline";
 
 export interface CsoOutfall {
   id: string;
   state: CsoState;
   watercourse: string;
   // Reverse-geocoded place name (e.g. "Hallow, Worcester") - the feed
-  // itself has no human-readable site name, only an opaque id.
+  // itself has no human-readable site name, only an opaque id. Only
+  // resolved for Ongoing/Recent outfalls (see route.ts); null otherwise.
   locationName: string | null;
   latitude: number;
   longitude: number;
@@ -18,9 +19,9 @@ export interface CsoOutfall {
   // CATCHMENT_WAYPOINTS), not to Worcester itself - the corridor follows
   // the river rather than a simple radius.
   distanceKm: number;
-  startISO: string | null; // spill start if Ongoing, or last status change
+  startISO: string | null; // when the current status began
   endISO: string | null; // end of the most recent spill, if state is Recent
-  durationMinutes: number | null; // duration so far (Ongoing) or total (Recent)
+  durationMinutes: number | null; // time spent in the current status so far
 }
 
 export interface CsoResponse {

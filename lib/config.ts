@@ -51,6 +51,11 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
 // (small/unmonitored catchments or too far up a tributary).
 export const CATCHMENT_EXCLUDED_LOCALITIES = ["holt heath", "holt", "bromsgrove"];
 
+// Every in-scope CSO is returned regardless of status, but only the
+// actionable ones (Ongoing/Recent) are reverse-geocoded, up to this many -
+// bounds Nominatim usage and this route's runtime regardless of how many
+// monitors sit in the corridor. Outfalls beyond this cap still appear in
+// the list, just without a resolved location name.
 export const SEWAGE_MAX_RESULTS = 15;
 
 // --- Rainfall Data (Environment Agency real-time network) ---
