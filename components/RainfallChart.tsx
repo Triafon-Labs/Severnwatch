@@ -18,6 +18,14 @@ import {
   YAxis,
 } from "recharts";
 import { RainfallGaugeData } from "@/types";
+import {
+  DAILY_HEAVY_MM,
+  DAILY_MODERATE_MM,
+  HOURLY_HEAVY_MM,
+  HOURLY_MODERATE_MM,
+  buildDailyTotals,
+  buildHourlyIntensity,
+} from "@/lib/rainfallAnalysis";
 
 // Categorical palette, first 3 slots - validated all-pairs CVD-safe in both
 // light and dark mode (see the dataviz skill's reference palette).
@@ -31,31 +39,23 @@ const CHROME = {
   dark: { grid: "#2c2c2a", axis: "#898781", text: "#c3c2b7" },
 };
 
-// Rough intensity bands, not a validated meteorological or hydrological
-// standard - a heuristic to make bursts and sustained rain visually
-// legible, not a guarantee of spill risk. Broadly aligned with Met Office
-// "moderate"/"heavy" rain intensity, and typical CSO trigger behaviour
-// (short heavy bursts and prolonged moderate rain both fill sewer capacity).
-const HOURLY_MODERATE_MM = 2; // mm/hr - sustained rain, medium likelihood
-const HOURLY_HEAVY_MM = 8; // mm/hr - thunderstorm-level burst, high likelihood
-const DAILY_MODERATE_MM = 10; // mm/day - a wet day, medium likelihood
-const DAILY_HEAVY_MM = 25; // mm/day - a very wet day, high likelihood
-
-const HOURLY_WINDOW_HOURS = 48;
-const HOURLY_TICK_STEP_HOURS = 8; // gridline every 8h - clean, unambiguous labels
 const BAND_CEILING = 1000; // clipped to the plot area regardless of axis domain
 
-type View = "hourly" | "daily";
+type Range = "1h" | "8h" | "24h" | "7d";
 
-interface Bucket {
-  label: string;
-  sortKey: number;
-  [gaugeId: string]: number | string;
-}
+const RANGE_LABEL: Record<Range, string> = { "1h": "1h", "8h": "8h", "24h": "24h", "7d": "7d" };
 
-// Reads a timestamp's Europe/London wall-clock hour/minute without pulling
-// in a timezone library - used to align x-axis ticks to clean local times
-// (00:00, 08:00, ...) and to build human-readable tick/tooltip labels.
+// Window length + how far apart x-axis ticks land, per range. 7d switches
+// the chart to daily totals entirely (see RANGE_CONFIG use below).
+const RANGE_CONFIG: Record<Exclude<Range, "7d">, { hours: number; tickStepMinutes: number }> = {
+  "1h": { hours: 1, tickStepMinutes: 15 },
+  "8h": { hours: 8, tickStepMinutes: 120 },
+  "24h": { hours: 24, tickStepMinutes: 360 },
+};
+
+// Reads a timestamp's Europe/London wall-clock time without pulling in a
+// timezone library - used to align x-axis ticks to clean local times and to
+// build human-readable tick/tooltip labels.
 const londonParts = (ms: number) => {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
@@ -69,84 +69,27 @@ const londonParts = (ms: number) => {
   return { weekday: get("weekday"), hour: Number(get("hour")), minute: get("minute") };
 };
 
-const formatHourlyTick = (ms: number) => {
+const formatTimeTick = (ms: number) => {
   const { weekday, hour, minute } = londonParts(ms);
   return `${weekday} ${String(hour).padStart(2, "0")}:${minute}`;
 };
 
-const HOUR_MS = 60 * 60 * 1000;
+const MIN_MS = 60 * 1000;
 
 // Computed purely from the time range (not from the data points, which may
 // have gaps or - like the UK gauges - land a few seconds off a clean
-// boundary), so the axis always gets clean, evenly spaced hour marks. UK
-// clocks never sit on a half-hour UTC offset, so every UTC hour boundary is
-// already a London :00 - only which of those hours are multiples of the
+// boundary), so the axis always gets clean, evenly spaced marks. UK clocks
+// never sit on a half-hour UTC offset, so minute-of-day in London tracks
+// minute-of-day in UTC exactly - only which minutes are multiples of the
 // step needs checking.
-const buildHourlyTicks = (minMs: number, maxMs: number, stepHours: number): number[] => {
+const buildTimeTicks = (minMs: number, maxMs: number, stepMinutes: number): number[] => {
   if (!Number.isFinite(minMs) || !Number.isFinite(maxMs) || minMs >= maxMs) return [];
   const ticks: number[] = [];
-  for (let t = Math.ceil(minMs / HOUR_MS) * HOUR_MS; t <= maxMs; t += HOUR_MS) {
-    if (londonParts(t).hour % stepHours === 0) ticks.push(t);
+  for (let t = Math.ceil(minMs / MIN_MS) * MIN_MS; t <= maxMs; t += MIN_MS) {
+    const { hour, minute } = londonParts(t);
+    if ((hour * 60 + Number(minute)) % stepMinutes === 0) ticks.push(t);
   }
   return ticks;
-};
-
-const dayLabel = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-GB", {
-    timeZone: "Europe/London",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-
-const dayStartMs = (iso: string) => {
-  const londonDate = new Date(iso).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
-  return new Date(`${londonDate}T00:00:00Z`).getTime();
-};
-
-const buildDailyTotals = (gauges: RainfallGaugeData[]): Bucket[] => {
-  const days = new Map<string, Bucket>();
-  for (const gauge of gauges) {
-    for (const r of gauge.readings) {
-      const key = dayLabel(r.dateTime);
-      if (!days.has(key)) {
-        days.set(key, { label: key, sortKey: dayStartMs(r.dateTime) });
-      }
-      const bucket = days.get(key)!;
-      const current = typeof bucket[gauge.id] === "number" ? (bucket[gauge.id] as number) : 0;
-      bucket[gauge.id] = current + r.valueMm;
-    }
-  }
-  return Array.from(days.values())
-    .map((b) => {
-      const rounded: Bucket = { label: b.label, sortKey: b.sortKey };
-      for (const gauge of gauges) {
-        if (typeof b[gauge.id] === "number") {
-          rounded[gauge.id] = Math.round((b[gauge.id] as number) * 10) / 10;
-        }
-      }
-      return rounded;
-    })
-    .sort((a, b) => a.sortKey - b.sortKey);
-};
-
-// Uses the raw 15-min readings directly (already fetched for the 7-day
-// history) rather than re-aggregating to daily totals, so a burst lasting
-// even one 15-min tip shows up as a spike instead of being smoothed away.
-const buildHourlyIntensity = (gauges: RainfallGaugeData[]): Bucket[] => {
-  const cutoff = Date.now() - HOURLY_WINDOW_HOURS * 60 * 60 * 1000;
-  const points = new Map<string, Bucket>();
-  for (const gauge of gauges) {
-    for (const r of gauge.readings) {
-      const ts = new Date(r.dateTime).getTime();
-      if (ts < cutoff) continue;
-      if (!points.has(r.dateTime)) {
-        points.set(r.dateTime, { label: formatHourlyTick(ts), sortKey: ts });
-      }
-      points.get(r.dateTime)![gauge.id] = Math.round(r.valueMm * 4 * 10) / 10; // mm/15min -> mm/hr
-    }
-  }
-  return Array.from(points.values()).sort((a, b) => a.sortKey - b.sortKey);
 };
 
 interface Props {
@@ -154,7 +97,7 @@ interface Props {
 }
 
 const RainfallChart: React.FC<Props> = ({ gauges }) => {
-  const [view, setView] = useState<View>("hourly");
+  const [range, setRange] = useState<Range>("24h");
   const { mode, systemMode } = useColorScheme();
   const theme = useTheme();
   const resolvedMode: "light" | "dark" =
@@ -164,47 +107,54 @@ const RainfallChart: React.FC<Props> = ({ gauges }) => {
   const moderateColor = theme.palette.warning.main;
   const heavyColor = theme.palette.error.main;
 
-  const hourlyData = useMemo(() => buildHourlyIntensity(gauges), [gauges]);
-  const dailyData = useMemo(() => buildDailyTotals(gauges), [gauges]);
-  const hourlyTicks = useMemo(
-    () =>
-      buildHourlyTicks(
-        hourlyData[0]?.sortKey,
-        hourlyData[hourlyData.length - 1]?.sortKey,
-        HOURLY_TICK_STEP_HOURS
-      ),
-    [hourlyData]
+  const isDaily = range === "7d";
+  const intensityHours = isDaily ? 0 : RANGE_CONFIG[range].hours;
+
+  const intensityData = useMemo(
+    () => (isDaily ? [] : buildHourlyIntensity(gauges, intensityHours)),
+    [gauges, isDaily, intensityHours]
   );
-  const data = view === "hourly" ? hourlyData : dailyData;
-  const moderateMm = view === "hourly" ? HOURLY_MODERATE_MM : DAILY_MODERATE_MM;
-  const heavyMm = view === "hourly" ? HOURLY_HEAVY_MM : DAILY_HEAVY_MM;
+  const dailyData = useMemo(() => (isDaily ? buildDailyTotals(gauges) : []), [gauges, isDaily]);
+  const data = isDaily ? dailyData : intensityData;
+
+  const intensityTicks = useMemo(
+    () =>
+      isDaily
+        ? []
+        : buildTimeTicks(
+            intensityData[0]?.sortKey,
+            intensityData[intensityData.length - 1]?.sortKey,
+            RANGE_CONFIG[range as Exclude<Range, "7d">].tickStepMinutes
+          ),
+    [intensityData, isDaily, range]
+  );
+
+  const moderateMm = isDaily ? DAILY_MODERATE_MM : HOURLY_MODERATE_MM;
+  const heavyMm = isDaily ? DAILY_HEAVY_MM : HOURLY_HEAVY_MM;
 
   return (
     <Stack spacing={1}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ flexWrap: "wrap" }}>
         <Typography variant="caption" color="text.secondary">
-          {view === "hourly"
-            ? `Rainfall intensity (mm/hr), last ${HOURLY_WINDOW_HOURS}h`
-            : "Daily rainfall (mm), last 7 days"}
+          {isDaily ? "Daily rainfall (mm), last 7 days" : `Rainfall intensity (mm/hr), last ${range}`}
         </Typography>
         <ToggleButtonGroup
-          value={view}
+          value={range}
           exclusive
           size="small"
-          onChange={(_, value: View | null) => value && setView(value)}
+          onChange={(_, value: Range | null) => value && setRange(value)}
         >
-          <ToggleButton value="hourly" sx={{ px: 1.5, py: 0.25, fontSize: 12 }}>
-            Hourly
-          </ToggleButton>
-          <ToggleButton value="daily" sx={{ px: 1.5, py: 0.25, fontSize: 12 }}>
-            Daily
-          </ToggleButton>
+          {(Object.keys(RANGE_LABEL) as Range[]).map((r) => (
+            <ToggleButton key={r} value={r} sx={{ px: 1.25, py: 0.25, fontSize: 12 }}>
+              {RANGE_LABEL[r]}
+            </ToggleButton>
+          ))}
         </ToggleButtonGroup>
       </Stack>
 
       <Box sx={{ width: "100%", height: 220 }}>
         <ResponsiveContainer width="100%" height="100%">
-          {view === "hourly" ? (
+          {!isDaily ? (
             <ComposedChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={chrome.grid} strokeDasharray="0" />
               <ReferenceArea y1={moderateMm} y2={heavyMm} fill={moderateColor} fillOpacity={0.08} strokeWidth={0} />
@@ -225,20 +175,15 @@ const RainfallChart: React.FC<Props> = ({ gauges }) => {
                 dataKey="sortKey"
                 type="number"
                 domain={["dataMin", "dataMax"]}
-                ticks={hourlyTicks}
-                tickFormatter={formatHourlyTick}
+                ticks={intensityTicks}
+                tickFormatter={formatTimeTick}
                 tick={{ fill: chrome.axis, fontSize: 11 }}
                 axisLine={{ stroke: chrome.grid }}
                 tickLine={false}
               />
-              <YAxis
-                tick={{ fill: chrome.axis, fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-                width={28}
-              />
+              <YAxis tick={{ fill: chrome.axis, fontSize: 12 }} axisLine={false} tickLine={false} width={28} />
               <Tooltip
-                labelFormatter={(value) => formatHourlyTick(value as number)}
+                labelFormatter={(value) => formatTimeTick(value as number)}
                 formatter={(value, name) => [`${value} mm/hr`, name]}
                 contentStyle={{ fontSize: 13 }}
               />
@@ -281,12 +226,7 @@ const RainfallChart: React.FC<Props> = ({ gauges }) => {
                 axisLine={{ stroke: chrome.grid }}
                 tickLine={false}
               />
-              <YAxis
-                tick={{ fill: chrome.axis, fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-                width={28}
-              />
+              <YAxis tick={{ fill: chrome.axis, fontSize: 12 }} axisLine={false} tickLine={false} width={28} />
               <Tooltip formatter={(value, name) => [`${value} mm`, name]} contentStyle={{ fontSize: 13 }} />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
               {gauges.map((gauge, i) => (
@@ -303,12 +243,6 @@ const RainfallChart: React.FC<Props> = ({ gauges }) => {
           )}
         </ResponsiveContainer>
       </Box>
-
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-        Shaded bands are a rough guide to spill likelihood from rainfall
-        alone (moderate ≈ sustained rain, heavy ≈ thunderstorm-level) - actual
-        risk also depends on sewer capacity and ground conditions.
-      </Typography>
     </Stack>
   );
 };
