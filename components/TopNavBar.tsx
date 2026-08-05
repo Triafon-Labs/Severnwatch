@@ -1,5 +1,5 @@
 import { AppBar, Toolbar, Typography } from "@mui/material";
-import WavesIcon from "@mui/icons-material/Waves";
+import SevernwatchLogo from "@/components/SevernwatchLogo";
 
 const TopNavBar: React.FC = () => (
   <AppBar
@@ -14,7 +14,7 @@ const TopNavBar: React.FC = () => (
     }}
   >
     <Toolbar sx={{ gap: 1 }}>
-      <WavesIcon color="primary" />
+      <SevernwatchLogo color="primary" />
       <Typography variant="h6" component="span">
         Severnwatch
       </Typography>
