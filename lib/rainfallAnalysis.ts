@@ -1,4 +1,4 @@
-import { RainfallGaugeData } from "@/types";
+import { RainfallForecastPoint, RainfallGaugeData } from "@/types";
 
 // Rough intensity/accumulation bands - not a validated meteorological or
 // hydrological standard, just a heuristic to make bursts and sustained rain
@@ -76,6 +76,60 @@ export const buildHourlyIntensity = (gauges: RainfallGaugeData[], windowHours: n
     }
   }
   return Array.from(points.values()).sort((a, b) => a.sortKey - b.sortKey);
+};
+
+// Catchment-wide average across all gauges' hourly intensity - a single
+// series that lines up with the single-location Open-Meteo forecast, which
+// has no per-gauge granularity to compare against.
+export const buildCatchmentAverageIntensity = (
+  gauges: RainfallGaugeData[],
+  windowHours: number
+): { sortKey: number; valueMm: number }[] => {
+  const buckets = buildHourlyIntensity(gauges, windowHours);
+  return buckets.map((b) => {
+    const values = gauges
+      .map((g) => b[g.id])
+      .filter((v): v is number => typeof v === "number");
+    const avg = values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
+    return { sortKey: b.sortKey, valueMm: Math.round(avg * 10) / 10 };
+  });
+};
+
+export interface ForecastRow {
+  sortKey: number;
+  observedMm?: number;
+  forecastMm?: number;
+}
+
+// Merges the recent observed (catchment-average) intensity with the
+// Open-Meteo forecast into one series, so a single line can be drawn solid
+// for the observed segment and dashed for the forecast segment. The last
+// observed point is also seeded into forecastMm (if the forecast doesn't
+// already have a point at that exact hour) so the dashed line starts
+// exactly where the solid one ends, instead of leaving a visual gap.
+export const buildForecastSeries = (
+  observed: { sortKey: number; valueMm: number }[],
+  forecast: RainfallForecastPoint[]
+): ForecastRow[] => {
+  const rows = new Map<number, ForecastRow>();
+  for (const o of observed) {
+    rows.set(o.sortKey, { sortKey: o.sortKey, observedMm: o.valueMm });
+  }
+  for (const f of forecast) {
+    const key = new Date(f.dateTime).getTime();
+    const row = rows.get(key) ?? { sortKey: key };
+    row.forecastMm = f.valueMm;
+    rows.set(key, row);
+  }
+
+  const sorted = Array.from(rows.values()).sort((a, b) => a.sortKey - b.sortKey);
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i].observedMm !== undefined) {
+      if (sorted[i].forecastMm === undefined) sorted[i].forecastMm = sorted[i].observedMm;
+      break;
+    }
+  }
+  return sorted;
 };
 
 // Total mm a gauge recorded in a past window of `windowMs`, ending

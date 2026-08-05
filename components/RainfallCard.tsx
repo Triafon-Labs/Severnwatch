@@ -212,7 +212,7 @@ const RainfallCard: React.FC = () => {
 
             <Divider />
 
-            <RainfallChart gauges={gauges} />
+            <RainfallChart gauges={gauges} forecast={data.forecast} />
 
             <Grid container spacing={1.5}>
               <Grid size={6}>

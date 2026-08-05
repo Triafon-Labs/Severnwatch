@@ -82,6 +82,13 @@ export const API_ENDPOINTS = {
     `https://environment.data.gov.uk/flood-monitoring/id/measures/${measureId}/readings`,
 };
 
+// --- Rainfall forecast (Open-Meteo) ---
+// Open-Meteo has no per-gauge granularity like the EA network above - it's
+// one free-tier forecast for the Worcester point (LATITUDE/LONGITUDE), used
+// only to extend the rainfall chart a little way into the future.
+export const OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
+export const RAINFALL_FORECAST_HOURS = 48;
+
 // --- Severn Trent public storm overflow map (attribution link) ---
 export const SEVERN_TRENT_MAP_URL =
   "https://www.stwater.co.uk/in-my-area/storm-overflow-map/";
