@@ -1,4 +1,4 @@
-import { Container, Stack, Typography } from "@mui/material";
+import { Container, Stack } from "@mui/material";
 import CsoSpillCard from "@/components/CsoSpillCard";
 import CsoListCard from "@/components/CsoListCard";
 import RainfallCard from "@/components/RainfallCard";
@@ -9,10 +9,6 @@ export default function HomePage() {
   return (
     <Container maxWidth="md">
       <Stack spacing={4}>
-        <Typography variant="body1" color="text.secondary">
-          River Severn conditions at Worcester - sewage spill status, rainfall,
-          and citizen science water quality.
-        </Typography>
         <CsoSpillCard />
         <CsoListCard />
         <RainfallCard />

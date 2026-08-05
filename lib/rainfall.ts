@@ -1,5 +1,13 @@
-import { RainfallGaugeData, RainfallReading } from "@/types";
-import { API_ENDPOINTS, RAINFALL_HISTORY_DAYS, RainfallGauge } from "@/lib/config";
+import { RainfallForecastPoint, RainfallGaugeData, RainfallReading } from "@/types";
+import {
+  API_ENDPOINTS,
+  LATITUDE,
+  LONGITUDE,
+  OPEN_METEO_FORECAST_URL,
+  RAINFALL_FORECAST_HOURS,
+  RAINFALL_HISTORY_DAYS,
+  RainfallGauge,
+} from "@/lib/config";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
@@ -53,4 +61,33 @@ export const fetchGaugeData = async (
     latestMm,
     last24hTotalMm: Math.round(last24hTotalMm * 10) / 10,
   };
+};
+
+interface OpenMeteoResponse {
+  hourly?: {
+    time: string[]; // local wall-clock, no offset - requested in UTC below so "Z" can be appended safely
+    precipitation: number[]; // mm for that hour
+  };
+}
+
+export const fetchRainfallForecast = async (): Promise<RainfallForecastPoint[]> => {
+  const url =
+    `${OPEN_METEO_FORECAST_URL}?latitude=${LATITUDE}&longitude=${LONGITUDE}` +
+    `&hourly=precipitation&timezone=UTC&forecast_hours=${RAINFALL_FORECAST_HOURS}`;
+
+  const response = await fetch(url, {
+    next: { revalidate: 900 }, // forecasts don't change fast enough to warrant polling harder
+  });
+  if (!response.ok) {
+    throw new Error(`Open-Meteo forecast fetch failed: ${response.status}`);
+  }
+
+  const data: OpenMeteoResponse = await response.json();
+  const times = data.hourly?.time ?? [];
+  const values = data.hourly?.precipitation ?? [];
+
+  return times.map((t, i) => ({
+    dateTime: new Date(`${t}Z`).toISOString(),
+    valueMm: values[i] ?? 0,
+  }));
 };

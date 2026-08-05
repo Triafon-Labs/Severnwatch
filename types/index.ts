@@ -46,7 +46,16 @@ export interface RainfallGaugeData {
   last24hTotalMm: number; // trailing 24h sum, not a calendar-day total
 }
 
+// Rainfall forecast, from Open-Meteo - a single point forecast for
+// Worcester (see lib/config's LATITUDE/LONGITUDE), not per-gauge like the
+// EA readings above.
+export interface RainfallForecastPoint {
+  dateTime: string; // ISO
+  valueMm: number; // forecast rainfall for this hour (mm/hr)
+}
+
 export interface RainfallResponse {
   gauges: RainfallGaugeData[];
+  forecast: RainfallForecastPoint[];
   asOf: string; // ISO timestamp - when this data was fetched from source
 }
