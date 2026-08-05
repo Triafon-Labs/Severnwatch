@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Card,
@@ -12,6 +16,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { formatDistanceToNow } from "date-fns";
 import { CsoOutfall, CsoState } from "@/types";
 import { useCsoData } from "@/hooks/useCsoData";
@@ -84,14 +89,38 @@ const OutfallStatusRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => 
   );
 };
 
+const NOTABLE_STATES: CsoState[] = ["Ongoing", "Recent"];
+const QUIET_STATES: CsoState[] = ["Not discharging", "Offline"];
+
+const GroupSection: React.FC<{ state: CsoState; outfalls: CsoOutfall[] }> = ({ state, outfalls }) => (
+  <Box>
+    <Typography variant="overline" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
+      {STATE_LABEL[state]} ({outfalls.length})
+    </Typography>
+    <Stack spacing={1}>
+      {outfalls.map((o, idx) => (
+        <Box key={o.id}>
+          {idx > 0 && <Divider sx={{ mb: 1, opacity: 0.3 }} />}
+          <OutfallStatusRow outfall={o} />
+        </Box>
+      ))}
+    </Stack>
+  </Box>
+);
+
 const CsoListCard: React.FC = () => {
   const { data, loading, error } = useCsoData();
   const outfalls = data?.outfalls ?? [];
+  const [quietExpanded, setQuietExpanded] = useState(false);
 
   const groups = STATE_ORDER.map((state) => ({
     state,
     outfalls: outfalls.filter((o) => o.state === state),
   })).filter((group) => group.outfalls.length > 0);
+
+  const notableGroups = groups.filter((g) => NOTABLE_STATES.includes(g.state));
+  const quietGroups = groups.filter((g) => QUIET_STATES.includes(g.state));
+  const quietCount = quietGroups.reduce((sum, g) => sum + g.outfalls.length, 0);
 
   return (
     <Card variant="outlined">
@@ -129,25 +158,38 @@ const CsoListCard: React.FC = () => {
               </Typography>
             )}
 
-            {groups.map((group) => (
-              <Box key={group.state}>
-                <Typography
-                  variant="overline"
-                  color="text.secondary"
-                  sx={{ display: "block", mb: 0.75 }}
-                >
-                  {STATE_LABEL[group.state]} ({group.outfalls.length})
-                </Typography>
-                <Stack spacing={1}>
-                  {group.outfalls.map((o, idx) => (
-                    <Box key={o.id}>
-                      {idx > 0 && <Divider sx={{ mb: 1, opacity: 0.3 }} />}
-                      <OutfallStatusRow outfall={o} />
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
+            {notableGroups.length === 0 && quietGroups.length > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Nothing discharging right now.
+              </Typography>
+            )}
+
+            {notableGroups.map((group) => (
+              <GroupSection key={group.state} state={group.state} outfalls={group.outfalls} />
             ))}
+
+            {quietGroups.length > 0 && (
+              <Accordion
+                expanded={quietExpanded}
+                onChange={(_, isExpanded) => setQuietExpanded(isExpanded)}
+                variant="outlined"
+                disableGutters
+                sx={{ "&:before": { display: "none" } }}
+              >
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant="body2" color="text.secondary">
+                    {quietCount} not discharging
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Stack spacing={2}>
+                    {quietGroups.map((group) => (
+                      <GroupSection key={group.state} state={group.state} outfalls={group.outfalls} />
+                    ))}
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+            )}
 
             <Typography variant="caption" color="text.secondary">
               {data ? formatAsOf(data.asOf) : ""}

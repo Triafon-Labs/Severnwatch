@@ -106,9 +106,6 @@ const RainfallCard: React.FC = () => {
 
             <Divider />
 
-            <Typography variant="caption" color="text.secondary">
-              Daily rainfall, last 7 days
-            </Typography>
             <RainfallChart gauges={data.gauges} />
 
             <Typography variant="caption" color="text.secondary">

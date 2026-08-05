@@ -1,9 +1,9 @@
 import { createTheme } from "@mui/material/styles";
 
-// Severnwatch uses MUI's built-in light/dark color schemes (system-preference
-// driven) rather than Paddlecheck's custom M3 token palette + user-togglable
-// ThemeContext - there's no settings/preferences surface here yet, so system
-// preference alone is enough. Revisit if a manual toggle is added later.
+// Severnwatch uses MUI's built-in light/dark color schemes rather than
+// Paddlecheck's custom M3 token palette. Manual light/system/dark selection
+// is exposed via useColorScheme() in the Settings dialog (SettingsDialog),
+// with "system" (OS preference) as the default (see ThemeRegistry).
 const theme = createTheme({
   cssVariables: { colorSchemeSelector: "class" },
   colorSchemes: {
