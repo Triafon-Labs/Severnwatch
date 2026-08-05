@@ -42,6 +42,7 @@ const DAILY_MODERATE_MM = 10; // mm/day - a wet day, medium likelihood
 const DAILY_HEAVY_MM = 25; // mm/day - a very wet day, high likelihood
 
 const HOURLY_WINDOW_HOURS = 48;
+const HOURLY_TICK_STEP_HOURS = 8; // gridline every 8h - clean, unambiguous labels
 const BAND_CEILING = 1000; // clipped to the plot area regardless of axis domain
 
 type View = "hourly" | "daily";
@@ -51,6 +52,44 @@ interface Bucket {
   sortKey: number;
   [gaugeId: string]: number | string;
 }
+
+// Reads a timestamp's Europe/London wall-clock hour/minute without pulling
+// in a timezone library - used to align x-axis ticks to clean local times
+// (00:00, 08:00, ...) and to build human-readable tick/tooltip labels.
+const londonParts = (ms: number) => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+  }).formatToParts(ms);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return { weekday: get("weekday"), hour: Number(get("hour")), minute: get("minute") };
+};
+
+const formatHourlyTick = (ms: number) => {
+  const { weekday, hour, minute } = londonParts(ms);
+  return `${weekday} ${String(hour).padStart(2, "0")}:${minute}`;
+};
+
+const HOUR_MS = 60 * 60 * 1000;
+
+// Computed purely from the time range (not from the data points, which may
+// have gaps or - like the UK gauges - land a few seconds off a clean
+// boundary), so the axis always gets clean, evenly spaced hour marks. UK
+// clocks never sit on a half-hour UTC offset, so every UTC hour boundary is
+// already a London :00 - only which of those hours are multiples of the
+// step needs checking.
+const buildHourlyTicks = (minMs: number, maxMs: number, stepHours: number): number[] => {
+  if (!Number.isFinite(minMs) || !Number.isFinite(maxMs) || minMs >= maxMs) return [];
+  const ticks: number[] = [];
+  for (let t = Math.ceil(minMs / HOUR_MS) * HOUR_MS; t <= maxMs; t += HOUR_MS) {
+    if (londonParts(t).hour % stepHours === 0) ticks.push(t);
+  }
+  return ticks;
+};
 
 const dayLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", {
@@ -91,13 +130,6 @@ const buildDailyTotals = (gauges: RainfallGaugeData[]): Bucket[] => {
     .sort((a, b) => a.sortKey - b.sortKey);
 };
 
-const timeLabel = (iso: string) =>
-  new Date(iso).toLocaleTimeString("en-GB", {
-    timeZone: "Europe/London",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
 // Uses the raw 15-min readings directly (already fetched for the 7-day
 // history) rather than re-aggregating to daily totals, so a burst lasting
 // even one 15-min tip shows up as a spike instead of being smoothed away.
@@ -109,7 +141,7 @@ const buildHourlyIntensity = (gauges: RainfallGaugeData[]): Bucket[] => {
       const ts = new Date(r.dateTime).getTime();
       if (ts < cutoff) continue;
       if (!points.has(r.dateTime)) {
-        points.set(r.dateTime, { label: timeLabel(r.dateTime), sortKey: ts });
+        points.set(r.dateTime, { label: formatHourlyTick(ts), sortKey: ts });
       }
       points.get(r.dateTime)![gauge.id] = Math.round(r.valueMm * 4 * 10) / 10; // mm/15min -> mm/hr
     }
@@ -134,18 +166,26 @@ const RainfallChart: React.FC<Props> = ({ gauges }) => {
 
   const hourlyData = useMemo(() => buildHourlyIntensity(gauges), [gauges]);
   const dailyData = useMemo(() => buildDailyTotals(gauges), [gauges]);
+  const hourlyTicks = useMemo(
+    () =>
+      buildHourlyTicks(
+        hourlyData[0]?.sortKey,
+        hourlyData[hourlyData.length - 1]?.sortKey,
+        HOURLY_TICK_STEP_HOURS
+      ),
+    [hourlyData]
+  );
   const data = view === "hourly" ? hourlyData : dailyData;
   const moderateMm = view === "hourly" ? HOURLY_MODERATE_MM : DAILY_MODERATE_MM;
   const heavyMm = view === "hourly" ? HOURLY_HEAVY_MM : DAILY_HEAVY_MM;
-  const xTickInterval = view === "hourly" ? Math.max(0, Math.ceil(data.length / 10) - 1) : 0;
 
   return (
     <Stack spacing={1}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ flexWrap: "wrap" }}>
         <Typography variant="caption" color="text.secondary">
           {view === "hourly"
-            ? `Rainfall intensity, last ${HOURLY_WINDOW_HOURS}h`
-            : "Daily rainfall, last 7 days"}
+            ? `Rainfall intensity (mm/hr), last ${HOURLY_WINDOW_HOURS}h`
+            : "Daily rainfall (mm), last 7 days"}
         </Typography>
         <ToggleButtonGroup
           value={view}
@@ -182,20 +222,26 @@ const RainfallChart: React.FC<Props> = ({ gauges }) => {
                 label={{ value: "Heavy", position: "insideTopRight", fill: chrome.text, fontSize: 11 }}
               />
               <XAxis
-                dataKey="label"
-                tick={{ fill: chrome.axis, fontSize: 12 }}
+                dataKey="sortKey"
+                type="number"
+                domain={["dataMin", "dataMax"]}
+                ticks={hourlyTicks}
+                tickFormatter={formatHourlyTick}
+                tick={{ fill: chrome.axis, fontSize: 11 }}
                 axisLine={{ stroke: chrome.grid }}
                 tickLine={false}
-                interval={xTickInterval}
               />
               <YAxis
                 tick={{ fill: chrome.axis, fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
-                width={32}
-                label={{ value: "mm/hr", position: "insideTopLeft", fill: chrome.axis, fontSize: 12 }}
+                width={28}
               />
-              <Tooltip formatter={(value, name) => [`${value} mm/hr`, name]} contentStyle={{ fontSize: 13 }} />
+              <Tooltip
+                labelFormatter={(value) => formatHourlyTick(value as number)}
+                formatter={(value, name) => [`${value} mm/hr`, name]}
+                contentStyle={{ fontSize: 13 }}
+              />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
               {gauges.map((gauge, i) => (
                 <Line
@@ -239,8 +285,7 @@ const RainfallChart: React.FC<Props> = ({ gauges }) => {
                 tick={{ fill: chrome.axis, fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
-                width={32}
-                label={{ value: "mm", position: "insideTopLeft", fill: chrome.axis, fontSize: 12 }}
+                width={28}
               />
               <Tooltip formatter={(value, name) => [`${value} mm`, name]} contentStyle={{ fontSize: 13 }} />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
