@@ -104,7 +104,9 @@ components/
   TopNavBar.tsx              App bar – share, settings, refresh, freshness, banners
   SettingsModal.tsx          Bottom sheet – theme, links, deep dive, version
   CsoSpillCard.tsx           Headline spill status for the catchment
-  CsoListCard.tsx            Every monitored outfall, grouped by state
+  CsoListCard.tsx            Live/recent spills, then the network as a river diagram
+  RiverSchematic.tsx         Transit-map view of the catchment, stops in downstream order
+  CsoOutfallRow.tsx          One outfall as a labelled row, shared by both of the above
   RainfallCard.tsx           Gauge stats, chart, change tiles, spill likelihood
   RainfallChart.tsx          Recharts intensity/daily/forecast views
   WaterQualityMap.tsx        SAS citizen science map embed + explainer
@@ -117,13 +119,14 @@ components/
   ServiceWorkerRegistration.tsx  Registers public/sw.js in production
 
 lib/
-  config.ts             Catchment waypoints, gauge IDs, API endpoints, links
+  config.ts             Catchment waypoints + river branches, gauge IDs, endpoints, links
   hooks.ts              useSevernData – all fetching, caching, offline state
   SevernDataContext.tsx React Context wrapping the hook
   csoStatus.ts          CSO state → label/colour/severity, in one place
   rainfall.ts           EA rainfall fetching and shaping
   rainfallAnalysis.ts   Intensity/daily buckets, trailing sums, spill likelihood
-  catchment.ts          Distance-to-waypoint filtering
+  catchment.ts          Nearest-waypoint filtering (which waypoint, and how far)
+  riverSchematic.ts     Outfalls -> the river diagram's rows, lanes and confluences
   statusColors.ts       The status colour vocabulary
   m3-palette.ts         M3 tonal tokens + motion tokens
   themes.ts             The MUI theme

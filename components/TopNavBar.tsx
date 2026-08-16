@@ -72,7 +72,7 @@ const buildShareText = (
       });
     } else if (recent.length > 0) {
       lines.push(
-        `⚠️ *Recent sewage spill (last 24h):* ${recent.length} outfall${recent.length === 1 ? "" : "s"}`
+        `⚠️ *Recent sewage spill:* ${recent.length} outfall${recent.length === 1 ? "" : "s"}`
       );
       recent.forEach((o) => {
         lines.push(`• ${o.locationName ?? o.watercourse}`);

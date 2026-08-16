@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { CsoOutfall, CsoResponse, CsoState } from "@/types";
 import {
   SEWAGE_API_URL,
-  SEWAGE_RECENT_SPILL_HOURS,
+  SEWAGE_RECENT_SPILL_BASE_HOURS,
   SEWAGE_MAX_RESULTS,
 } from "@/lib/config";
-import { nearestWaypointDistanceKm, isExcludedLocality } from "@/lib/catchment";
+import { nearestWaypoint, isExcludedLocality } from "@/lib/catchment";
 
 interface SewageFeatureAttributes {
   Id: string | number;
@@ -86,16 +86,26 @@ export async function GET() {
   try {
     const features = await fetchAllFeatures();
 
-    const recentCutoffMs = SEWAGE_RECENT_SPILL_HOURS * 60 * 60 * 1000;
     const now = Date.now();
+
+    // How long a finished spill stays "Recent" depends on where it happened.
+    // A flat window retires an upstream spill on a fixed clock regardless of
+    // whether its water has arrived yet - and since a plume from Bewdley can
+    // take better than a day to reach the reach, a 24 h window dropped it
+    // from the app *before* the water got here, which is precisely backwards.
+    const recentCutoffMsFor = (waypoint: { plumeTravelHours: number }) =>
+      (SEWAGE_RECENT_SPILL_BASE_HOURS + waypoint.plumeTravelHours) *
+      60 *
+      60 *
+      1000;
 
     const outfalls: (CsoOutfall & { locationName: string | null })[] = features
       .map(({ attributes }) => {
-        const waypointDistance = nearestWaypointDistanceKm(
+        const nearest = nearestWaypoint(
           attributes.Latitude,
           attributes.Longitude
         );
-        if (waypointDistance === null) return null; // outside the catchment corridor
+        if (nearest === null) return null; // outside the catchment corridor
 
         let state: CsoState;
         if (attributes.Status === 1) {
@@ -103,7 +113,8 @@ export async function GET() {
         } else if (attributes.Status === 0) {
           state =
             attributes.LatestEventEnd !== null &&
-            now - attributes.LatestEventEnd <= recentCutoffMs
+            now - attributes.LatestEventEnd <=
+              recentCutoffMsFor(nearest.waypoint)
               ? "Recent"
               : "Not discharging";
         } else {
@@ -125,7 +136,8 @@ export async function GET() {
           locationName: null as string | null,
           latitude: attributes.Latitude,
           longitude: attributes.Longitude,
-          distanceKm: waypointDistance,
+          distanceKm: nearest.distanceKm,
+          waypointName: nearest.waypoint.name,
           startISO: startMs !== null ? new Date(startMs).toISOString() : null,
           endISO: endMs !== null ? new Date(endMs).toISOString() : null,
           durationMinutes,

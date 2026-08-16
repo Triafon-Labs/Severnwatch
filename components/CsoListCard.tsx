@@ -1,119 +1,50 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  Skeleton,
-  Stack,
-  Typography,
-} from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
-import { formatDistanceToNow } from "date-fns";
 import { CsoOutfall, CsoState } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import { formatAsOf } from "@/lib/format";
 import {
   CSO_NOTABLE_STATES,
-  CSO_QUIET_STATES,
   CSO_STATE_ORDER,
   CSO_STATE_UI,
-  statusChipSx,
 } from "@/lib/csoStatus";
 import InfoPanel from "@/components/InfoPanel";
+import CsoOutfallRow from "@/components/CsoOutfallRow";
+import RiverSchematic from "@/components/RiverSchematic";
 
-// Only Ongoing/Recent outfalls are reverse-geocoded (see the sewage route), so
-// the rest fall back to watercourse + distance to stay distinguishable.
-const describeLocation = (o: CsoOutfall): string =>
-  o.locationName
-    ? `${o.locationName} (${o.watercourse})`
-    : `${o.watercourse} — ${o.distanceKm.toFixed(1)} km`;
-
-const describeTiming = (o: CsoOutfall): string | null => {
-  const since = (iso: string | null, prefix: string) =>
-    iso
-      ? `${prefix} ${formatDistanceToNow(new Date(iso), { addSuffix: true })}`
-      : null;
-
-  switch (o.state) {
-    case "Ongoing":
-      return since(o.startISO, "Started");
-    case "Recent":
-      return since(o.endISO, "Ended");
-    case "Not discharging":
-      return since(o.startISO, "Clear since");
-    case "Offline":
-      return null;
-  }
-};
-
-const OutfallStatusRow: React.FC<{ outfall: CsoOutfall }> = ({
-  outfall: o,
-}) => {
-  const timing = describeTiming(o);
-  return (
-    <InfoPanel sx={{ justifyContent: "space-between" }}>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
-          {describeLocation(o)}
-        </Typography>
-        {timing && (
-          <Typography variant="caption" color="text.secondary">
-            {timing}
-          </Typography>
-        )}
-      </Box>
-      <Chip
-        label={CSO_STATE_UI[o.state].label}
-        size="small"
-        sx={{ ...statusChipSx(o.state), flexShrink: 0 }}
-      />
-    </InfoPanel>
-  );
-};
-
-const GroupSection: React.FC<{ state: CsoState; outfalls: CsoOutfall[] }> = ({
+// Anything discharging or recently discharged is spelled out in full above
+// the diagram. The schematic below carries the whole network - including
+// these - but a live spill is news, and news should not be something you have
+// to find by reading colours off a map.
+const NotableGroup: React.FC<{ state: CsoState; outfalls: CsoOutfall[] }> = ({
   state,
   outfalls,
 }) => (
-  <Box>
-    <Typography
-      variant="overline"
-      color="text.secondary"
-      sx={{ display: "block", mb: 0.75 }}
-    >
+  <Stack spacing={1}>
+    <Typography variant="overline" color="text.secondary">
       {CSO_STATE_UI[state].groupLabel} ({outfalls.length})
     </Typography>
-    <Stack spacing={1}>
-      {outfalls.map((o) => (
-        <OutfallStatusRow key={o.id} outfall={o} />
-      ))}
-    </Stack>
-  </Box>
+    {outfalls.map((o) => (
+      <CsoOutfallRow key={o.id} outfall={o} />
+    ))}
+  </Stack>
 );
 
 const CsoListCard: React.FC = () => {
   const { cso, csoError, loading } = useSevernContext();
   const outfalls = cso?.outfalls ?? [];
-  const [quietExpanded, setQuietExpanded] = useState(false);
   const showSkeleton = loading && !cso;
 
-  const groups = CSO_STATE_ORDER.map((state) => ({
-    state,
-    outfalls: outfalls.filter((o) => o.state === state),
-  })).filter((group) => group.outfalls.length > 0);
-
-  const notableGroups = groups.filter((g) =>
-    CSO_NOTABLE_STATES.includes(g.state)
-  );
-  const quietGroups = groups.filter((g) => CSO_QUIET_STATES.includes(g.state));
-  const quietCount = quietGroups.reduce((sum, g) => sum + g.outfalls.length, 0);
+  const notableGroups = CSO_STATE_ORDER.filter((state) =>
+    CSO_NOTABLE_STATES.includes(state)
+  )
+    .map((state) => ({
+      state,
+      outfalls: outfalls.filter((o) => o.state === state),
+    }))
+    .filter((group) => group.outfalls.length > 0);
 
   return (
     <Card>
@@ -154,57 +85,44 @@ const CsoListCard: React.FC = () => {
 
         {!showSkeleton && cso && (
           <Stack spacing={2}>
-            {groups.length === 0 && (
+            {outfalls.length === 0 && (
               <Typography variant="body2" color="text.secondary">
                 No monitored CSOs found in this catchment.
               </Typography>
             )}
 
-            {notableGroups.length === 0 && quietGroups.length > 0 && (
+            {outfalls.length > 0 && notableGroups.length === 0 && (
               <Typography variant="body2" color="text.secondary">
                 Nothing discharging right now.
               </Typography>
             )}
 
             {notableGroups.map((group) => (
-              <GroupSection
+              <NotableGroup
                 key={group.state}
                 state={group.state}
                 outfalls={group.outfalls}
               />
             ))}
 
-            {quietGroups.length > 0 && (
-              <Accordion
-                expanded={quietExpanded}
-                onChange={(_, isExpanded) => setQuietExpanded(isExpanded)}
-                disableGutters
-                elevation={0}
-                // Pulled out to the card's inner edge so the summary row's own
-                // padding lines the label up with the headings above it,
-                // rather than indenting it by a second inset.
-                sx={{ "&:before": { display: "none" }, mx: -1 }}
-              >
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  sx={{ px: 1 }}
-                >
-                  <Typography variant="body2" color="text.secondary">
-                    {quietCount} not discharging
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ px: 1, pt: 0 }}>
-                  <Stack spacing={2}>
-                    {quietGroups.map((group) => (
-                      <GroupSection
-                        key={group.state}
-                        state={group.state}
-                        outfalls={group.outfalls}
-                      />
-                    ))}
-                  </Stack>
-                </AccordionDetails>
-              </Accordion>
+            {outfalls.length > 0 && (
+              <Stack spacing={1}>
+                <Typography variant="overline" color="text.secondary">
+                  The catchment upstream
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Stops run downstream, so anything discharging above your reach
+                  drains past it. Tap a stop for its monitors.
+                </Typography>
+                <RiverSchematic outfalls={outfalls} />
+                <Typography variant="caption" color="text.secondary">
+                  A monitor records when an overflow starts and stops — not how
+                  much was discharged, and not the water quality. Spills stay
+                  listed longer the further upstream they are, because their
+                  water takes longer to arrive. Canal inflows at Diglis and
+                  Hawford, and runoff from land, aren&apos;t monitored at all.
+                </Typography>
+              </Stack>
             )}
 
             <Typography variant="caption" color="text.secondary">
