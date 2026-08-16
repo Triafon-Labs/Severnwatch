@@ -156,7 +156,6 @@ const StationHeader: React.FC<{
           {count === 0
             ? "No monitors"
             : `${count} monitor${count === 1 ? "" : "s"}`}
-          {waypoint.isReach && " · your reach"}
         </Typography>
       </Box>
       {notable && (
@@ -253,6 +252,21 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
               <Typography
                 variant="overline"
                 sx={{ lineHeight: 1.4, color: laneColour(row.lane) }}
+              >
+                {row.label}
+              </Typography>
+            </Box>
+          )}
+
+          {row.kind === "reachStart" && (
+            <Box sx={{ height: BRANCH_LABEL_HEIGHT, ...centredRow }}>
+              <Typography
+                variant="overline"
+                sx={{
+                  lineHeight: 1.4,
+                  fontWeight: 700,
+                  color: "primary.main",
+                }}
               >
                 {row.label}
               </Typography>

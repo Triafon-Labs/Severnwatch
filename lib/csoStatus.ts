@@ -30,7 +30,7 @@ export const CSO_STATE_UI: Record<CsoState, CsoStateUi> = {
   },
   Recent: {
     label: "Recent",
-    groupLabel: "Recent spill (last 24h)",
+    groupLabel: "Recent spill",
     color: STATUS_COLORS.amber,
     onColor: ON_STATUS_COLORS.amber,
     severity: "warning",
@@ -52,11 +52,17 @@ export const CSO_STATE_UI: Record<CsoState, CsoStateUi> = {
 };
 
 // Order the states are presented in, worst first.
+//
+// Offline outranks "Not discharging" deliberately. A monitor that is down is
+// an absence of information, not a clean bill of health, and when one state
+// has to stand for a whole group (see worstCsoState) reporting a stop as
+// clear on the strength of monitors that aren't reporting is the one error
+// that could put someone in the water.
 export const CSO_STATE_ORDER: CsoState[] = [
   "Ongoing",
   "Recent",
-  "Not discharging",
   "Offline",
+  "Not discharging",
 ];
 
 // The single state that should represent a group of monitors - the worst one
@@ -78,11 +84,11 @@ export const worstCsoState = (states: CsoState[]): CsoState | null => {
   return worst;
 };
 
-// The states worth showing unprompted. The rest are collapsed behind a
-// disclosure, since "nothing is happening at 12 outfalls" is reassurance
-// rather than news and shouldn't cost twelve rows of the page to say.
+// The states worth spelling out unprompted above the schematic, since
+// "nothing is happening at 12 outfalls" is reassurance rather than news and
+// shouldn't cost twelve rows of the page to say. Everything else reaches the
+// reader as a coloured stop on the diagram instead.
 export const CSO_NOTABLE_STATES: CsoState[] = ["Ongoing", "Recent"];
-export const CSO_QUIET_STATES: CsoState[] = ["Not discharging", "Offline"];
 
 // The `sx` that makes a default MUI Chip carry an exact status colour. It has
 // to go through custom properties rather than `backgroundColor`/`color`: the

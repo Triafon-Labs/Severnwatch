@@ -81,7 +81,18 @@ export interface ConfluenceRow extends BaseRow {
   label: string;
 }
 
-export type SchematicRow = StationRow | BranchLabelRow | ConfluenceRow;
+// Marks where the paddled water starts. The reach spans several stops, so
+// tagging each one individually just repeats the same words down the page;
+// naming the boundary once and letting it run to the foot of the diagram says
+// it better, and matches how the stops are ringed.
+export interface ReachStartRow extends BaseRow {
+  kind: "reachStart";
+  lane: number;
+  label: string;
+}
+
+export type SchematicRow =
+  StationRow | BranchLabelRow | ConfluenceRow | ReachStartRow;
 
 const waypointsOn = (branch: RiverBranchId): CatchmentWaypoint[] =>
   CATCHMENT_WAYPOINTS.filter((w) => w.branch === branch).sort(
@@ -149,10 +160,14 @@ export const buildRiverSchematic = (outfalls: CsoOutfall[]): SchematicRow[] => {
     segments: [],
   });
 
+  const trunkStops = waypointsOn(trunk.id);
+  const reachStops = trunkStops.filter((w) => w.isReach);
+  let reachAnnounced = false;
+
   // Walk the trunk downstream. A tributary's stops are emitted just before
   // the trunk stop it flows into - geographically true, and it keeps every
   // stop on a row of its own so nothing has to share vertical space.
-  for (const waypoint of waypointsOn(trunk.id)) {
+  for (const waypoint of trunkStops) {
     for (const tributary of tributaries.filter(
       (t) => t.joinsAt === waypoint.name
     )) {
@@ -184,6 +199,22 @@ export const buildRiverSchematic = (outfalls: CsoOutfall[]): SchematicRow[] => {
         segments: [],
       });
       runs.push({ lane: TRIBUTARY_LANE, start, end: rows.length - 1 });
+    }
+
+    if (waypoint.isReach && !reachAnnounced && reachStops.length > 0) {
+      reachAnnounced = true;
+      const first = reachStops[0];
+      const last = reachStops[reachStops.length - 1];
+      rows.push({
+        kind: "reachStart",
+        key: "reach-start",
+        lane: TRUNK_LANE,
+        label:
+          first === last
+            ? `Your reach: ${first.label}`
+            : `Your reach: ${first.label} to ${last.label}`,
+        segments: [],
+      });
     }
 
     rows.push({

@@ -174,7 +174,7 @@ const CsoSpillCard: React.FC = () => {
             {recent.length > 0 && (
               <SpillGroup
                 state="Recent"
-                title="Recent sewage spill (last 24h)"
+                title="Recent sewage spill"
                 outfalls={recent}
               />
             )}

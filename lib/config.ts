@@ -16,9 +16,11 @@ export const LONGITUDE = -2.2;
 export const SEWAGE_API_URL =
   "https://services1.arcgis.com/NO7lTIlnxRMMG9Gw/arcgis/rest/services/Severn_Trent_Water_Storm_Overflow_Activity/FeatureServer/0/query";
 
-// How long after a spill ends it's still surfaced as "recent" before
-// dropping off entirely.
-export const SEWAGE_RECENT_SPILL_HOURS = 24;
+// How long a spill stays "recent" *after its water has reached the reach* -
+// the tail on top of each waypoint's plumeTravelHours (see below), not the
+// whole window. A spill at Bewdley is therefore surfaced far longer than one
+// at Diglis, because its water arrives far later.
+export const SEWAGE_RECENT_SPILL_BASE_HOURS = 24;
 
 // Catchment corridor relevant to the Worcester paddling reach: outfalls
 // whose spills could plausibly affect water quality there in a meaningful
@@ -30,9 +32,10 @@ export const SEWAGE_RECENT_SPILL_HOURS = 24;
 // itself - a stretch that falls outside every circle is dropped silently,
 // which is how the Shrawley/Astley reach went missing until the corridor was
 // checked against the river's actual course rather than waypoint to
-// waypoint. Anything past Bewdley is too diluted
-// and too slow (25+ km, hours of travel time, heavy baseflow dilution) to
-// be a useful water-quality signal for paddlers at Worcester.
+// waypoint. Anything past Bewdley is too diluted and too slow to be a useful
+// signal here: it is already 18.6 km of river above the reach, better than a
+// day's travel for the water itself, and accreting tributary flow dilutes it
+// the whole way down.
 export interface CatchmentWaypoint {
   name: string;
   // Short form for the river schematic, where a row is too narrow for the
@@ -49,9 +52,26 @@ export interface CatchmentWaypoint {
   // scale, in the tube-map idiom, rather than a map implying precision the
   // data doesn't carry.
   downstreamOrder: number;
-  // The Worcester reach itself - everything upstream of it drains past it,
-  // which is the whole question the schematic exists to answer.
+  // Part of the paddled reach itself - the water between Bevere and Diglis
+  // weirs. Everything upstream of it drains past it, which is the whole
+  // question the schematic exists to answer.
   isReach?: boolean;
+  // Rough hours for a spill's water to travel from here down to the top of
+  // the reach at Bevere. Zero inside the reach.
+  //
+  // ESTIMATE, not a measurement. Derived from river distance along the
+  // Severn/Stour/Salwarpe at a nominal 0.7 km/h. That speed is the
+  // conservative (slow) end of what the reach's hydraulics imply: flood
+  // warnings put the *flood peak* Bewdley to Worcester at 12-24 h, but a
+  // spill is a parcel of water moving at mean flow velocity, which is
+  // roughly celerity / 1.3-1.7 - and slower still here because the reach is
+  // impounded by weirs at Lincomb, Holt and Bevere, so at low flow a plume
+  // steps through a chain of slow pools. No published dye-tracing or
+  // time-of-travel study for the middle Severn was found to calibrate
+  // against, so these are deliberately generous: retiring a spill before its
+  // water has arrived is the dangerous error, showing it slightly too long
+  // is not.
+  plumeTravelHours: number;
 }
 
 // The river network the schematic draws: the Severn trunk, plus the
@@ -90,6 +110,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     radiusKm: 5,
     branch: "severn",
     downstreamOrder: 0,
+    plumeTravelHours: 28,
   },
   {
     name: "Stourport-on-Severn",
@@ -99,6 +120,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     radiusKm: 5,
     branch: "severn",
     downstreamOrder: 1,
+    plumeTravelHours: 22,
   },
   // Covers the Astley Burf -> Shrawley -> Holt Fleet reach, which sat outside
   // every other circle: Stourport and Ombersley are 11.6 km apart but carry
@@ -113,6 +135,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     radiusKm: 5,
     branch: "severn",
     downstreamOrder: 2,
+    plumeTravelHours: 12,
   },
   {
     name: "Ombersley/Hawford",
@@ -122,6 +145,21 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     radiusKm: 5,
     branch: "severn",
     downstreamOrder: 3,
+    plumeTravelHours: 4,
+  },
+  // Top of the paddled reach. Its weir is one of the three impoundments that
+  // slow a plume on the way down, and it is the point every upstream
+  // plumeTravelHours above is measured to.
+  {
+    name: "Bevere",
+    label: "Bevere",
+    lat: 52.224,
+    lon: -2.235,
+    radiusKm: 3,
+    branch: "severn",
+    downstreamOrder: 4,
+    isReach: true,
+    plumeTravelHours: 0,
   },
   {
     name: "Worcester (Barbourne/Claines)",
@@ -130,8 +168,9 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     lon: -2.208,
     radiusKm: 5,
     branch: "severn",
-    downstreamOrder: 4,
+    downstreamOrder: 5,
     isReach: true,
+    plumeTravelHours: 0,
   },
   {
     name: "Worcester (Henwick/Bromwich Road)",
@@ -140,8 +179,9 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     lon: -2.234,
     radiusKm: 5,
     branch: "severn",
-    downstreamOrder: 5,
+    downstreamOrder: 6,
     isReach: true,
+    plumeTravelHours: 0,
   },
   // The downstream end of the reach. Deliberately tighter than the 5 km the
   // rest carry: everything upstream of a stop drains past it, so a wide
@@ -154,8 +194,9 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     lon: -2.222,
     radiusKm: 3,
     branch: "severn",
-    downstreamOrder: 6,
+    downstreamOrder: 7,
     isReach: true,
+    plumeTravelHours: 0,
   },
 
   // --- River Stour, joining the Severn at Stourport ---
@@ -167,6 +208,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     radiusKm: 6,
     branch: "stour",
     downstreamOrder: 0,
+    plumeTravelHours: 28,
   },
   {
     name: "Hartlebury/Wilden",
@@ -176,6 +218,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     radiusKm: 5,
     branch: "stour",
     downstreamOrder: 1,
+    plumeTravelHours: 22,
   },
 
   // --- River Salwarpe, joining the Severn at Hawford ---
@@ -187,6 +230,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     radiusKm: 5,
     branch: "salwarpe",
     downstreamOrder: 0,
+    plumeTravelHours: 6,
   },
 ];
 
