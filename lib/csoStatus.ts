@@ -59,6 +59,25 @@ export const CSO_STATE_ORDER: CsoState[] = [
   "Offline",
 ];
 
+// The single state that should represent a group of monitors - the worst one
+// present, per CSO_STATE_ORDER. Used by the river schematic, where one stop
+// stands for every outfall near a waypoint: one discharging outfall among ten
+// quiet ones has to colour that stop red, or the diagram reassures when it
+// shouldn't. Returns null for an empty group, which renders as a stop with no
+// monitors rather than as a healthy one.
+export const worstCsoState = (states: CsoState[]): CsoState | null => {
+  let worst: CsoState | null = null;
+  for (const state of states) {
+    if (
+      worst === null ||
+      CSO_STATE_ORDER.indexOf(state) < CSO_STATE_ORDER.indexOf(worst)
+    ) {
+      worst = state;
+    }
+  }
+  return worst;
+};
+
 // The states worth showing unprompted. The rest are collapsed behind a
 // disclosure, since "nothing is happening at 12 outfalls" is reassurance
 // rather than news and shouldn't cost twelve rows of the page to say.

@@ -5,7 +5,7 @@ import {
   SEWAGE_RECENT_SPILL_HOURS,
   SEWAGE_MAX_RESULTS,
 } from "@/lib/config";
-import { nearestWaypointDistanceKm, isExcludedLocality } from "@/lib/catchment";
+import { nearestWaypoint, isExcludedLocality } from "@/lib/catchment";
 
 interface SewageFeatureAttributes {
   Id: string | number;
@@ -91,11 +91,11 @@ export async function GET() {
 
     const outfalls: (CsoOutfall & { locationName: string | null })[] = features
       .map(({ attributes }) => {
-        const waypointDistance = nearestWaypointDistanceKm(
+        const nearest = nearestWaypoint(
           attributes.Latitude,
           attributes.Longitude
         );
-        if (waypointDistance === null) return null; // outside the catchment corridor
+        if (nearest === null) return null; // outside the catchment corridor
 
         let state: CsoState;
         if (attributes.Status === 1) {
@@ -125,7 +125,8 @@ export async function GET() {
           locationName: null as string | null,
           latitude: attributes.Latitude,
           longitude: attributes.Longitude,
-          distanceKm: waypointDistance,
+          distanceKm: nearest.distanceKm,
+          waypointName: nearest.waypoint.name,
           startISO: startMs !== null ? new Date(startMs).toISOString() : null,
           endISO: endMs !== null ? new Date(endMs).toISOString() : null,
           durationMinutes,

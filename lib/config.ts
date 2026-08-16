@@ -30,35 +30,131 @@ export const SEWAGE_RECENT_SPILL_HOURS = 24;
 // be a useful water-quality signal for paddlers at Worcester.
 export interface CatchmentWaypoint {
   name: string;
+  // Short form for the river schematic, where a row is too narrow for the
+  // full disambiguating name above.
+  label: string;
   lat: number;
   lon: number;
   radiusKm: number;
+  branch: RiverBranchId;
+  // Position along `branch`, furthest upstream first. This is a sequence,
+  // not a distance - we have outfall coordinates but no river-network
+  // topology, so the schematic can honestly say "this stop is upstream of
+  // that one" and nothing more. Hence a diagram that is deliberately not to
+  // scale, in the tube-map idiom, rather than a map implying precision the
+  // data doesn't carry.
+  downstreamOrder: number;
+  // The Worcester reach itself - everything upstream of it drains past it,
+  // which is the whole question the schematic exists to answer.
+  isReach?: boolean;
 }
 
+// The river network the schematic draws: the Severn trunk, plus the
+// tributaries that join it inside the corridor. `joinsAt` names the trunk
+// waypoint a tributary flows into, which is where its line merges on the
+// diagram.
+export type RiverBranchId = "severn" | "stour" | "salwarpe";
+
+export interface RiverBranch {
+  id: RiverBranchId;
+  label: string;
+  joinsAt: string | null; // null for the trunk itself
+}
+
+export const RIVER_BRANCHES: RiverBranch[] = [
+  { id: "severn", label: "River Severn", joinsAt: null },
+  { id: "stour", label: "River Stour", joinsAt: "Stourport-on-Severn" },
+  {
+    id: "salwarpe",
+    label: "River Salwarpe",
+    joinsAt: "Ombersley/Hawford",
+  },
+];
+
+// Grouped by branch and ordered upstream-first, which is the order the
+// schematic renders them in. Catchment filtering itself is order-independent
+// (it takes the nearest waypoint within radius), so this grouping is purely
+// so the file reads as the river it describes.
 export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
+  // --- River Severn (trunk), upstream to downstream ---
+  {
+    name: "Bewdley",
+    label: "Bewdley",
+    lat: 52.375,
+    lon: -2.313,
+    radiusKm: 5,
+    branch: "severn",
+    downstreamOrder: 0,
+  },
+  {
+    name: "Stourport-on-Severn",
+    label: "Stourport-on-Severn",
+    lat: 52.348,
+    lon: -2.281,
+    radiusKm: 5,
+    branch: "severn",
+    downstreamOrder: 1,
+  },
+  {
+    name: "Ombersley/Hawford",
+    label: "Ombersley & Hawford",
+    lat: 52.253,
+    lon: -2.212,
+    radiusKm: 5,
+    branch: "severn",
+    downstreamOrder: 2,
+  },
   {
     name: "Worcester (Barbourne/Claines)",
+    label: "Barbourne & Claines",
     lat: 52.213,
     lon: -2.208,
     radiusKm: 5,
+    branch: "severn",
+    downstreamOrder: 3,
+    isReach: true,
   },
   {
     name: "Worcester (Henwick/Bromwich Road)",
+    label: "Henwick & Bromwich Road",
     lat: 52.192,
     lon: -2.234,
     radiusKm: 5,
+    branch: "severn",
+    downstreamOrder: 4,
+    isReach: true,
+  },
+
+  // --- River Stour, joining the Severn at Stourport ---
+  {
+    name: "Kidderminster (Stour)",
+    label: "Kidderminster",
+    lat: 52.389,
+    lon: -2.249,
+    radiusKm: 6,
+    branch: "stour",
+    downstreamOrder: 0,
   },
   {
+    name: "Hartlebury/Wilden",
+    label: "Hartlebury & Wilden",
+    lat: 52.335,
+    lon: -2.229,
+    radiusKm: 5,
+    branch: "stour",
+    downstreamOrder: 1,
+  },
+
+  // --- River Salwarpe, joining the Severn at Hawford ---
+  {
     name: "Droitwich/Salwarpe (Hawford)",
+    label: "Droitwich & Salwarpe",
     lat: 52.238,
     lon: -2.198,
     radiusKm: 5,
+    branch: "salwarpe",
+    downstreamOrder: 0,
   },
-  { name: "Ombersley/Hawford", lat: 52.253, lon: -2.212, radiusKm: 5 },
-  { name: "Stourport-on-Severn", lat: 52.348, lon: -2.281, radiusKm: 5 },
-  { name: "Kidderminster (Stour)", lat: 52.389, lon: -2.249, radiusKm: 6 },
-  { name: "Bewdley", lat: 52.375, lon: -2.313, radiusKm: 5 },
-  { name: "Hartlebury/Wilden", lat: 52.335, lon: -2.229, radiusKm: 5 },
 ];
 
 // Explicitly excluded even if geographically close to a waypoint above -

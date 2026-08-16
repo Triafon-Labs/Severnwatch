@@ -1,6 +1,7 @@
 import {
   CATCHMENT_WAYPOINTS,
   CATCHMENT_EXCLUDED_LOCALITIES,
+  CatchmentWaypoint,
 } from "@/lib/config";
 
 // Haversine distance in km between two lat/long points.
@@ -21,17 +22,27 @@ export const distanceKm = (
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// Is this point within the Worcester-to-Bewdley catchment corridor? True if
-// it falls within radiusKm of any named waypoint (see CATCHMENT_WAYPOINTS).
-export const nearestWaypointDistanceKm = (
+export interface NearestWaypoint {
+  waypoint: CatchmentWaypoint;
+  distanceKm: number;
+}
+
+// Is this point within the Worcester-to-Bewdley catchment corridor, and if
+// so which waypoint does it sit closest to? Non-null when it falls within
+// radiusKm of any named waypoint (see CATCHMENT_WAYPOINTS).
+//
+// The waypoint identity - not just the distance - is what lets the river
+// schematic place the outfall as a stop on the right branch, in the right
+// order, without needing river-network topology we don't have.
+export const nearestWaypoint = (
   lat: number,
   lon: number
-): number | null => {
-  let nearest: number | null = null;
+): NearestWaypoint | null => {
+  let nearest: NearestWaypoint | null = null;
   for (const wp of CATCHMENT_WAYPOINTS) {
     const d = distanceKm(lat, lon, wp.lat, wp.lon);
-    if (d <= wp.radiusKm && (nearest === null || d < nearest)) {
-      nearest = d;
+    if (d <= wp.radiusKm && (nearest === null || d < nearest.distanceKm)) {
+      nearest = { waypoint: wp, distanceKm: d };
     }
   }
   return nearest;

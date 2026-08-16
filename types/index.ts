@@ -19,6 +19,11 @@ export interface CsoOutfall {
   // CATCHMENT_WAYPOINTS), not to Worcester itself - the corridor follows
   // the river rather than a simple radius.
   distanceKm: number;
+  // `name` of that nearest waypoint. The river schematic groups outfalls by
+  // it to place them as stops along the right branch; the waypoint's own
+  // branch is used rather than `watercourse` above, so an outfall always
+  // draws where the catchment filter actually put it.
+  waypointName: string;
   startISO: string | null; // when the current status began
   endISO: string | null; // end of the most recent spill, if state is Recent
   durationMinutes: number | null; // time spent in the current status so far
