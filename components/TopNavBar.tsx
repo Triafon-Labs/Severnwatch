@@ -14,7 +14,7 @@ import {
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ShareIcon from "@mui/icons-material/Share";
-import SevernwatchLogo from "@/components/SevernwatchLogo";
+import Image from "next/image";
 import SettingsModal from "@/components/SettingsModal";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import { DATA_STALE_THRESHOLD_MS, OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
@@ -227,9 +227,12 @@ const TopNavBar: React.FC = () => {
               minWidth: 0,
             }}
           >
-            <SevernwatchLogo
-              color="primary"
-              sx={{ fontSize: 32, flexShrink: 0 }}
+            <Image
+              src="/favicon.svg"
+              alt="Severnwatch Logo"
+              width={40}
+              height={40}
+              style={{ flexShrink: 0 }}
             />
             <Box sx={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
               <Typography
