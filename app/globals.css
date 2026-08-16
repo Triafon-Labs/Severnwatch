@@ -1,14 +1,18 @@
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  /* clip, not hidden. `overflow-x: hidden` computes overflow-y to auto, which
+     makes body a scroll container - and a sticky child sticks to a container
+     that never scrolls, so the sticky top app bar simply scrolls away with
+     the page. `clip` clips the same overflow without creating one. */
+  overflow-x: clip;
 }
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* No body font rules here. The family comes from the theme's type scale via
+   CssBaseline, so hardcoding one would silently outrank Roboto Flex, and
+   smoothing is left at the browser default: -webkit-font-smoothing:
+   antialiased disables subpixel rendering on macOS and thins every stroke,
+   which fights the weights the type scale asks for. */
 
 * {
   box-sizing: border-box;
@@ -21,8 +25,6 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-}
+/* color-scheme is set per colour scheme by MUI's CSS theme variables (see
+   lib/themes.ts). Declaring it here from the OS preference too would fight
+   an explicitly chosen theme that disagrees with the OS. */

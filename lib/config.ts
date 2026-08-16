@@ -36,9 +36,24 @@ export interface CatchmentWaypoint {
 }
 
 export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
-  { name: "Worcester (Barbourne/Claines)", lat: 52.213, lon: -2.208, radiusKm: 5 },
-  { name: "Worcester (Henwick/Bromwich Road)", lat: 52.192, lon: -2.234, radiusKm: 5 },
-  { name: "Droitwich/Salwarpe (Hawford)", lat: 52.238, lon: -2.198, radiusKm: 5 },
+  {
+    name: "Worcester (Barbourne/Claines)",
+    lat: 52.213,
+    lon: -2.208,
+    radiusKm: 5,
+  },
+  {
+    name: "Worcester (Henwick/Bromwich Road)",
+    lat: 52.192,
+    lon: -2.234,
+    radiusKm: 5,
+  },
+  {
+    name: "Droitwich/Salwarpe (Hawford)",
+    lat: 52.238,
+    lon: -2.198,
+    radiusKm: 5,
+  },
   { name: "Ombersley/Hawford", lat: 52.253, lon: -2.212, radiusKm: 5 },
   { name: "Stourport-on-Severn", lat: 52.348, lon: -2.281, radiusKm: 5 },
   { name: "Kidderminster (Stour)", lat: 52.389, lon: -2.249, radiusKm: 6 },
@@ -49,7 +64,11 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
 // Explicitly excluded even if geographically close to a waypoint above -
 // deliberately left out as too marginal a signal for the Worcester reach
 // (small/unmonitored catchments or too far up a tributary).
-export const CATCHMENT_EXCLUDED_LOCALITIES = ["holt heath", "holt", "bromsgrove"];
+export const CATCHMENT_EXCLUDED_LOCALITIES = [
+  "holt heath",
+  "holt",
+  "bromsgrove",
+];
 
 // Every in-scope CSO is returned regardless of status, but only the
 // actionable ones (Ongoing/Recent) are reverse-geocoded, up to this many -
@@ -96,3 +115,21 @@ export const SEVERN_TRENT_MAP_URL =
 // --- SAS (Surfers Against Sewage) citizen science water quality map ---
 export const SAS_MAP_EMBED_URL =
   "https://app.cartographer.io/embed/map?map=SasWaterQuality&workspace=sas&project=wq";
+
+// --- Environment Agency rainfall API documentation ---
+export const EA_RAINFALL_DOCS_URL =
+  "https://environment.data.gov.uk/flood-monitoring/doc/rainfall";
+
+// Every outbound link the Info tab offers, in one list, so adding a source
+// means adding it here rather than hand-writing another row in the settings
+// sheet. Order is the order they render in.
+export interface UsefulLink {
+  name: string;
+  url: string;
+}
+
+export const USEFUL_LINKS: UsefulLink[] = [
+  { name: "Severn Trent Storm Overflow Map", url: SEVERN_TRENT_MAP_URL },
+  { name: "Surfers Against Sewage Water Quality Map", url: SAS_MAP_EMBED_URL },
+  { name: "Environment Agency Rainfall Data", url: EA_RAINFALL_DOCS_URL },
+];

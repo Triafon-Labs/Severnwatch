@@ -1,0 +1,54 @@
+name: Install npm dependencies
+description: >-
+  Runs `npm ci`, healing the lockfile drift Dependabot's resolver introduces so
+  that a dependency bump cannot fail CI on its own lockfile.
+
+inputs:
+  heal:
+    description: >-
+      When an out-of-sync lockfile should be regenerated instead of failing the
+      job. "dependabot" (default) heals only Dependabot's own runs, "always"
+      heals every run, "never" always fails.
+    required: false
+    default: dependabot
+
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      env:
+        HEAL: ${{ inputs.heal }}
+        ACTOR: ${{ github.actor }}
+      run: |
+        if npm ci; then
+          exit 0
+        fi
+
+        # `npm ci` refuses to run when package.json and package-lock.json
+        # disagree. For a human that means the lockfile was not committed, and
+        # failing is the point. For Dependabot it usually means its resolver
+        # wrote an incomplete lockfile, which is not something this repo can
+        # fix by hand.
+        case "$HEAL" in
+          always) ;;
+          dependabot)
+            if [ "$ACTOR" != "dependabot[bot]" ]; then
+              echo "::error::package-lock.json is out of sync with package.json. Run 'npm install' locally and commit the updated lockfile."
+              exit 1
+            fi
+            ;;
+          *)
+            echo "::error::package-lock.json is out of sync with package.json."
+            exit 1
+            ;;
+        esac
+
+        # Dependabot regenerates the lockfile with its own resolver, which omits
+        # nested optional peer dependencies that npm itself installs. The bump is
+        # fine; only the lockfile is incomplete. Rebuilding it from the manifest
+        # yields exactly the tree npm would have written.
+        # https://github.com/dependabot/dependabot-core/issues/6317
+        echo "::warning::package-lock.json was out of sync; regenerated it in place. See .github/actions/npm-install."
+        npm install --package-lock-only --no-audit --no-fund
+        npm ci

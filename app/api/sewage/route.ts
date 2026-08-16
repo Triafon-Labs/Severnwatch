@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { CsoOutfall, CsoResponse, CsoState } from "@/types";
-import { SEWAGE_API_URL, SEWAGE_RECENT_SPILL_HOURS, SEWAGE_MAX_RESULTS } from "@/lib/config";
+import {
+  SEWAGE_API_URL,
+  SEWAGE_RECENT_SPILL_HOURS,
+  SEWAGE_MAX_RESULTS,
+} from "@/lib/config";
 import { nearestWaypointDistanceKm, isExcludedLocality } from "@/lib/catchment";
 
 interface SewageFeatureAttributes {
@@ -36,9 +40,13 @@ const reverseGeocode = async (
     const data = await res.json();
     const address = data?.address || {};
     const specific =
-      address.road || address.suburb || address.neighbourhood || address.village;
+      address.road ||
+      address.suburb ||
+      address.neighbourhood ||
+      address.village;
     const locality = address.town || address.city || address.county;
-    if (specific && locality && specific !== locality) return `${specific}, ${locality}`;
+    if (specific && locality && specific !== locality)
+      return `${specific}, ${locality}`;
     return specific || locality || null;
   } catch {
     return null;
@@ -62,7 +70,8 @@ const fetchAllFeatures = async (): Promise<
     const response = await fetch(url, {
       next: { revalidate: 300 }, // Near-real-time source; no point polling faster.
     });
-    if (!response.ok) throw new Error(`CSO feed fetch failed: ${response.status}`);
+    if (!response.ok)
+      throw new Error(`CSO feed fetch failed: ${response.status}`);
     const page = await response.json();
     const pageFeatures: { attributes: SewageFeatureAttributes }[] =
       page?.features || [];
@@ -122,7 +131,9 @@ export async function GET() {
           durationMinutes,
         };
       })
-      .filter((o): o is CsoOutfall & { locationName: string | null } => o !== null)
+      .filter(
+        (o): o is CsoOutfall & { locationName: string | null } => o !== null
+      )
       // Ongoing spills take priority, then Recent, then quiet/offline
       // monitors - so a live spill farther away is never bumped out by a
       // closer but less urgent entry; ties broken by distance.
@@ -133,7 +144,9 @@ export async function GET() {
           "Not discharging": 2,
           Offline: 3,
         };
-        return priority[a.state] - priority[b.state] || a.distanceKm - b.distanceKm;
+        return (
+          priority[a.state] - priority[b.state] || a.distanceKm - b.distanceKm
+        );
       });
 
     // Reverse-geocode sequentially (not in parallel) to stay well within
@@ -149,7 +162,10 @@ export async function GET() {
 
     for (let i = 0; i < toGeocode.length; i++) {
       const { o, index } = toGeocode[i];
-      outfalls[index].locationName = await reverseGeocode(o.latitude, o.longitude);
+      outfalls[index].locationName = await reverseGeocode(
+        o.latitude,
+        o.longitude
+      );
       if (i < toGeocode.length - 1) await sleep(1000);
     }
 
@@ -170,6 +186,9 @@ export async function GET() {
     return NextResponse.json(body);
   } catch (error) {
     console.error("Error fetching CSO data:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

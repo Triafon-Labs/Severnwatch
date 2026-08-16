@@ -1,4 +1,8 @@
-import { RainfallForecastPoint, RainfallGaugeData, RainfallReading } from "@/types";
+import {
+  RainfallForecastPoint,
+  RainfallGaugeData,
+  RainfallReading,
+} from "@/types";
 import {
   API_ENDPOINTS,
   LATITUDE,
@@ -35,7 +39,9 @@ export const fetchGaugeData = async (
     next: { revalidate: 900 }, // matches the gauge's own 15-min reporting cadence
   });
   if (!response.ok) {
-    throw new Error(`Rainfall API fetch failed for gauge ${gauge.id}: ${response.status}`);
+    throw new Error(
+      `Rainfall API fetch failed for gauge ${gauge.id}: ${response.status}`
+    );
   }
 
   const data = await response.json();
@@ -52,7 +58,8 @@ export const fetchGaugeData = async (
     .filter((r) => now - new Date(r.dateTime).getTime() <= TWENTY_FOUR_HOURS_MS)
     .reduce((sum, r) => sum + r.valueMm, 0);
 
-  const latestMm = readings.length > 0 ? readings[readings.length - 1].valueMm : null;
+  const latestMm =
+    readings.length > 0 ? readings[readings.length - 1].valueMm : null;
 
   return {
     id: gauge.id,
@@ -70,7 +77,9 @@ interface OpenMeteoResponse {
   };
 }
 
-export const fetchRainfallForecast = async (): Promise<RainfallForecastPoint[]> => {
+export const fetchRainfallForecast = async (): Promise<
+  RainfallForecastPoint[]
+> => {
   const url =
     `${OPEN_METEO_FORECAST_URL}?latitude=${LATITUDE}&longitude=${LONGITUDE}` +
     `&hourly=precipitation&timezone=UTC&forecast_hours=${RAINFALL_FORECAST_HOURS}`;

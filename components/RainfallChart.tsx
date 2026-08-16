@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useColorScheme, useTheme } from "@mui/material/styles";
-import { Box, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTheme } from "@mui/material/styles";
+import { Box, Stack, ToggleButton, Typography } from "@mui/material";
 import {
   Bar,
   BarChart,
@@ -28,22 +28,26 @@ import {
   buildForecastSeries,
   buildHourlyIntensity,
 } from "@/lib/rainfallAnalysis";
+import { useResolvedColorScheme } from "@/lib/ThemeContext";
+import { useTooltipDismiss } from "@/lib/useTooltipDismiss";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
+import { formatTimeTick, londonParts } from "@/lib/time";
+import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 
 // Categorical palette, first 3 slots - validated all-pairs CVD-safe in both
-// light and dark mode (see the dataviz skill's reference palette).
+// light and dark mode. Deliberately *not* the theme's primary teal: these
+// identify one gauge from another, and a series colour that matches the
+// interface's accent reads as "this one is selected" rather than "this one is
+// Bewdley".
 const SERIES_COLORS: Record<"light" | "dark", string[]> = {
   light: ["#2a78d6", "#eb6834", "#1baf7a"],
   dark: ["#3987e5", "#d95926", "#199e70"],
 };
 
-const CHROME = {
-  light: { grid: "#e1e0d9", axis: "#898781", text: "#52514e" },
-  dark: { grid: "#2c2c2a", axis: "#898781", text: "#c3c2b7" },
-};
-
 const BAND_CEILING = 1000; // clipped to the plot area regardless of axis domain
 const FORECAST_HISTORY_HOURS = 24; // how far back the "Forecast" view shows observed data
 const FORECAST_TICK_STEP_MINUTES = 480; // 8h - spans ~24h history + the forecast horizon
+const MIN_MS = 60 * 1000;
 
 type Range = "forecast" | "1h" | "8h" | "24h" | "7d";
 
@@ -55,28 +59,10 @@ const RANGE_LABEL: Record<Range, string> = {
   "7d": "7d",
 };
 
-// Reads a timestamp's Europe/London wall-clock time without pulling in a
-// timezone library - used to align x-axis ticks to clean local times and to
-// build human-readable tick/tooltip labels.
-const londonParts = (ms: number) => {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    hourCycle: "h23",
-  }).formatToParts(ms);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return { weekday: get("weekday"), hour: Number(get("hour")), minute: get("minute") };
-};
+const RANGES = Object.keys(RANGE_LABEL) as Range[];
 
-const formatTimeTick = (ms: number) => {
-  const { weekday, hour, minute } = londonParts(ms);
-  return `${weekday} ${String(hour).padStart(2, "0")}:${minute}`;
-};
-
-const MIN_MS = 60 * 1000;
+const isRange = (value: string | null): value is Range =>
+  value !== null && (RANGES as string[]).includes(value);
 
 // Computed purely from the time range (not from the data points, which may
 // have gaps or - like the UK gauges - land a few seconds off a clean
@@ -84,8 +70,13 @@ const MIN_MS = 60 * 1000;
 // never sit on a half-hour UTC offset, so minute-of-day in London tracks
 // minute-of-day in UTC exactly - only which minutes are multiples of the
 // step needs checking.
-const buildTimeTicks = (minMs: number, maxMs: number, stepMinutes: number): number[] => {
-  if (!Number.isFinite(minMs) || !Number.isFinite(maxMs) || minMs >= maxMs) return [];
+const buildTimeTicks = (
+  minMs: number,
+  maxMs: number,
+  stepMinutes: number
+): number[] => {
+  if (!Number.isFinite(minMs) || !Number.isFinite(maxMs) || minMs >= maxMs)
+    return [];
   const ticks: number[] = [];
   for (let t = Math.ceil(minMs / MIN_MS) * MIN_MS; t <= maxMs; t += MIN_MS) {
     const { hour, minute } = londonParts(t);
@@ -100,30 +91,68 @@ interface Props {
 }
 
 const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
-  const [range, setRange] = useState<Range>("forecast");
-  const { mode, systemMode } = useColorScheme();
+  // Seeded from localStorage on first render rather than in an effect, so the
+  // reader's chosen range is what paints - not a frame of "Forecast" that
+  // then jumps to "7d".
+  const [range, setRange] = useState<Range>(() => {
+    if (typeof window === "undefined") return "forecast";
+    const saved = window.localStorage.getItem(STORAGE_KEYS.RAINFALL_RANGE);
+    return isRange(saved) ? saved : "forecast";
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.RAINFALL_RANGE, range);
+    } catch {
+      // Storage disabled or full - the chart still works, the choice just
+      // doesn't survive a reload.
+    }
+  }, [range]);
+
   const theme = useTheme();
-  const resolvedMode: "light" | "dark" =
-    (mode === "system" ? systemMode : mode) === "dark" ? "dark" : "light";
+  const resolvedMode = useResolvedColorScheme();
   const colors = SERIES_COLORS[resolvedMode];
-  const chrome = CHROME[resolvedMode];
+
+  // Recharts takes these as SVG attributes, so they can't come through `sx`
+  // and have to be read off the theme in JS. That read is only correct in dark
+  // mode because the provider sets `forceThemeRerender` - see lib/ThemeContext.
+  const chrome = {
+    grid: theme.palette.divider,
+    axis: theme.palette.surfaces.onVariant,
+    text: theme.palette.text.secondary,
+  };
   const moderateColor = theme.palette.warning.main;
   const heavyColor = theme.palette.error.main;
   const forecastColor = colors[0];
 
+  // A recharts tooltip on a touchscreen never receives the pointer-leave that
+  // would close it, so it hangs over the chart until the chart is touched
+  // again. This closes it on any press elsewhere on the page.
+  const chartRef = useRef<HTMLDivElement>(null);
+  const { tooltipActive, chartMoveProps } = useTooltipDismiss(chartRef);
+
   const isDaily = range === "7d";
   const isForecast = range === "forecast";
-  const intensityHours = range === "1h" ? 1 : range === "8h" ? 8 : range === "24h" ? 24 : 0;
-  const intensityTickStepMinutes = range === "1h" ? 15 : range === "8h" ? 120 : 360;
+  const intensityHours =
+    range === "1h" ? 1 : range === "8h" ? 8 : range === "24h" ? 24 : 0;
+  const intensityTickStepMinutes =
+    range === "1h" ? 15 : range === "8h" ? 120 : 360;
 
   const intensityData = useMemo(
-    () => (intensityHours > 0 ? buildHourlyIntensity(gauges, intensityHours) : []),
+    () =>
+      intensityHours > 0 ? buildHourlyIntensity(gauges, intensityHours) : [],
     [gauges, intensityHours]
   );
-  const dailyData = useMemo(() => (isDaily ? buildDailyTotals(gauges) : []), [gauges, isDaily]);
+  const dailyData = useMemo(
+    () => (isDaily ? buildDailyTotals(gauges) : []),
+    [gauges, isDaily]
+  );
 
   const observedAvg = useMemo(
-    () => (isForecast ? buildCatchmentAverageIntensity(gauges, FORECAST_HISTORY_HOURS) : []),
+    () =>
+      isForecast
+        ? buildCatchmentAverageIntensity(gauges, FORECAST_HISTORY_HOURS)
+        : [],
     [gauges, isForecast]
   );
   const forecastData = useMemo(
@@ -167,53 +196,137 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
       ? `Rainfall intensity (mm/hr) - Worcester, last ${FORECAST_HISTORY_HOURS}h & forecast`
       : `Rainfall intensity (mm/hr), last ${range}`;
 
+  // The moderate/heavy bands and their threshold lines are identical across
+  // all three chart shapes. Returned as a flat array rather than a fragment:
+  // recharts inspects its children's types to decide what to render, and a
+  // Fragment is opaque to that walk, so its contents are silently dropped.
+  const thresholdBands = () => [
+    <ReferenceArea
+      key="band-moderate"
+      y1={moderateMm}
+      y2={heavyMm}
+      fill={moderateColor}
+      fillOpacity={0.08}
+      strokeWidth={0}
+    />,
+    <ReferenceArea
+      key="band-heavy"
+      y1={heavyMm}
+      y2={BAND_CEILING}
+      fill={heavyColor}
+      fillOpacity={0.08}
+      strokeWidth={0}
+    />,
+    <ReferenceLine
+      key="line-moderate"
+      y={moderateMm}
+      stroke={moderateColor}
+      strokeDasharray="4 4"
+      label={{
+        value: "Moderate",
+        position: "insideTopRight",
+        fill: chrome.text,
+        fontSize: 11,
+      }}
+    />,
+    <ReferenceLine
+      key="line-heavy"
+      y={heavyMm}
+      stroke={heavyColor}
+      strokeDasharray="4 4"
+      label={{
+        value: "Heavy",
+        position: "insideTopRight",
+        fill: chrome.text,
+        fontSize: 11,
+      }}
+    />,
+  ];
+
+  const yAxis = () => (
+    <YAxis
+      tick={{ fill: chrome.axis, fontSize: 12 }}
+      axisLine={false}
+      tickLine={false}
+      width={28}
+    />
+  );
+
+  const timeAxis = (ticks: number[]) => (
+    <XAxis
+      dataKey="sortKey"
+      type="number"
+      domain={["dataMin", "dataMax"]}
+      ticks={ticks}
+      tickFormatter={formatTimeTick}
+      tick={{ fill: chrome.axis, fontSize: 11 }}
+      axisLine={{ stroke: chrome.grid }}
+      tickLine={false}
+    />
+  );
+
+  // M3's plain tooltip shape, matched to the one the theme gives MUI's own
+  // Tooltip - recharts renders its own DOM node and never sees that override.
+  const tooltipStyle = {
+    fontSize: 13,
+    borderRadius: 8,
+    border: `1px solid ${theme.palette.divider}`,
+    backgroundColor: theme.palette.surfaces.containerHigh,
+    color: theme.palette.text.primary,
+    boxShadow: "none",
+  };
+
   return (
     <Stack spacing={1}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ flexWrap: "wrap" }}>
+      <Stack spacing={1}>
         <Typography variant="caption" color="text.secondary">
           {caption}
         </Typography>
-        <ToggleButtonGroup
+        <SlidingToggleButtonGroup
           value={range}
           exclusive
+          fullWidth
           size="small"
+          aria-label="Rainfall time range"
           onChange={(_, value: Range | null) => value && setRange(value)}
         >
-          {(Object.keys(RANGE_LABEL) as Range[]).map((r) => (
-            <ToggleButton key={r} value={r} sx={{ px: 1.25, py: 0.25, fontSize: 12 }}>
+          {RANGES.map((r) => (
+            <ToggleButton key={r} value={r} sx={{ fontSize: 12 }}>
               {RANGE_LABEL[r]}
             </ToggleButton>
           ))}
-        </ToggleButtonGroup>
+        </SlidingToggleButtonGroup>
       </Stack>
 
-      <Box sx={{ width: "100%", height: 220 }}>
+      <Box ref={chartRef} sx={{ width: "100%", height: 220 }}>
         <ResponsiveContainer width="100%" height="100%">
           {isDaily ? (
-            <BarChart data={dailyData} barGap={2} barCategoryGap="20%" margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke={chrome.grid} strokeDasharray="0" />
-              <ReferenceArea y1={moderateMm} y2={heavyMm} fill={moderateColor} fillOpacity={0.08} strokeWidth={0} />
-              <ReferenceArea y1={heavyMm} y2={BAND_CEILING} fill={heavyColor} fillOpacity={0.08} strokeWidth={0} />
-              <ReferenceLine
-                y={moderateMm}
-                stroke={moderateColor}
-                strokeDasharray="4 4"
-                label={{ value: "Moderate", position: "insideTopRight", fill: chrome.text, fontSize: 11 }}
+            <BarChart
+              data={dailyData}
+              barGap={2}
+              barCategoryGap="20%"
+              margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+              {...chartMoveProps}
+            >
+              <CartesianGrid
+                vertical={false}
+                stroke={chrome.grid}
+                strokeDasharray="0"
               />
-              <ReferenceLine
-                y={heavyMm}
-                stroke={heavyColor}
-                strokeDasharray="4 4"
-                label={{ value: "Heavy", position: "insideTopRight", fill: chrome.text, fontSize: 11 }}
-              />
+              {thresholdBands()}
               <XAxis
                 dataKey="label"
                 tick={{ fill: chrome.axis, fontSize: 12 }}
                 axisLine={{ stroke: chrome.grid }}
                 tickLine={false}
               />
-              <YAxis tick={{ fill: chrome.axis, fontSize: 12 }} axisLine={false} tickLine={false} width={28} />
-              <Tooltip formatter={(value, name) => [`${value} mm`, name]} contentStyle={{ fontSize: 13 }} />
+              {yAxis()}
+              <Tooltip
+                active={tooltipActive}
+                formatter={(value, name) => [`${value} mm`, name]}
+                contentStyle={tooltipStyle}
+                cursor={{ fill: chrome.grid, fillOpacity: 0.4 }}
+              />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
               {gauges.map((gauge, i) => (
                 <Bar
@@ -227,45 +340,40 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
               ))}
             </BarChart>
           ) : isForecast ? (
-            <ComposedChart data={forecastData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke={chrome.grid} strokeDasharray="0" />
-              <ReferenceArea y1={moderateMm} y2={heavyMm} fill={moderateColor} fillOpacity={0.08} strokeWidth={0} />
-              <ReferenceArea y1={heavyMm} y2={BAND_CEILING} fill={heavyColor} fillOpacity={0.08} strokeWidth={0} />
-              <ReferenceLine
-                y={moderateMm}
-                stroke={moderateColor}
-                strokeDasharray="4 4"
-                label={{ value: "Moderate", position: "insideTopRight", fill: chrome.text, fontSize: 11 }}
+            <ComposedChart
+              data={forecastData}
+              margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+              {...chartMoveProps}
+            >
+              <CartesianGrid
+                vertical={false}
+                stroke={chrome.grid}
+                strokeDasharray="0"
               />
-              <ReferenceLine
-                y={heavyMm}
-                stroke={heavyColor}
-                strokeDasharray="4 4"
-                label={{ value: "Heavy", position: "insideTopRight", fill: chrome.text, fontSize: 11 }}
-              />
+              {thresholdBands()}
               {boundaryMs !== undefined && (
                 <ReferenceLine
                   x={boundaryMs}
                   stroke={chrome.axis}
                   strokeDasharray="3 3"
-                  label={{ value: "Now", position: "top", fill: chrome.text, fontSize: 11 }}
+                  label={{
+                    value: "Now",
+                    position: "top",
+                    fill: chrome.text,
+                    fontSize: 11,
+                  }}
                 />
               )}
-              <XAxis
-                dataKey="sortKey"
-                type="number"
-                domain={["dataMin", "dataMax"]}
-                ticks={forecastTicks}
-                tickFormatter={formatTimeTick}
-                tick={{ fill: chrome.axis, fontSize: 11 }}
-                axisLine={{ stroke: chrome.grid }}
-                tickLine={false}
-              />
-              <YAxis tick={{ fill: chrome.axis, fontSize: 12 }} axisLine={false} tickLine={false} width={28} />
+              {timeAxis(forecastTicks)}
+              {yAxis()}
               <Tooltip
+                active={tooltipActive}
                 labelFormatter={(value) => formatTimeTick(value as number)}
-                formatter={(value, name) => [`${value} mm/hr`, name === "observedMm" ? "Observed" : "Forecast"]}
-                contentStyle={{ fontSize: 13 }}
+                formatter={(value, name) => [
+                  `${value} mm/hr`,
+                  name === "observedMm" ? "Observed" : "Forecast",
+                ]}
+                contentStyle={tooltipStyle}
               />
               <Line
                 dataKey="observedMm"
@@ -292,37 +400,24 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
               />
             </ComposedChart>
           ) : (
-            <ComposedChart data={intensityData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke={chrome.grid} strokeDasharray="0" />
-              <ReferenceArea y1={moderateMm} y2={heavyMm} fill={moderateColor} fillOpacity={0.08} strokeWidth={0} />
-              <ReferenceArea y1={heavyMm} y2={BAND_CEILING} fill={heavyColor} fillOpacity={0.08} strokeWidth={0} />
-              <ReferenceLine
-                y={moderateMm}
-                stroke={moderateColor}
-                strokeDasharray="4 4"
-                label={{ value: "Moderate", position: "insideTopRight", fill: chrome.text, fontSize: 11 }}
+            <ComposedChart
+              data={intensityData}
+              margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+              {...chartMoveProps}
+            >
+              <CartesianGrid
+                vertical={false}
+                stroke={chrome.grid}
+                strokeDasharray="0"
               />
-              <ReferenceLine
-                y={heavyMm}
-                stroke={heavyColor}
-                strokeDasharray="4 4"
-                label={{ value: "Heavy", position: "insideTopRight", fill: chrome.text, fontSize: 11 }}
-              />
-              <XAxis
-                dataKey="sortKey"
-                type="number"
-                domain={["dataMin", "dataMax"]}
-                ticks={intensityTicks}
-                tickFormatter={formatTimeTick}
-                tick={{ fill: chrome.axis, fontSize: 11 }}
-                axisLine={{ stroke: chrome.grid }}
-                tickLine={false}
-              />
-              <YAxis tick={{ fill: chrome.axis, fontSize: 12 }} axisLine={false} tickLine={false} width={28} />
+              {thresholdBands()}
+              {timeAxis(intensityTicks)}
+              {yAxis()}
               <Tooltip
+                active={tooltipActive}
                 labelFormatter={(value) => formatTimeTick(value as number)}
                 formatter={(value, name) => [`${value} mm/hr`, name]}
-                contentStyle={{ fontSize: 13 }}
+                contentStyle={tooltipStyle}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
               {gauges.map((gauge, i) => (
@@ -345,7 +440,11 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
       </Box>
 
       {isForecast && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block" }}
+        >
           {forecast.length > 0
             ? "Dashed line is Open-Meteo's forecast for Worcester - a single point for the whole catchment, not a per-gauge reading. For guidance only."
             : "Forecast is temporarily unavailable - showing observed rainfall only."}

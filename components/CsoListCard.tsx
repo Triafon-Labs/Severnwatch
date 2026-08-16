@@ -5,69 +5,60 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  Alert,
   Box,
   Card,
   CardContent,
   Chip,
-  ChipProps,
-  Divider,
   Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { formatDistanceToNow } from "date-fns";
 import { CsoOutfall, CsoState } from "@/types";
-import { useCsoData } from "@/hooks/useCsoData";
+import { useSevernContext } from "@/lib/SevernDataContext";
 import { formatAsOf } from "@/lib/format";
+import {
+  CSO_NOTABLE_STATES,
+  CSO_QUIET_STATES,
+  CSO_STATE_ORDER,
+  CSO_STATE_UI,
+  statusChipSx,
+} from "@/lib/csoStatus";
+import InfoPanel from "@/components/InfoPanel";
 
-const STATE_ORDER: CsoState[] = ["Ongoing", "Recent", "Not discharging", "Offline"];
-
-const STATE_LABEL: Record<CsoState, string> = {
-  Ongoing: "Discharging now",
-  Recent: "Recent spill (last 24h)",
-  "Not discharging": "Not discharging",
-  Offline: "Monitor offline",
-};
-
-const STATE_COLOR: Record<CsoState, ChipProps["color"]> = {
-  Ongoing: "error",
-  Recent: "warning",
-  "Not discharging": "success",
-  Offline: "default",
-};
-
-// Only Ongoing/Recent outfalls are reverse-geocoded (see route.ts), so the
-// rest fall back to watercourse + distance to stay distinguishable.
+// Only Ongoing/Recent outfalls are reverse-geocoded (see the sewage route), so
+// the rest fall back to watercourse + distance to stay distinguishable.
 const describeLocation = (o: CsoOutfall): string =>
   o.locationName
     ? `${o.locationName} (${o.watercourse})`
     : `${o.watercourse} — ${o.distanceKm.toFixed(1)} km`;
 
 const describeTiming = (o: CsoOutfall): string | null => {
+  const since = (iso: string | null, prefix: string) =>
+    iso
+      ? `${prefix} ${formatDistanceToNow(new Date(iso), { addSuffix: true })}`
+      : null;
+
   switch (o.state) {
     case "Ongoing":
-      return o.startISO
-        ? `Started ${formatDistanceToNow(new Date(o.startISO), { addSuffix: true })}`
-        : null;
+      return since(o.startISO, "Started");
     case "Recent":
-      return o.endISO
-        ? `Ended ${formatDistanceToNow(new Date(o.endISO), { addSuffix: true })}`
-        : null;
+      return since(o.endISO, "Ended");
     case "Not discharging":
-      return o.startISO
-        ? `Clear since ${formatDistanceToNow(new Date(o.startISO), { addSuffix: true })}`
-        : null;
+      return since(o.startISO, "Clear since");
     case "Offline":
       return null;
   }
 };
 
-const OutfallStatusRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
+const OutfallStatusRow: React.FC<{ outfall: CsoOutfall }> = ({
+  outfall: o,
+}) => {
   const timing = describeTiming(o);
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+    <InfoPanel sx={{ justifyContent: "space-between" }}>
       <Box sx={{ minWidth: 0 }}>
         <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
           {describeLocation(o)}
@@ -79,78 +70,89 @@ const OutfallStatusRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => 
         )}
       </Box>
       <Chip
-        label={o.state}
-        color={STATE_COLOR[o.state]}
+        label={CSO_STATE_UI[o.state].label}
         size="small"
-        variant={o.state === "Not discharging" || o.state === "Offline" ? "outlined" : "filled"}
-        sx={{ flexShrink: 0 }}
+        sx={{ ...statusChipSx(o.state), flexShrink: 0 }}
       />
-    </Stack>
+    </InfoPanel>
   );
 };
 
-const NOTABLE_STATES: CsoState[] = ["Ongoing", "Recent"];
-const QUIET_STATES: CsoState[] = ["Not discharging", "Offline"];
-
-const GroupSection: React.FC<{ state: CsoState; outfalls: CsoOutfall[] }> = ({ state, outfalls }) => (
+const GroupSection: React.FC<{ state: CsoState; outfalls: CsoOutfall[] }> = ({
+  state,
+  outfalls,
+}) => (
   <Box>
-    <Typography variant="overline" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
-      {STATE_LABEL[state]} ({outfalls.length})
+    <Typography
+      variant="overline"
+      color="text.secondary"
+      sx={{ display: "block", mb: 0.75 }}
+    >
+      {CSO_STATE_UI[state].groupLabel} ({outfalls.length})
     </Typography>
     <Stack spacing={1}>
-      {outfalls.map((o, idx) => (
-        <Box key={o.id}>
-          {idx > 0 && <Divider sx={{ mb: 1, opacity: 0.3 }} />}
-          <OutfallStatusRow outfall={o} />
-        </Box>
+      {outfalls.map((o) => (
+        <OutfallStatusRow key={o.id} outfall={o} />
       ))}
     </Stack>
   </Box>
 );
 
 const CsoListCard: React.FC = () => {
-  const { data, loading, error } = useCsoData();
-  const outfalls = data?.outfalls ?? [];
+  const { cso, csoError, loading } = useSevernContext();
+  const outfalls = cso?.outfalls ?? [];
   const [quietExpanded, setQuietExpanded] = useState(false);
+  const showSkeleton = loading && !cso;
 
-  const groups = STATE_ORDER.map((state) => ({
+  const groups = CSO_STATE_ORDER.map((state) => ({
     state,
     outfalls: outfalls.filter((o) => o.state === state),
   })).filter((group) => group.outfalls.length > 0);
 
-  const notableGroups = groups.filter((g) => NOTABLE_STATES.includes(g.state));
-  const quietGroups = groups.filter((g) => QUIET_STATES.includes(g.state));
+  const notableGroups = groups.filter((g) =>
+    CSO_NOTABLE_STATES.includes(g.state)
+  );
+  const quietGroups = groups.filter((g) => CSO_QUIET_STATES.includes(g.state));
   const quietCount = quietGroups.reduce((sum, g) => sum + g.outfalls.length, 0);
 
   return (
-    <Card variant="outlined">
+    <Card>
       <CardContent>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mb: 2 }}
+        >
           <Typography variant="h5" component="h2">
             CSO Monitoring Points
           </Typography>
-          {!loading && !error && (
+          {cso && (
             <Typography variant="caption" color="text.secondary">
               {outfalls.length} in catchment
             </Typography>
           )}
         </Stack>
 
-        {loading && (
+        {showSkeleton && (
           <Stack spacing={1}>
-            <Skeleton variant="rounded" height={40} />
-            <Skeleton variant="rounded" height={40} />
-            <Skeleton variant="rounded" height={40} />
+            <Skeleton variant="rounded" height={56} />
+            <Skeleton variant="rounded" height={56} />
+            <Skeleton variant="rounded" height={56} />
           </Stack>
         )}
 
-        {!loading && error && (
-          <Alert severity="warning" sx={{ borderRadius: 1 }}>
-            Couldn&apos;t load CSO monitoring data right now. Try again shortly.
-          </Alert>
+        {!showSkeleton && csoError && !cso && (
+          <InfoPanel align="flex-start">
+            <CloudOffIcon color="warning" sx={{ flexShrink: 0 }} />
+            <Typography variant="body2" color="text.secondary">
+              Couldn&apos;t load CSO monitoring data right now. It&apos;ll retry
+              on the next refresh.
+            </Typography>
+          </InfoPanel>
         )}
 
-        {!loading && !error && (
+        {!showSkeleton && cso && (
           <Stack spacing={2}>
             {groups.length === 0 && (
               <Typography variant="body2" color="text.secondary">
@@ -165,26 +167,40 @@ const CsoListCard: React.FC = () => {
             )}
 
             {notableGroups.map((group) => (
-              <GroupSection key={group.state} state={group.state} outfalls={group.outfalls} />
+              <GroupSection
+                key={group.state}
+                state={group.state}
+                outfalls={group.outfalls}
+              />
             ))}
 
             {quietGroups.length > 0 && (
               <Accordion
                 expanded={quietExpanded}
                 onChange={(_, isExpanded) => setQuietExpanded(isExpanded)}
-                variant="outlined"
                 disableGutters
-                sx={{ "&:before": { display: "none" } }}
+                elevation={0}
+                // Pulled out to the card's inner edge so the summary row's own
+                // padding lines the label up with the headings above it,
+                // rather than indenting it by a second inset.
+                sx={{ "&:before": { display: "none" }, mx: -1 }}
               >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  sx={{ px: 1 }}
+                >
                   <Typography variant="body2" color="text.secondary">
                     {quietCount} not discharging
                   </Typography>
                 </AccordionSummary>
-                <AccordionDetails>
+                <AccordionDetails sx={{ px: 1, pt: 0 }}>
                   <Stack spacing={2}>
                     {quietGroups.map((group) => (
-                      <GroupSection key={group.state} state={group.state} outfalls={group.outfalls} />
+                      <GroupSection
+                        key={group.state}
+                        state={group.state}
+                        outfalls={group.outfalls}
+                      />
                     ))}
                   </Stack>
                 </AccordionDetails>
@@ -192,7 +208,7 @@ const CsoListCard: React.FC = () => {
             )}
 
             <Typography variant="caption" color="text.secondary">
-              {data ? formatAsOf(data.asOf) : ""}
+              {formatAsOf(cso.asOf)}
             </Typography>
           </Stack>
         )}
