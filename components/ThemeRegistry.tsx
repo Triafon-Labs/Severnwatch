@@ -2,9 +2,8 @@
 import createCache from "@emotion/cache";
 import { useServerInsertedHTML } from "next/navigation";
 import { CacheProvider } from "@emotion/react";
-import { CssBaseline, InitColorSchemeScript, ThemeProvider } from "@mui/material";
+import { AppThemeProvider } from "@/lib/ThemeContext";
 import React from "react";
-import theme from "@/lib/theme";
 
 // This implementation is from emotion-js
 // https://github.com/emotion-js/emotion/issues/2928#issuecomment-1319747902
@@ -53,13 +52,12 @@ export default function ThemeRegistry({
     );
   });
 
+  // InitColorSchemeScript no longer lives here - it has to run in <head>,
+  // before the body is parsed, or there is a window in which the wrong theme
+  // paints. See app/layout.tsx.
   return (
     <CacheProvider value={cache}>
-      <InitColorSchemeScript attribute="class" />
-      <ThemeProvider theme={theme} defaultMode="system">
-        <CssBaseline />
-        {children}
-      </ThemeProvider>
+      <AppThemeProvider>{children}</AppThemeProvider>
     </CacheProvider>
   );
 }

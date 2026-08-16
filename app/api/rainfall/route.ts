@@ -26,6 +26,9 @@ export async function GET() {
     return NextResponse.json(body);
   } catch (error) {
     console.error("Error fetching rainfall data:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

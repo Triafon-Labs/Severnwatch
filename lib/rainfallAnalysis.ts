@@ -29,7 +29,9 @@ const dayLabel = (iso: string) =>
   });
 
 const dayStartMs = (iso: string) => {
-  const londonDate = new Date(iso).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const londonDate = new Date(iso).toLocaleDateString("en-CA", {
+    timeZone: "Europe/London",
+  });
   return new Date(`${londonDate}T00:00:00Z`).getTime();
 };
 
@@ -42,7 +44,8 @@ export const buildDailyTotals = (gauges: RainfallGaugeData[]): Bucket[] => {
         days.set(key, { label: key, sortKey: dayStartMs(r.dateTime) });
       }
       const bucket = days.get(key)!;
-      const current = typeof bucket[gauge.id] === "number" ? (bucket[gauge.id] as number) : 0;
+      const current =
+        typeof bucket[gauge.id] === "number" ? (bucket[gauge.id] as number) : 0;
       bucket[gauge.id] = current + r.valueMm;
     }
   }
@@ -62,7 +65,10 @@ export const buildDailyTotals = (gauges: RainfallGaugeData[]): Bucket[] => {
 // Uses the raw 15-min readings directly rather than re-aggregating to
 // daily totals, so a burst lasting even one 15-min tip shows up as a spike
 // instead of being smoothed away. windowHours bounds how far back to look.
-export const buildHourlyIntensity = (gauges: RainfallGaugeData[], windowHours: number): Bucket[] => {
+export const buildHourlyIntensity = (
+  gauges: RainfallGaugeData[],
+  windowHours: number
+): Bucket[] => {
   const cutoff = Date.now() - windowHours * HOUR_MS;
   const points = new Map<string, Bucket>();
   for (const gauge of gauges) {
@@ -90,7 +96,9 @@ export const buildCatchmentAverageIntensity = (
     const values = gauges
       .map((g) => b[g.id])
       .filter((v): v is number => typeof v === "number");
-    const avg = values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
+    const avg = values.length
+      ? values.reduce((sum, v) => sum + v, 0) / values.length
+      : 0;
     return { sortKey: b.sortKey, valueMm: Math.round(avg * 10) / 10 };
   });
 };
@@ -122,10 +130,13 @@ export const buildForecastSeries = (
     rows.set(key, row);
   }
 
-  const sorted = Array.from(rows.values()).sort((a, b) => a.sortKey - b.sortKey);
+  const sorted = Array.from(rows.values()).sort(
+    (a, b) => a.sortKey - b.sortKey
+  );
   for (let i = sorted.length - 1; i >= 0; i--) {
     if (sorted[i].observedMm !== undefined) {
-      if (sorted[i].forecastMm === undefined) sorted[i].forecastMm = sorted[i].observedMm;
+      if (sorted[i].forecastMm === undefined)
+        sorted[i].forecastMm = sorted[i].observedMm;
       break;
     }
   }
@@ -135,7 +146,11 @@ export const buildForecastSeries = (
 // Total mm a gauge recorded in a past window of `windowMs`, ending
 // `offsetMs` ago - e.g. sumRecentMm(gauge, HOUR_MS) is "the last hour",
 // sumRecentMm(gauge, HOUR_MS, HOUR_MS) is "the hour before that".
-export const sumRecentMm = (gauge: RainfallGaugeData, windowMs: number, offsetMs = 0): number => {
+export const sumRecentMm = (
+  gauge: RainfallGaugeData,
+  windowMs: number,
+  offsetMs = 0
+): number => {
   const now = Date.now();
   const to = now - offsetMs;
   const from = to - windowMs;
@@ -153,12 +168,19 @@ export type SpillLikelihood = "Low" | "Medium" | "High";
 // Worst-case across the catchment's gauges: a burst at any one station, or
 // sustained rain over the full 24h, is enough to raise the likelihood - it
 // doesn't need to be all three gauges at once.
-export const assessRainfallLikelihood = (gauges: RainfallGaugeData[]): SpillLikelihood => {
+export const assessRainfallLikelihood = (
+  gauges: RainfallGaugeData[]
+): SpillLikelihood => {
   let worst: SpillLikelihood = "Low";
   for (const gauge of gauges) {
     const lastHourMm = sumRecentMm(gauge, HOUR_MS);
-    if (lastHourMm >= HOURLY_HEAVY_MM || gauge.last24hTotalMm >= DAILY_HEAVY_MM) return "High";
-    if (lastHourMm >= HOURLY_MODERATE_MM || gauge.last24hTotalMm >= DAILY_MODERATE_MM) worst = "Medium";
+    if (lastHourMm >= HOURLY_HEAVY_MM || gauge.last24hTotalMm >= DAILY_HEAVY_MM)
+      return "High";
+    if (
+      lastHourMm >= HOURLY_MODERATE_MM ||
+      gauge.last24hTotalMm >= DAILY_MODERATE_MM
+    )
+      worst = "Medium";
   }
   return worst;
 };

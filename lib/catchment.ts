@@ -1,4 +1,7 @@
-import { CATCHMENT_WAYPOINTS, CATCHMENT_EXCLUDED_LOCALITIES } from "@/lib/config";
+import {
+  CATCHMENT_WAYPOINTS,
+  CATCHMENT_EXCLUDED_LOCALITIES,
+} from "@/lib/config";
 
 // Haversine distance in km between two lat/long points.
 export const distanceKm = (

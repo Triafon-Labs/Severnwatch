@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
-  Alert,
+  Box,
   Card,
   CardContent,
   Divider,
   Grid,
-  Paper,
   Skeleton,
   Stack,
   Typography,
@@ -20,30 +18,44 @@ import TrendingFlatIcon from "@mui/icons-material/TrendingFlat";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
-import { RainfallGaugeData, RainfallResponse } from "@/types";
+import CloudOffIcon from "@mui/icons-material/CloudOff";
+import { RainfallGaugeData } from "@/types";
 import { formatAsOf } from "@/lib/format";
-import { HOUR_MS, SpillLikelihood, assessRainfallLikelihood, sumRecentMm } from "@/lib/rainfallAnalysis";
+import { STATUS_COLORS } from "@/lib/statusColors";
+import { useSevernContext } from "@/lib/SevernDataContext";
+import {
+  HOUR_MS,
+  SpillLikelihood,
+  assessRainfallLikelihood,
+  sumRecentMm,
+} from "@/lib/rainfallAnalysis";
+import InfoPanel from "@/components/InfoPanel";
 import RainfallChart from "@/components/RainfallChart";
 
-const REFRESH_INTERVAL_MS = 15 * 60 * 1000; // matches the gauges' own reporting cadence
-
-const GaugeStat: React.FC<{ label: string; latestMm: number | null; last24hTotalMm: number }> = ({
-  label,
-  latestMm,
-  last24hTotalMm,
-}) => (
+const GaugeStat: React.FC<{
+  label: string;
+  latestMm: number | null;
+  last24hTotalMm: number;
+}> = ({ label, latestMm, last24hTotalMm }) => (
   <Stack spacing={0.25} sx={{ minWidth: 140 }}>
     <Typography variant="caption" color="text.secondary">
       {label}
     </Typography>
     <Typography variant="h6" component="p">
       {last24hTotalMm} mm
-      <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+      <Typography
+        component="span"
+        variant="caption"
+        color="text.secondary"
+        sx={{ ml: 0.5 }}
+      >
         last 24h
       </Typography>
     </Typography>
     <Typography variant="caption" color="text.secondary">
-      {latestMm !== null ? `${latestMm} mm in the last 15 min` : "no recent reading"}
+      {latestMm !== null
+        ? `${latestMm} mm in the last 15 min`
+        : "no recent reading"}
     </Typography>
   </Stack>
 );
@@ -51,22 +63,40 @@ const GaugeStat: React.FC<{ label: string; latestMm: number | null; last24hTotal
 // Worst (highest) reading across the catchment's gauges - the number that
 // actually matters for "could this cause a spill nearby", not an average
 // that dilutes a burst at one station with calm at the others.
-const maxAcrossGauges = (gauges: RainfallGaugeData[], value: (g: RainfallGaugeData) => number): number =>
-  Math.max(...gauges.map(value));
+const maxAcrossGauges = (
+  gauges: RainfallGaugeData[],
+  value: (g: RainfallGaugeData) => number
+): number => Math.max(...gauges.map(value));
 
-const ChangeTile: React.FC<{ label: string; currentMm: number; previousMm: number }> = ({
-  label,
-  currentMm,
-  previousMm,
-}) => {
+const ChangeTile: React.FC<{
+  label: string;
+  currentMm: number;
+  previousMm: number;
+}> = ({ label, currentMm, previousMm }) => {
   const delta = Math.round((currentMm - previousMm) * 10) / 10;
-  const Icon = delta > 0 ? TrendingUpIcon : delta < 0 ? TrendingDownIcon : TrendingFlatIcon;
-  const color = delta > 0 ? "warning.main" : delta < 0 ? "success.main" : "text.secondary";
+  const Icon =
+    delta > 0
+      ? TrendingUpIcon
+      : delta < 0
+        ? TrendingDownIcon
+        : TrendingFlatIcon;
+  // The exact status hues rather than the palette's warning/success roles, so
+  // a rising-rainfall arrow reads in the same amber as the Medium likelihood
+  // panel below it in both colour schemes.
+  const color =
+    delta > 0
+      ? STATUS_COLORS.amber
+      : delta < 0
+        ? STATUS_COLORS.darkGreen
+        : "text.secondary";
 
   return (
-    <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 1.5, height: "100%" }}>
-      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
-        <RestoreIcon sx={{ fontSize: 16, opacity: 0.6 }} />
+    <InfoPanel
+      align="flex-start"
+      sx={{ flexDirection: "column", gap: 0.5, height: "100%" }}
+    >
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        <RestoreIcon sx={{ fontSize: 16, color: "text.secondary" }} />
         <Typography variant="caption" color="text.secondary">
           {label} Change
         </Typography>
@@ -77,14 +107,20 @@ const ChangeTile: React.FC<{ label: string; currentMm: number; previousMm: numbe
           {Math.abs(delta)} mm
         </Typography>
       </Stack>
-    </Paper>
+    </InfoPanel>
   );
 };
 
-const TotalTile: React.FC<{ label: string; totalMm: number }> = ({ label, totalMm }) => (
-  <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 1.5, height: "100%" }}>
-    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
-      <CalendarMonthIcon sx={{ fontSize: 16, opacity: 0.6 }} />
+const TotalTile: React.FC<{ label: string; totalMm: number }> = ({
+  label,
+  totalMm,
+}) => (
+  <InfoPanel
+    align="flex-start"
+    sx={{ flexDirection: "column", gap: 0.5, height: "100%" }}
+  >
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <CalendarMonthIcon sx={{ fontSize: 16, color: "text.secondary" }} />
       <Typography variant="caption" color="text.secondary">
         {label} Total
       </Typography>
@@ -92,111 +128,114 @@ const TotalTile: React.FC<{ label: string; totalMm: number }> = ({ label, totalM
     <Typography variant="h6" component="p">
       {totalMm} mm
     </Typography>
-  </Paper>
+  </InfoPanel>
 );
 
 const LIKELIHOOD_STYLE: Record<
   SpillLikelihood,
-  { severity: "success" | "warning" | "error"; icon: React.ReactNode; description: string }
+  {
+    role: "success" | "warning" | "error";
+    accent: string;
+    icon: React.ReactNode;
+    description: string;
+  }
 > = {
   Low: {
-    severity: "success",
+    role: "success",
+    accent: STATUS_COLORS.darkGreen,
     icon: <CheckCircleOutlineIcon />,
     description: "Rainfall doesn't currently suggest an elevated spill risk.",
   },
   Medium: {
-    severity: "warning",
+    role: "warning",
+    accent: STATUS_COLORS.amber,
     icon: <WarningAmberIcon />,
-    description: "Sustained rain across the catchment - a spill is more plausible than usual.",
+    description:
+      "Sustained rain across the catchment - a spill is more plausible than usual.",
   },
   High: {
-    severity: "error",
+    role: "error",
+    accent: STATUS_COLORS.red,
     icon: <ReportProblemIcon />,
-    description: "Heavy, thunderstorm-level rainfall in the catchment - a spill is more likely.",
+    description:
+      "Heavy, thunderstorm-level rainfall in the catchment - a spill is more likely.",
   },
 };
 
-const LikelihoodTile: React.FC<{ likelihood: SpillLikelihood }> = ({ likelihood }) => {
+const LikelihoodPanel: React.FC<{ likelihood: SpillLikelihood }> = ({
+  likelihood,
+}) => {
   const style = LIKELIHOOD_STYLE[likelihood];
   return (
-    <Alert icon={style.icon} severity={style.severity} variant="outlined" sx={{ borderRadius: 1 }}>
+    <InfoPanel
+      align="flex-start"
+      sx={{
+        bgcolor: `${style.role}.container`,
+        color: `${style.role}.onContainer`,
+        borderLeft: "4px solid",
+        borderColor: style.accent,
+      }}
+    >
+      <Box sx={{ color: style.accent, display: "flex", flexShrink: 0 }}>
+        {style.icon}
+      </Box>
       <Stack spacing={0.25}>
-        <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
           Rainfall-based spill likelihood: {likelihood}
         </Typography>
         <Typography variant="body2">{style.description}</Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" sx={{ opacity: 0.85 }}>
           Estimated from rainfall alone (this is separate from the actual spill
           status above) - real risk also depends on sewer capacity and ground
           conditions.
         </Typography>
       </Stack>
-    </Alert>
+    </InfoPanel>
   );
 };
 
 const RainfallCard: React.FC = () => {
-  const [data, setData] = useState<RainfallResponse | null>(null);
-  const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const res = await fetch("/api/rainfall");
-        if (!res.ok) throw new Error("Failed to fetch");
-        const body: RainfallResponse = await res.json();
-        if (!cancelled) {
-          setData(body);
-          setError(false);
-        }
-      } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    const interval = setInterval(load, REFRESH_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
-  const gauges = data?.gauges ?? [];
+  const { rainfall, rainfallError, loading } = useSevernContext();
+  const gauges = rainfall?.gauges ?? [];
+  const showSkeleton = loading && !rainfall;
 
   return (
-    <Card variant="outlined">
+    <Card>
       <CardContent>
-        <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ mb: 1.5 }}>
+        <Stack
+          direction="row"
+          alignItems="baseline"
+          justifyContent="space-between"
+          sx={{ mb: 2 }}
+        >
           <Typography variant="h5" component="h2">
             Rainfall
           </Typography>
-          {!loading && !error && data && (
+          {rainfall && (
             <Typography variant="caption" color="text.secondary">
-              {formatAsOf(data.asOf)}
+              {formatAsOf(rainfall.asOf)}
             </Typography>
           )}
         </Stack>
 
-        {loading && (
+        {showSkeleton && (
           <Stack spacing={1}>
             <Skeleton variant="rounded" height={72} />
-            <Skeleton variant="rounded" height={180} />
+            <Skeleton variant="rounded" height={220} />
           </Stack>
         )}
 
-        {!loading && error && (
-          <Alert severity="warning" sx={{ borderRadius: 1 }}>
-            Couldn&apos;t load rainfall data right now. Try again shortly.
-          </Alert>
+        {!showSkeleton && rainfallError && !rainfall && (
+          <InfoPanel align="flex-start">
+            <CloudOffIcon color="warning" sx={{ flexShrink: 0 }} />
+            <Typography variant="body2" color="text.secondary">
+              Couldn&apos;t load rainfall data right now. It&apos;ll retry on
+              the next refresh.
+            </Typography>
+          </InfoPanel>
         )}
 
-        {!loading && !error && data && (
+        {!showSkeleton && rainfall && gauges.length > 0 && (
           <Stack spacing={2}>
             <Grid container spacing={2}>
               {gauges.map((gauge) => (
@@ -212,39 +251,53 @@ const RainfallCard: React.FC = () => {
 
             <Divider />
 
-            <RainfallChart gauges={gauges} forecast={data.forecast} />
+            <RainfallChart gauges={gauges} forecast={rainfall.forecast} />
 
             <Grid container spacing={1.5}>
               <Grid size={6}>
                 <ChangeTile
                   label="1h"
-                  currentMm={maxAcrossGauges(gauges, (g) => sumRecentMm(g, HOUR_MS))}
-                  previousMm={maxAcrossGauges(gauges, (g) => sumRecentMm(g, HOUR_MS, HOUR_MS))}
+                  currentMm={maxAcrossGauges(gauges, (g) =>
+                    sumRecentMm(g, HOUR_MS)
+                  )}
+                  previousMm={maxAcrossGauges(gauges, (g) =>
+                    sumRecentMm(g, HOUR_MS, HOUR_MS)
+                  )}
                 />
               </Grid>
               <Grid size={6}>
                 <ChangeTile
                   label="8h"
-                  currentMm={maxAcrossGauges(gauges, (g) => sumRecentMm(g, 8 * HOUR_MS))}
-                  previousMm={maxAcrossGauges(gauges, (g) => sumRecentMm(g, 8 * HOUR_MS, 8 * HOUR_MS))}
+                  currentMm={maxAcrossGauges(gauges, (g) =>
+                    sumRecentMm(g, 8 * HOUR_MS)
+                  )}
+                  previousMm={maxAcrossGauges(gauges, (g) =>
+                    sumRecentMm(g, 8 * HOUR_MS, 8 * HOUR_MS)
+                  )}
                 />
               </Grid>
               <Grid size={6}>
                 <ChangeTile
                   label="24h"
-                  currentMm={maxAcrossGauges(gauges, (g) => sumRecentMm(g, 24 * HOUR_MS))}
-                  previousMm={maxAcrossGauges(gauges, (g) => sumRecentMm(g, 24 * HOUR_MS, 24 * HOUR_MS))}
+                  currentMm={maxAcrossGauges(gauges, (g) =>
+                    sumRecentMm(g, 24 * HOUR_MS)
+                  )}
+                  previousMm={maxAcrossGauges(gauges, (g) =>
+                    sumRecentMm(g, 24 * HOUR_MS, 24 * HOUR_MS)
+                  )}
                 />
               </Grid>
               <Grid size={6}>
                 <TotalTile
                   label="7d"
-                  totalMm={maxAcrossGauges(gauges, (g) => sumRecentMm(g, 7 * 24 * HOUR_MS))}
+                  totalMm={maxAcrossGauges(gauges, (g) =>
+                    sumRecentMm(g, 7 * 24 * HOUR_MS)
+                  )}
                 />
               </Grid>
             </Grid>
 
-            <LikelihoodTile likelihood={assessRainfallLikelihood(gauges)} />
+            <LikelihoodPanel likelihood={assessRainfallLikelihood(gauges)} />
           </Stack>
         )}
       </CardContent>

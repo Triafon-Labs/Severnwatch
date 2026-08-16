@@ -3,19 +3,19 @@ import CsoSpillCard from "@/components/CsoSpillCard";
 import CsoListCard from "@/components/CsoListCard";
 import RainfallCard from "@/components/RainfallCard";
 import WaterQualityMap from "@/components/WaterQualityMap";
-import WaterQualityExplainer from "@/components/WaterQualityExplainer";
 
 export default function HomePage() {
   return (
-    <Container maxWidth="md">
-      <Stack spacing={4}>
+    // 16px between cards, against the 24px inset the theme gives CardContent -
+    // M3 wants the inset larger than the gap so the card edge is legible as a
+    // boundary. The page used to sit at 32, which read as four unrelated
+    // panels rather than one dashboard.
+    <Container maxWidth="md" sx={{ px: 2 }}>
+      <Stack spacing={2}>
         <CsoSpillCard />
         <CsoListCard />
         <RainfallCard />
-        <Stack spacing={1.5}>
-          <WaterQualityMap />
-          <WaterQualityExplainer />
-        </Stack>
+        <WaterQualityMap />
       </Stack>
     </Container>
   );
