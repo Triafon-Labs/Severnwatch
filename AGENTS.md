@@ -1,12 +1,16 @@
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+# Next.js: ALWAYS read docs before coding
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
 
 <!-- END:nextjs-agent-rules -->
+
+<!-- Everything below this point is project-owned. The two comment markers
+     above delimit the Next.js-managed section; per Next's own guide
+     (node_modules/next/dist/docs/01-app/02-guides/ai-agents.md) content
+     outside them is not overwritten when that block is updated, so this
+     reference is safe to keep in the same file. Do not move the markers. -->
 
 # Severnwatch – Agent Reference
 
@@ -38,7 +42,7 @@ scopes. **Location hardcoded to:** Worcester, UK (lat 52.2, lon -2.2).
 | PWA           | Web manifest (`app/manifest.ts`) + hand-rolled service worker (`public/sw.js`) |
 | Linting       | ESLint 10, Prettier 3                                                          |
 | Git hooks     | Husky 9 + commitlint (Conventional Commits)                                    |
-| CI            | GitHub Actions (lint + build on PR)                                            |
+| CI            | GitHub Actions (lint + build on PR, opt-in uptime + health ping)               |
 | Releases      | commit-and-tag-version (auto version bump + changelog + tag on merge to main)  |
 
 No environment variables are required for local development.
@@ -248,9 +252,19 @@ rejecting commits whose first line isn't a valid Conventional Commit
   entry, and a `BREAKING CHANGE:` footer bumps major. The job skips itself when
   the triggering commit is its own `chore(release): ...` commit, to avoid a
   loop.
+- **keep-alive.yml** – every 5 minutes, pings the deployed site and asserts
+  that both API routes still return usable data. It is **inert until a
+  repository variable named `SITE_URL` is set**, so it does nothing on a repo
+  that isn't deployed yet. The 5-minute cadence matches the sewage route's own
+  `revalidate` window, so each ping rebuilds that cache as it expires — worth
+  doing because a cold rebuild reverse-geocodes sequentially at 1 request per
+  second and can take ~15s. It deliberately does **not** assert on `asOf`:
+  both routes stamp that with the time they built the response, not the time
+  the readings were collected, so it is fresh by construction.
 
-Both workflows install through `.github/actions/npm-install` rather than
-calling `npm ci` directly. See below for why.
+`ci.yml` and `auto-tag.yml` install through `.github/actions/npm-install`
+rather than calling `npm ci` directly. See below for why. (`keep-alive.yml`
+only curls the public site and checks out nothing.)
 
 The Node version is pinned to 22 in both workflows and declared as
 `engines.node` in `package.json`, which is also what Vercel reads when picking

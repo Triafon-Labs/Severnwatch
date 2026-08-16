@@ -1,0 +1,92 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Every 5 minutes, which is also the sewage route's own revalidate window
+    # (see app/api/sewage/route.ts) - so each ping lands just as the cache
+    # expires and rebuilds it before a visitor has to wait for it. That route
+    # reverse-geocodes sequentially with a 1s gap between calls to respect
+    # Nominatim's usage policy, so a cold rebuild can take ~15s. Keeping it
+    # warm is the point of the schedule, not a side effect of it.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+# Only curls the public site; needs no access to the repo at all.
+permissions: {}
+
+# A ping that outlives its 5-minute slot should not stack up behind the next one.
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    # Inert until the deployment URL is configured, so the workflow can land
+    # without turning into a failing cron job on a repo that isn't deployed
+    # yet. Set a repository variable named SITE_URL to switch it on.
+    if: vars.SITE_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping site and warm the API caches
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          for path in "/" "/api/sewage" "/api/rainfall"; do
+            url="${SITE_URL}${path}"
+            echo "Pinging $url"
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 40 "$url")
+            echo "Response status: $status"
+            if [ "$status" -lt 200 ] || [ "$status" -ge 400 ]; then
+              echo "::error::$url returned unexpected status $status"
+              exit 1
+            fi
+          done
+
+      # Both routes 500 outright when their core upstream fails, so the status
+      # check above already covers a hard outage. What it can't see is a feed
+      # that still responds but has changed shape underneath us - a renamed
+      # field or a moved endpoint leaves the routes returning 200 with nothing
+      # in them, and the only other signal would be an empty card in the UI.
+      #
+      # Deliberately not checking `asOf`: both routes stamp it with the time
+      # they built the response, not the time the upstream data was collected,
+      # so it is fresh by construction and an age assertion on it could never
+      # fail. Freshness of the underlying readings isn't observable from here.
+      - name: Check upstream feeds still return usable data
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          # Keep in step with RAINFALL_GAUGES in lib/config.ts.
+          EXPECTED_GAUGES: "3"
+        run: |
+          sewage=$(curl -s --max-time 40 "${SITE_URL}/api/sewage")
+          outfalls=$(echo "$sewage" | jq -r '.outfalls | length // 0')
+          echo "CSO outfalls in catchment: $outfalls"
+          if [ "$outfalls" -eq 0 ]; then
+            echo "::error::/api/sewage returned no outfalls - the Severn Trent feed or the catchment filter has likely changed"
+            exit 1
+          fi
+
+          rainfall=$(curl -s --max-time 40 "${SITE_URL}/api/rainfall")
+          gauges=$(echo "$rainfall" | jq -r '.gauges | length // 0')
+          echo "Rainfall gauges reporting: $gauges (expected $EXPECTED_GAUGES)"
+          if [ "$gauges" -ne "$EXPECTED_GAUGES" ]; then
+            echo "::error::/api/rainfall returned $gauges gauges, expected $EXPECTED_GAUGES"
+            exit 1
+          fi
+
+          empty=$(echo "$rainfall" | jq -r '[.gauges[] | select((.readings | length) == 0) | .label] | join(", ")')
+          if [ -n "$empty" ]; then
+            echo "::error::Gauge(s) returning no readings: $empty"
+            exit 1
+          fi
+
+          # The forecast is explicitly best-effort in the route - a failure
+          # there is caught and returns an empty array rather than taking the
+          # gauge readings down with it. Warn so it shows up in the run, but
+          # don't fail a run over the optional layer.
+          forecast=$(echo "$rainfall" | jq -r '.forecast | length // 0')
+          if [ "$forecast" -eq 0 ]; then
+            echo "::warning::Open-Meteo forecast is empty - the rainfall chart will show observed data only"
+          fi
+
+          echo "All upstream sources healthy"

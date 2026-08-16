@@ -1,4 +1,9 @@
-const CACHE_VERSION = "severnwatch-v1";
+// Bump this whenever the app shell changes shape enough that a returning
+// visitor should not be served anything from the previous one. The activate
+// handler below deletes every `severnwatch-` cache that isn't the current
+// version, so a bump is what actually evicts the old entries - most of which
+// are hashed `/_next/static/` assets that nothing will ever request again.
+const CACHE_VERSION = "severnwatch-v2";
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 self.addEventListener("install", () => {
@@ -7,13 +12,17 @@ self.addEventListener("install", () => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key.startsWith("severnwatch-") && key !== RUNTIME_CACHE)
-          .map((key) => caches.delete(key)),
-      ),
-    ),
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter(
+              (key) => key.startsWith("severnwatch-") && key !== RUNTIME_CACHE
+            )
+            .map((key) => caches.delete(key))
+        )
+      )
   );
   self.clients.claim();
 });

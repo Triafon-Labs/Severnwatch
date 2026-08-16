@@ -17,7 +17,7 @@ Sibling project to [Paddlecheck](https://github.com/dylanr97/Paddlecheck) (the W
 | PWA           | Web manifest + hand-rolled service worker                                     |
 | Linting       | ESLint 10, Prettier 3                                                         |
 | Git hooks     | Husky 9 + commitlint (Conventional Commits)                                   |
-| CI            | GitHub Actions (lint + build on PR)                                           |
+| CI            | GitHub Actions (lint + build on PR, opt-in uptime + health ping)              |
 | Releases      | commit-and-tag-version (auto version bump + changelog + tag on merge to main) |
 
 Node 22 or newer is required (`engines.node` in `package.json`, and what both CI workflows pin).

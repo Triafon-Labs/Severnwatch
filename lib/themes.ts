@@ -663,10 +663,14 @@ const components: ThemeOptions["components"] = {
     styleOverrides: {
       root: ({ theme }) => [
         { borderRadius: 12 },
-        // M3 uses the tonal container pair for inline status surfaces, where
-        // MUI's default reaches for a tinted background plus a saturated
-        // `main` text colour - a Material 2 recipe that leaves dark mode with
-        // a near-black panel.
+        // Nothing currently renders an <Alert>: the status panels that used to
+        // be outlined Alerts are now InfoPanels on the tonal container pair,
+        // which is the shape M3 actually gives an inline status surface. This
+        // override stays because MUI's Alert defaults are Material 2 - a
+        // tinted background with saturated `main` text, which leaves dark mode
+        // a near-black panel - so the first Alert anyone adds would otherwise
+        // land off-system. It is a guard rail, not a description of the
+        // current page.
         ...perScheme(theme, (m3) => ({
           "&.MuiAlert-standardError": {
             backgroundColor: m3.errorContainer,
@@ -688,13 +692,12 @@ const components: ThemeOptions["components"] = {
             color: m3.onSecondaryContainer,
             "& .MuiAlert-icon": { color: m3.onSecondaryContainer },
           },
-          // The outlined variant is what the status panels on this page use,
-          // and MUI draws its border in the saturated `main` colour while
-          // leaving the fill transparent - so an error panel is a hard red
-          // rectangle around body text sitting directly on the card. Give it
-          // the container fill too and demote the border to the outline role,
-          // so the severity is carried by the tone and the icon rather than by
-          // a ring.
+          // The outlined variant needs the same treatment: MUI draws its
+          // border in the saturated `main` colour while leaving the fill
+          // transparent, so an error panel is a hard red rectangle around body
+          // text sitting directly on the card. Give it the container fill too
+          // and keep the border as the accent, so the severity is carried by
+          // the tone and the icon rather than by a ring.
           "&.MuiAlert-outlinedError": {
             backgroundColor: m3.errorContainer,
             color: m3.onErrorContainer,
