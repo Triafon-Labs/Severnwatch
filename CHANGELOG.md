@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.2](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.1...severnwatch-v0.1.2) (2026-08-16)
+
+
+### Features
+
+* replace the CSO list with a river schematic ([a1b7046](https://github.com/dylanr97/Severnwatch/commit/a1b70461c606e7ba6897276ebedad8b9b03a4679))
+* scale the spill window by travel time, and mark the real reach ([e263c32](https://github.com/dylanr97/Severnwatch/commit/e263c32d3a75802f0394f669b123f77761489d67))
+
+
+### Bug Fixes
+
+* close the Shrawley coverage gap and extend the reach to Diglis ([7e631d5](https://github.com/dylanr97/Severnwatch/commit/7e631d515436ab1ce9e6e6741ea7b2a5d5021568))
+
 ## 0.1.1 (2026-08-16)
 
 
