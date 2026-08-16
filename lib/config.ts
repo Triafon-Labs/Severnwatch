@@ -24,8 +24,13 @@ export const SEWAGE_RECENT_SPILL_HOURS = 24;
 // whose spills could plausibly affect water quality there in a meaningful
 // timeframe, without diluting the signal with distant/marginal catchments.
 // Each waypoint is a named place along the Severn (and lower Stour/Salwarpe)
-// corridor between Worcester and Bewdley; an outfall is in-scope if it falls
-// within `radiusKm` of any waypoint. Anything past Bewdley is too diluted
+// corridor between Bewdley and Diglis, the downstream end of the Worcester
+// reach; an outfall is in-scope if it falls within `radiusKm` of any
+// waypoint. Radii are sized so consecutive circles overlap along the river
+// itself - a stretch that falls outside every circle is dropped silently,
+// which is how the Shrawley/Astley reach went missing until the corridor was
+// checked against the river's actual course rather than waypoint to
+// waypoint. Anything past Bewdley is too diluted
 // and too slow (25+ km, hours of travel time, heavy baseflow dilution) to
 // be a useful water-quality signal for paddlers at Worcester.
 export interface CatchmentWaypoint {
@@ -95,6 +100,20 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     branch: "severn",
     downstreamOrder: 1,
   },
+  // Covers the Astley Burf -> Shrawley -> Holt Fleet reach, which sat outside
+  // every other circle: Stourport and Ombersley are 11.6 km apart but carry
+  // 5 km radii, leaving ~1.8 km of river uncovered. Spills there flow past
+  // Holt Fleet and down to Worcester like any other, so dropping them was an
+  // artefact of placing circles on settlements rather than on the river.
+  {
+    name: "Shrawley/Astley",
+    label: "Shrawley & Astley",
+    lat: 52.288,
+    lon: -2.262,
+    radiusKm: 5,
+    branch: "severn",
+    downstreamOrder: 2,
+  },
   {
     name: "Ombersley/Hawford",
     label: "Ombersley & Hawford",
@@ -102,7 +121,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     lon: -2.212,
     radiusKm: 5,
     branch: "severn",
-    downstreamOrder: 2,
+    downstreamOrder: 3,
   },
   {
     name: "Worcester (Barbourne/Claines)",
@@ -111,7 +130,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     lon: -2.208,
     radiusKm: 5,
     branch: "severn",
-    downstreamOrder: 3,
+    downstreamOrder: 4,
     isReach: true,
   },
   {
@@ -121,7 +140,21 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     lon: -2.234,
     radiusKm: 5,
     branch: "severn",
-    downstreamOrder: 4,
+    downstreamOrder: 5,
+    isReach: true,
+  },
+  // The downstream end of the reach. Deliberately tighter than the 5 km the
+  // rest carry: everything upstream of a stop drains past it, so a wide
+  // circle on the last one would pull in Kempsey and beyond - outfalls whose
+  // spills flow away from Worcester rather than towards it.
+  {
+    name: "Diglis",
+    label: "Diglis",
+    lat: 52.178,
+    lon: -2.222,
+    radiusKm: 3,
+    branch: "severn",
+    downstreamOrder: 6,
     isReach: true,
   },
 
