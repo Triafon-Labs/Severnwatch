@@ -20,32 +20,26 @@ export default function manifest(): MetadataRoute.Manifest {
     // either makes the launch flash a colour the app itself never shows.
     background_color: "#0B1418",
     theme_color: "#0B1418",
+    // Use the images shipped in `public/`. The Paddlecheck sibling repo
+    // places icons under `/public/icons/` but this repo currently exposes a
+    // handful of canonical files at the root; reference those so the manifest
+    // points to real files rather than missing ones.
     icons: [
-      { src: "/icons/icon-16.png", sizes: "16x16", type: "image/png" },
-      { src: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
-      { src: "/icons/icon-48.png", sizes: "48x48", type: "image/png" },
-      { src: "/icons/icon-96.png", sizes: "96x96", type: "image/png" },
-      { src: "/icons/icon-180.png", sizes: "180x180", type: "image/png" },
+      { src: "/favicon.ico", sizes: "any" },
+      { src: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
       {
-        src: "/icons/icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "any",
-      },
-      { src: "/icons/icon-256.png", sizes: "256x256", type: "image/png" },
-      { src: "/icons/icon-384.png", sizes: "384x384", type: "image/png" },
-      {
-        src: "/icons/icon-512.png",
+        src: "/web-app-manifest-512x512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/maskable-icon-512.png",
+        src: "/web-app-manifest-512x512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
       },
+      { src: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   };
 }
