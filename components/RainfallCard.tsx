@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import RestoreIcon from "@mui/icons-material/Restore";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingFlatIcon from "@mui/icons-material/TrendingFlat";
@@ -27,6 +28,7 @@ import {
   HOUR_MS,
   SpillLikelihood,
   assessRainfallLikelihood,
+  calculateForecast24hTotal,
   sumRecentMm,
 } from "@/lib/rainfallAnalysis";
 import InfoPanel from "@/components/InfoPanel";
@@ -131,6 +133,28 @@ const TotalTile: React.FC<{ label: string; totalMm: number }> = ({
   </InfoPanel>
 );
 
+const ForecastTile: React.FC<{ totalMm: number | null }> = ({ totalMm }) => (
+  <InfoPanel
+    align="flex-start"
+    sx={{ flexDirection: "column", gap: 0.5, height: "100%" }}
+  >
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <ScheduleIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+      <Typography variant="caption" color="text.secondary">
+        24h Forecast Total
+      </Typography>
+    </Stack>
+    <Stack direction="row" spacing={1} alignItems="baseline">
+      <Typography variant="h6" component="p">
+        {totalMm !== null ? `${totalMm} mm` : "—"}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        expected in next 24h
+      </Typography>
+    </Stack>
+  </InfoPanel>
+);
+
 const LIKELIHOOD_STYLE: Record<
   SpillLikelihood,
   {
@@ -184,11 +208,6 @@ const LikelihoodPanel: React.FC<{ likelihood: SpillLikelihood }> = ({
           Rainfall-based spill likelihood: {likelihood}
         </Typography>
         <Typography variant="body2">{style.description}</Typography>
-        <Typography variant="caption" sx={{ opacity: 0.85 }}>
-          Estimated from rainfall alone (this is separate from the actual spill
-          status above) - real risk also depends on sewer capacity and ground
-          conditions.
-        </Typography>
       </Stack>
     </InfoPanel>
   );
@@ -293,6 +312,11 @@ const RainfallCard: React.FC = () => {
                   totalMm={maxAcrossGauges(gauges, (g) =>
                     sumRecentMm(g, 7 * 24 * HOUR_MS)
                   )}
+                />
+              </Grid>
+              <Grid size={12}>
+                <ForecastTile
+                  totalMm={calculateForecast24hTotal(rainfall.forecast)}
                 />
               </Grid>
             </Grid>
