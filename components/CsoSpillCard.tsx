@@ -28,40 +28,47 @@ const relativeTime = (iso: string | null): string =>
     ? formatDistanceToNow(new Date(iso), { addSuffix: true })
     : "unknown time";
 
-const describeLocation = (o: CsoOutfall): string =>
-  o.locationName ? `${o.locationName} (${o.watercourse})` : o.watercourse;
+const OutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
+  const title = o.locationName ?? o.watercourse;
+  const subtitle = o.locationName
+    ? `${o.watercourse} (${o.waypointName})`
+    : o.waypointName;
 
-const OutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => (
-  <Box>
-    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-      {describeLocation(o)}
-    </Typography>
-    <Stack
-      direction="row"
-      spacing={1}
-      alignItems="baseline"
-      sx={{ flexWrap: "wrap" }}
-    >
-      {/* Lower emphasis by fading the container's own on-colour, not by
-          switching to `text.secondary`. These rows sit on the error/warning
-          container fill, and the global secondary text colour is a neutral
-          tuned for the card surface - on the dark scheme's deep red it lands
-          at 4.3:1 and reads as a different, clashing grey rather than as
-          quieter text. */}
-      <Typography variant="caption" sx={{ opacity: 0.85 }}>
-        {o.state === "Ongoing"
-          ? `Started ${relativeTime(o.startISO)}`
-          : `Ended ${relativeTime(o.endISO)}`}
+  return (
+    <Box>
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        {title}
       </Typography>
-      {o.durationMinutes !== null && (
+      <Typography variant="caption" sx={{ opacity: 0.9, display: "block" }}>
+        {subtitle}
+      </Typography>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="baseline"
+        sx={{ flexWrap: "wrap", mt: 0.25 }}
+      >
+        {/* Lower emphasis by fading the container's own on-colour, not by
+            switching to `text.secondary`. These rows sit on the error/warning
+            container fill, and the global secondary text colour is a neutral
+            tuned for the card surface - on the dark scheme's deep red it lands
+            at 4.3:1 and reads as a different, clashing grey rather than as
+            quieter text. */}
         <Typography variant="caption" sx={{ opacity: 0.85 }}>
-          &middot; {o.state === "Ongoing" ? "running" : "lasted"}{" "}
-          {formatDuration(o.durationMinutes)}
+          {o.state === "Ongoing"
+            ? `Started ${relativeTime(o.startISO)}`
+            : `Ended ${relativeTime(o.endISO)}`}
         </Typography>
-      )}
-    </Stack>
-  </Box>
-);
+        {o.durationMinutes !== null && (
+          <Typography variant="caption" sx={{ opacity: 0.85 }}>
+            &middot; {o.state === "Ongoing" ? "running" : "lasted"}{" "}
+            {formatDuration(o.durationMinutes)}
+          </Typography>
+        )}
+      </Stack>
+    </Box>
+  );
+};
 
 // The card's headline reading, drawn as a tonal container panel rather than a
 // bordered Alert. M3 carries severity with the container fill and the icon;

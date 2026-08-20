@@ -4,8 +4,10 @@ import {
   SEWAGE_API_URL,
   SEWAGE_RECENT_SPILL_BASE_HOURS,
   SEWAGE_MAX_RESULTS,
+  CSO_SITE_OVERRIDES,
 } from "@/lib/config";
 import { nearestWaypoint, isExcludedLocality } from "@/lib/catchment";
+import { formatWatercourse } from "@/lib/format";
 
 interface SewageFeatureAttributes {
   Id: string | number;
@@ -100,11 +102,12 @@ export async function GET() {
       60 *
       1000;
 
-    const outfalls: (CsoOutfall & { locationName: string | null })[] = features
+    const outfalls = features
       .map(({ attributes }) => {
         const nearest = nearestWaypoint(
           attributes.Latitude,
-          attributes.Longitude
+          attributes.Longitude,
+          attributes.ReceivingWaterCourse
         );
         if (nearest === null) return null; // outside the catchment corridor
 
@@ -145,11 +148,14 @@ export async function GET() {
           durationMinutes = null;
         }
 
+        const idStr = String(attributes.Id);
+        const overrideName = CSO_SITE_OVERRIDES[idStr] ?? null;
+
         return {
-          id: String(attributes.Id),
+          id: idStr,
           state,
-          watercourse: attributes.ReceivingWaterCourse || "Unknown watercourse",
-          locationName: null as string | null,
+          watercourse: formatWatercourse(attributes.ReceivingWaterCourse),
+          locationName: overrideName as string | null,
           latitude: attributes.Latitude,
           longitude: attributes.Longitude,
           distanceKm: nearest.distanceKm,
@@ -159,9 +165,7 @@ export async function GET() {
           durationMinutes,
         };
       })
-      .filter(
-        (o): o is CsoOutfall & { locationName: string | null } => o !== null
-      )
+      .filter((o): o is CsoOutfall => o !== null)
       // Ongoing spills take priority, then Recent, then quiet/offline
       // monitors - so a live spill farther away is never bumped out by a
       // closer but less urgent entry; ties broken by distance.
@@ -185,7 +189,10 @@ export async function GET() {
     // resolved place name.
     const toGeocode = outfalls
       .map((o, index) => ({ o, index }))
-      .filter(({ o }) => o.state === "Ongoing" || o.state === "Recent")
+      .filter(
+        ({ o }) =>
+          !o.locationName && (o.state === "Ongoing" || o.state === "Recent")
+      )
       .slice(0, SEWAGE_MAX_RESULTS);
 
     for (let i = 0; i < toGeocode.length; i++) {

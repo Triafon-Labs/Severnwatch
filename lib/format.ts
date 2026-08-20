@@ -28,3 +28,38 @@ export const formatAsOf = (iso: string): string => {
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return `Data as of ${get("hour")}:${get("minute")}, ${get("day")} ${get("month")}`;
 };
+
+// Formats raw ALL-CAPS or unformatted watercourse names into clean Title Case UK English.
+export const formatWatercourse = (raw: string | null | undefined): string => {
+  if (!raw) return "Unknown watercourse";
+  let s = raw.trim();
+  if (!s) return "Unknown watercourse";
+
+  // Check if string is all/mostly uppercase
+  if (s === s.toUpperCase()) {
+    s = s
+      .replace(/\bTRIB OF\b/g, "Tributary of")
+      .replace(/\bTRIBUTARY OF THE\b/g, "Tributary of")
+      .replace(/\bTRIBUTARY OF\b/g, "Tributary of")
+      .replace(
+        /\bWORCESTER AND BIRMINGHAM CANAL\b/g,
+        "Worcester & Birmingham Canal"
+      )
+      .replace(/\bCONF\b/g, "conf.")
+      .replace(/\bBK\b/g, "Brook")
+      .replace(/\bR\b/g, "River");
+
+    // Title case words, preserving "&"
+    s = s
+      .toLowerCase()
+      .replace(/(?:^|\s|-|\/|\()\w/g, (match) => match.toUpperCase());
+
+    // Restore prepositions/abbreviations
+    s = s
+      .replace(/\bOf\b/g, "of")
+      .replace(/\bTo\b/g, "to")
+      .replace(/\bAnd\b/g, "&")
+      .replace(/\bConf\.\b/g, "conf.");
+  }
+  return s;
+};
