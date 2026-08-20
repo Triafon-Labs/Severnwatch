@@ -193,7 +193,7 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
   const caption = isDaily
     ? "Daily rainfall (mm), last 7 days"
     : isForecast
-      ? `Rainfall intensity (mm/hr) - Worcester, last ${FORECAST_HISTORY_HOURS}h & forecast`
+      ? "Rainfall intensity (mm/hr)"
       : `Rainfall intensity (mm/hr), last ${range}`;
 
   // The moderate/heavy bands and their threshold lines are identical across

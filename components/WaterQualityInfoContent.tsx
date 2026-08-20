@@ -73,32 +73,6 @@ export const INLAND_THRESHOLDS: ThresholdRow[] = [
   },
 ];
 
-export const COASTAL_THRESHOLDS: ThresholdRow[] = [
-  {
-    tier: "Excellent",
-    basis: "95th percentile",
-    eColi: "< 250",
-    enterococci: "< 100",
-  },
-  {
-    tier: "Good",
-    basis: "95th percentile",
-    eColi: "< 500",
-    enterococci: "< 200",
-  },
-  {
-    tier: "Sufficient",
-    basis: "90th percentile",
-    eColi: "< 500",
-    enterococci: "< 185",
-  },
-  {
-    tier: "Poor",
-    basis: null,
-    eColi: "worse than sufficient",
-    enterococci: "worse than sufficient",
-  },
-];
 
 export const ThresholdTable: React.FC<{ rows: ThresholdRow[] }> = ({
   rows,
@@ -158,27 +132,16 @@ export const ThresholdTable: React.FC<{ rows: ThresholdRow[] }> = ({
 
 export const ClassificationTablesSection: React.FC = () => (
   <>
-    <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-      Inland waters (this applies to the Severn at Worcester)
-    </Typography>
     <ThresholdTable rows={INLAND_THRESHOLDS} />
-
-    <Typography variant="body2" sx={{ fontWeight: 500, mt: 2, mb: 1 }}>
-      Coastal and transitional waters (shown for comparison)
-    </Typography>
-    <ThresholdTable rows={COASTAL_THRESHOLDS} />
 
     <Typography
       variant="caption"
       color="text.secondary"
       sx={{ display: "block", mt: 1.5 }}
     >
-      Values are colony-forming units per 100mL. Inland waters are allowed
-      higher bacteria counts than coastal ones under the Bathing Water
-      Regulations 2013 - so a result that would count as &quot;Good&quot; here
-      might be &quot;Sufficient&quot; or &quot;Poor&quot; at the coast. A
-      site&apos;s overall classification is whichever of E. coli or Enterococci
-      comes out lower.
+      Values are colony-forming units per 100mL for inland waters under the Bathing
+      Water Regulations 2013. A site&apos;s overall classification is whichever
+      of E. coli or Enterococci comes out lower.
     </Typography>
   </>
 );
