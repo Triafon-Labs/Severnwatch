@@ -4,7 +4,6 @@ import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { CsoOutfall, CsoState } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
-import { formatAsOf } from "@/lib/format";
 import {
   CSO_NOTABLE_STATES,
   CSO_STATE_ORDER,
@@ -110,24 +109,10 @@ const CsoListCard: React.FC = () => {
                 <Typography variant="overline" color="text.secondary">
                   The catchment upstream
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Stops run downstream, so anything discharging above your reach
-                  drains past it. Tap a stop for its monitors.
-                </Typography>
                 <RiverSchematic outfalls={outfalls} />
-                <Typography variant="caption" color="text.secondary">
-                  A monitor records when an overflow starts and stops — not how
-                  much was discharged, and not the water quality. Spills stay
-                  listed longer the further upstream they are, because their
-                  water takes longer to arrive. Canal inflows at Diglis and
-                  Hawford, and runoff from land, aren&apos;t monitored at all.
-                </Typography>
               </Stack>
             )}
 
-            <Typography variant="caption" color="text.secondary">
-              {formatAsOf(cso.asOf)}
-            </Typography>
           </Stack>
         )}
       </CardContent>

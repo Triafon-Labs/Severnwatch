@@ -18,7 +18,7 @@ import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { formatDistanceToNow } from "date-fns";
 import { CsoOutfall } from "@/types";
 import { SEVERN_TRENT_MAP_URL } from "@/lib/config";
-import { formatDuration, formatAsOf } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import InfoPanel from "@/components/InfoPanel";
@@ -186,14 +186,7 @@ const CsoSpillCard: React.FC = () => {
               />
             )}
 
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="baseline"
-            >
-              <Typography variant="caption" color="text.secondary">
-                {formatAsOf(cso.asOf)}
-              </Typography>
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
               <Link
                 href={SEVERN_TRENT_MAP_URL}
                 target="_blank"
@@ -203,7 +196,7 @@ const CsoSpillCard: React.FC = () => {
               >
                 Severn Trent
               </Link>
-            </Stack>
+            </Box>
           </Stack>
         )}
       </CardContent>

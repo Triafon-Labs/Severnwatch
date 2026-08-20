@@ -21,7 +21,6 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { RainfallGaugeData } from "@/types";
-import { formatAsOf } from "@/lib/format";
 import { STATUS_COLORS } from "@/lib/statusColors";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
@@ -144,14 +143,9 @@ const ForecastTile: React.FC<{ totalMm: number | null }> = ({ totalMm }) => (
         24h Forecast Total
       </Typography>
     </Stack>
-    <Stack direction="row" spacing={1} alignItems="baseline">
-      <Typography variant="h6" component="p">
-        {totalMm !== null ? `${totalMm} mm` : "—"}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        expected in next 24h
-      </Typography>
-    </Stack>
+    <Typography variant="h6" component="p">
+      {totalMm !== null ? `${totalMm} mm` : "—"}
+    </Typography>
   </InfoPanel>
 );
 
@@ -221,21 +215,9 @@ const RainfallCard: React.FC = () => {
   return (
     <Card>
       <CardContent>
-        <Stack
-          direction="row"
-          alignItems="baseline"
-          justifyContent="space-between"
-          sx={{ mb: 2 }}
-        >
-          <Typography variant="h5" component="h2">
-            Rainfall
-          </Typography>
-          {rainfall && (
-            <Typography variant="caption" color="text.secondary">
-              {formatAsOf(rainfall.asOf)}
-            </Typography>
-          )}
-        </Stack>
+        <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
+          Rainfall
+        </Typography>
 
         {showSkeleton && (
           <Stack spacing={1}>
