@@ -11,13 +11,6 @@ import InfoPanel from "@/components/InfoPanel";
 // same row appears when a stop is expanded - so an outfall reads identically
 // wherever you meet it.
 
-// Only Ongoing/Recent outfalls are reverse-geocoded (see the sewage route), so
-// the rest fall back to watercourse + distance to stay distinguishable.
-const describeLocation = (o: CsoOutfall): string =>
-  o.locationName
-    ? `${o.locationName} (${o.watercourse})`
-    : `${o.watercourse} — ${o.distanceKm.toFixed(1)} km`;
-
 const describeTiming = (o: CsoOutfall): string | null => {
   const since = (iso: string | null, prefix: string) =>
     iso
@@ -38,14 +31,32 @@ const describeTiming = (o: CsoOutfall): string | null => {
 
 const CsoOutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
   const timing = describeTiming(o);
+  const title = o.locationName ?? o.watercourse;
+  const subtitle = o.locationName
+    ? `${o.watercourse} (${o.waypointName})`
+    : o.waypointName;
+
   return (
-    <InfoPanel sx={{ justifyContent: "space-between" }}>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
-          {describeLocation(o)}
+    <InfoPanel
+      sx={{ justifyContent: "space-between", alignItems: "flex-start" }}
+    >
+      <Box sx={{ minWidth: 0, flex: 1, mr: 1 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {title}
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block" }}
+        >
+          {subtitle}
         </Typography>
         {timing && (
-          <Typography variant="caption" color="text.secondary">
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block" }}
+          >
             {timing}
           </Typography>
         )}

@@ -243,6 +243,26 @@ export const CATCHMENT_EXCLUDED_LOCALITIES = [
   "bromsgrove",
 ];
 
+// Watercourses that drain away from or outside the Worcester reach corridor
+// (e.g. Bow Brook drains south to the Avon; River Teme joins below Worcester;
+// Stoulton, Madresfield, Whiteacres, Cradley brooks drain elsewhere).
+export const CATCHMENT_EXCLUDED_WATERCOURSES = [
+  "BOW BROOK",
+  "TEME",
+  "STOULTON",
+  "MADRESFIELD",
+  "WHITEACRES",
+  "CRADLEY",
+];
+
+// Known site name overrides for CSO outfalls in the catchment corridor where
+// reverse geocoding gives a street name that differs from Severn Trent Water's
+// official site location name.
+export const CSO_SITE_OVERRIDES: Record<string, string> = {
+  SVT02722: "Vale Road, Stourport-on-Severn",
+  SVT02633: "Vale Road, Stourport-on-Severn",
+};
+
 // Every in-scope CSO is returned regardless of status, but only the
 // actionable ones (Ongoing/Recent) are reverse-geocoded, up to this many -
 // bounds Nominatim usage and this route's runtime regardless of how many

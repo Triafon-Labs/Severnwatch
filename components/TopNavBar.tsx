@@ -68,14 +68,22 @@ const buildShareText = (
         `🚨 *Sewage spill in progress:* ${ongoing.length} outfall${ongoing.length === 1 ? "" : "s"} discharging`
       );
       ongoing.forEach((o) => {
-        lines.push(`• ${o.locationName ?? o.watercourse}`);
+        const title = o.locationName ?? o.watercourse;
+        const subtitle = o.locationName
+          ? `${o.watercourse} (${o.waypointName})`
+          : o.waypointName;
+        lines.push(`• ${title} - ${subtitle}`);
       });
     } else if (recent.length > 0) {
       lines.push(
         `⚠️ *Recent sewage spill:* ${recent.length} outfall${recent.length === 1 ? "" : "s"}`
       );
       recent.forEach((o) => {
-        lines.push(`• ${o.locationName ?? o.watercourse}`);
+        const title = o.locationName ?? o.watercourse;
+        const subtitle = o.locationName
+          ? `${o.watercourse} (${o.waypointName})`
+          : o.waypointName;
+        lines.push(`• ${title} - ${subtitle}`);
       });
     } else {
       lines.push("✅ *No sewage spills reported* in the Worcester catchment");

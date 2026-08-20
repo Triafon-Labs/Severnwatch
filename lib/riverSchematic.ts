@@ -122,7 +122,8 @@ const resolveWaypointName = (outfall: CsoOutfall): string | null => {
     return outfall.waypointName;
   }
   return (
-    nearestWaypoint(outfall.latitude, outfall.longitude)?.waypoint.name ?? null
+    nearestWaypoint(outfall.latitude, outfall.longitude, outfall.watercourse)
+      ?.waypoint.name ?? null
   );
 };
 
