@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.8](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.7...severnwatch-v0.1.8) (2026-08-20)
+
+
+### Features
+
+* **rainfall:** align thresholds to standards and streamline forecast UX ([5a0ac16](https://github.com/dylanr97/Severnwatch/commit/5a0ac162b88465a59dbdb0aedd84e2a8dda4d9b2))
+* **rainfall:** align thresholds with UK Met Office standards ([31d38d2](https://github.com/dylanr97/Severnwatch/commit/31d38d2f90b8a24c11a6f1f9c4b6875e0489e809))
+
 ## [0.1.7](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.6...severnwatch-v0.1.7) (2026-08-20)
 
 
