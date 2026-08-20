@@ -33,6 +33,53 @@ const dayStartMs = (iso: string) => {
   return new Date(`${londonDate}T00:00:00Z`).getTime();
 };
 
+export const buildCumulative7dSeries = (
+  gauges: RainfallGaugeData[]
+): Bucket[] => {
+  const cutoff = Date.now() - 7 * 24 * HOUR_MS;
+  const timestamps = new Set<string>();
+  for (const gauge of gauges) {
+    for (const r of gauge.readings) {
+      const ts = new Date(r.dateTime).getTime();
+      if (ts >= cutoff) {
+        timestamps.add(r.dateTime);
+      }
+    }
+  }
+
+  const sortedTimeStrings = Array.from(timestamps).sort(
+    (a, b) => new Date(a).getTime() - new Date(b).getTime()
+  );
+
+  const gaugeReadingsMap = new Map<string, Map<string, number>>();
+  for (const gauge of gauges) {
+    const map = new Map<string, number>();
+    for (const r of gauge.readings) {
+      map.set(r.dateTime, r.valueMm);
+    }
+    gaugeReadingsMap.set(gauge.id, map);
+  }
+
+  const runningTotals: Record<string, number> = {};
+  for (const gauge of gauges) {
+    runningTotals[gauge.id] = 0;
+  }
+
+  const result: Bucket[] = [];
+  for (const dt of sortedTimeStrings) {
+    const ts = new Date(dt).getTime();
+    const row: Bucket = { label: dt, sortKey: ts };
+    for (const gauge of gauges) {
+      const val = gaugeReadingsMap.get(gauge.id)?.get(dt) ?? 0;
+      runningTotals[gauge.id] += val;
+      row[gauge.id] = Math.round(runningTotals[gauge.id] * 10) / 10;
+    }
+    result.push(row);
+  }
+
+  return result;
+};
+
 export const buildDailyTotals = (gauges: RainfallGaugeData[]): Bucket[] => {
   const days = new Map<string, Bucket>();
   for (const gauge of gauges) {
@@ -159,6 +206,106 @@ export const sumRecentMm = (
     })
     .reduce((sum, r) => sum + r.valueMm, 0);
   return Math.round(total * 10) / 10;
+};
+
+export interface ForecastRiskWindow {
+  startTimeISO: string;
+  endTimeISO: string;
+  startFormatted: string;
+  endFormatted: string;
+  label: string;
+  riskLevel: "high" | "medium";
+}
+
+export const findForecastRiskWindows = (
+  forecast: RainfallForecastPoint[]
+): ForecastRiskWindow[] => {
+  if (!forecast || forecast.length === 0) return [];
+
+  const now = Date.now();
+  const next24h = now + 24 * HOUR_MS;
+  const relevant = forecast
+    .filter((f) => {
+      const t = new Date(f.dateTime).getTime();
+      return t >= now - 30 * 60 * 1000 && t <= next24h;
+    })
+    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+
+  if (relevant.length === 0) return [];
+
+  const highRiskPoints = relevant.filter((f) => f.valueMm >= HOURLY_HEAVY_MM);
+  const targetPoints =
+    highRiskPoints.length > 0
+      ? highRiskPoints
+      : relevant.filter((f) => f.valueMm >= HOURLY_MODERATE_MM);
+
+  if (targetPoints.length === 0) return [];
+
+  const riskLevel: "high" | "medium" =
+    highRiskPoints.length > 0 ? "high" : "medium";
+
+  const windows: ForecastRiskWindow[] = [];
+  let currentGroup: RainfallForecastPoint[] = [];
+
+  const formatHHMM = (iso: string) => {
+    return new Date(iso).toLocaleTimeString("en-GB", {
+      timeZone: "Europe/London",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  };
+
+  for (let i = 0; i < targetPoints.length; i++) {
+    const pt = targetPoints[i];
+    if (currentGroup.length === 0) {
+      currentGroup.push(pt);
+    } else {
+      const prev = currentGroup[currentGroup.length - 1];
+      const prevTime = new Date(prev.dateTime).getTime();
+      const currTime = new Date(pt.dateTime).getTime();
+      if (currTime - prevTime <= HOUR_MS + 60000) {
+        currentGroup.push(pt);
+      } else {
+        const startISO = currentGroup[0].dateTime;
+        const endISO = new Date(
+          new Date(currentGroup[currentGroup.length - 1].dateTime).getTime() + HOUR_MS
+        ).toISOString();
+        const startFmt = formatHHMM(startISO);
+        const endFmt = formatHHMM(endISO);
+        const riskText = riskLevel === "high" ? "high spill risk" : "elevated spill risk";
+        windows.push({
+          startTimeISO: startISO,
+          endTimeISO: endISO,
+          startFormatted: startFmt,
+          endFormatted: endFmt,
+          label: `${startFmt}–${endFmt}: ${riskText}`,
+          riskLevel,
+        });
+        currentGroup = [pt];
+      }
+    }
+  }
+
+  if (currentGroup.length > 0) {
+    const startISO = currentGroup[0].dateTime;
+    const endISO = new Date(
+      new Date(currentGroup[currentGroup.length - 1].dateTime).getTime() + HOUR_MS
+    ).toISOString();
+    const startFmt = formatHHMM(startISO);
+    const endFmt = formatHHMM(endISO);
+    const riskText = riskLevel === "high" ? "high spill risk" : "elevated spill risk";
+    windows.push({
+      startTimeISO: startISO,
+      endTimeISO: endISO,
+      startFormatted: startFmt,
+      endFormatted: endFmt,
+      label: `${startFmt}–${endFmt}: ${riskText}`,
+      riskLevel,
+    });
+  }
+
+  return windows;
 };
 
 export const calculateForecast24hTotal = (

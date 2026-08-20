@@ -117,6 +117,7 @@ const TopNavBar: React.FC = () => {
     lastUpdated,
     isOffline,
     isRefreshing,
+    usingCachedData,
     error,
     refetch,
   } = useSevernContext();
@@ -194,7 +195,7 @@ const TopNavBar: React.FC = () => {
           fires once an attempt has actually finished and genuinely couldn't
           get fresh data - not while one may still be in flight. */}
       <Collapse
-        in={!isOffline && !isOfflineError && !isRefreshing && isStale}
+        in={!isOffline && !isOfflineError && !isRefreshing && (usingCachedData || isStale)}
         unmountOnExit
         {...collapseMotion}
       >

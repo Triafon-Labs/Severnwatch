@@ -5,7 +5,6 @@ import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { CsoOutfall, CsoState } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
-  CSO_NOTABLE_STATES,
   CSO_STATE_ORDER,
   CSO_STATE_UI,
 } from "@/lib/csoStatus";
@@ -36,9 +35,7 @@ const CsoListCard: React.FC = () => {
   const outfalls = cso?.outfalls ?? [];
   const showSkeleton = loading && !cso;
 
-  const notableGroups = CSO_STATE_ORDER.filter((state) =>
-    CSO_NOTABLE_STATES.includes(state)
-  )
+  const notableGroups = CSO_STATE_ORDER.filter((state) => state === "Ongoing")
     .map((state) => ({
       state,
       outfalls: outfalls.filter((o) => o.state === state),

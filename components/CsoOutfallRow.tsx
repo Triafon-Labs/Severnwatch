@@ -3,6 +3,7 @@
 import { Box, Chip, Typography } from "@mui/material";
 import { formatDistanceToNow } from "date-fns";
 import { CsoOutfall } from "@/types";
+import { formatDuration } from "@/lib/format";
 import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
 import InfoPanel from "@/components/InfoPanel";
 
@@ -17,16 +18,30 @@ const describeTiming = (o: CsoOutfall): string | null => {
       ? `${prefix} ${formatDistanceToNow(new Date(iso), { addSuffix: true })}`
       : null;
 
+  let baseText: string | null = null;
   switch (o.state) {
     case "Ongoing":
-      return since(o.startISO, "Started");
+      baseText = since(o.startISO, "Started");
+      break;
     case "Recent":
-      return since(o.endISO, "Ended");
+      baseText = since(o.endISO, "Ended");
+      break;
     case "Not discharging":
-      return since(o.startISO, "Clear since");
+      baseText = since(o.startISO, "Clear since");
+      break;
     case "Offline":
-      return null;
+      baseText = null;
+      break;
   }
+
+  if (!baseText) return null;
+
+  if (o.durationMinutes !== null) {
+    const verb = o.state === "Ongoing" ? "running" : "lasted";
+    return `${baseText} · ${verb} ${formatDuration(o.durationMinutes)}`;
+  }
+
+  return baseText;
 };
 
 const CsoOutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {

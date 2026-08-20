@@ -4,6 +4,7 @@ import {
   Box,
   Card,
   CardContent,
+  Chip,
   Divider,
   Grid,
   Skeleton,
@@ -11,11 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import RestoreIcon from "@mui/icons-material/Restore";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import ScheduleIcon from "@mui/icons-material/Schedule";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import TrendingDownIcon from "@mui/icons-material/TrendingDown";
-import TrendingFlatIcon from "@mui/icons-material/TrendingFlat";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
@@ -28,8 +25,10 @@ import {
   SpillLikelihood,
   assessRainfallLikelihood,
   calculateForecast24hTotal,
+  findForecastRiskWindows,
   sumRecentMm,
 } from "@/lib/rainfallAnalysis";
+import { RainfallForecastPoint } from "@/types";
 import InfoPanel from "@/components/InfoPanel";
 import RainfallChart from "@/components/RainfallChart";
 
@@ -69,50 +68,7 @@ const maxAcrossGauges = (
   value: (g: RainfallGaugeData) => number
 ): number => Math.max(...gauges.map(value));
 
-const ChangeTile: React.FC<{
-  label: string;
-  currentMm: number;
-  previousMm: number;
-}> = ({ label, currentMm, previousMm }) => {
-  const delta = Math.round((currentMm - previousMm) * 10) / 10;
-  const Icon =
-    delta > 0
-      ? TrendingUpIcon
-      : delta < 0
-        ? TrendingDownIcon
-        : TrendingFlatIcon;
-  // The exact status hues rather than the palette's warning/success roles, so
-  // a rising-rainfall arrow reads in the same amber as the Medium likelihood
-  // panel below it in both colour schemes.
-  const color =
-    delta > 0
-      ? STATUS_COLORS.amber
-      : delta < 0
-        ? STATUS_COLORS.darkGreen
-        : "text.secondary";
-
-  return (
-    <InfoPanel
-      align="flex-start"
-      sx={{ flexDirection: "column", gap: 0.5, height: "100%" }}
-    >
-      <Stack direction="row" spacing={0.5} alignItems="center">
-        <RestoreIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-        <Typography variant="caption" color="text.secondary">
-          {label} Change
-        </Typography>
-      </Stack>
-      <Stack direction="row" spacing={0.5} alignItems="center">
-        <Icon sx={{ color, fontSize: 20 }} />
-        <Typography variant="h6" component="p">
-          {Math.abs(delta)} mm
-        </Typography>
-      </Stack>
-    </InfoPanel>
-  );
-};
-
-const TotalTile: React.FC<{ label: string; totalMm: number }> = ({
+const PeriodTile: React.FC<{ label: string; totalMm: number }> = ({
   label,
   totalMm,
 }) => (
@@ -121,9 +77,9 @@ const TotalTile: React.FC<{ label: string; totalMm: number }> = ({
     sx={{ flexDirection: "column", gap: 0.5, height: "100%" }}
   >
     <Stack direction="row" spacing={0.5} alignItems="center">
-      <CalendarMonthIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+      <RestoreIcon sx={{ fontSize: 16, color: "text.secondary" }} />
       <Typography variant="caption" color="text.secondary">
-        {label} Total
+        {label}
       </Typography>
     </Stack>
     <Typography variant="h6" component="p">
@@ -132,22 +88,46 @@ const TotalTile: React.FC<{ label: string; totalMm: number }> = ({
   </InfoPanel>
 );
 
-const ForecastTile: React.FC<{ totalMm: number | null }> = ({ totalMm }) => (
-  <InfoPanel
-    align="flex-start"
-    sx={{ flexDirection: "column", gap: 0.5, height: "100%" }}
-  >
-    <Stack direction="row" spacing={0.5} alignItems="center">
-      <ScheduleIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-      <Typography variant="caption" color="text.secondary">
-        24h Forecast Total
-      </Typography>
-    </Stack>
-    <Typography variant="h6" component="p">
-      {totalMm !== null ? `${totalMm} mm` : "—"}
-    </Typography>
-  </InfoPanel>
-);
+const ForecastTile: React.FC<{
+  totalMm: number | null;
+  forecast: RainfallForecastPoint[];
+}> = ({ totalMm, forecast }) => {
+  const riskWindows = findForecastRiskWindows(forecast);
+
+  return (
+    <InfoPanel
+      align="flex-start"
+      sx={{ flexDirection: "column", gap: 0.5, height: "100%" }}
+    >
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        <ScheduleIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+        <Typography variant="caption" color="text.secondary">
+          24h Forecast Total
+        </Typography>
+      </Stack>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ flexWrap: "wrap", rowGap: 0.5 }}
+      >
+        <Typography variant="h6" component="p">
+          {totalMm !== null ? `${totalMm} mm` : "—"}
+        </Typography>
+        {riskWindows.map((w) => (
+          <Chip
+            key={w.label}
+            label={w.label}
+            size="small"
+            color={w.riskLevel === "high" ? "error" : "warning"}
+            variant="outlined"
+            sx={{ fontWeight: 600, fontSize: "0.75rem" }}
+          />
+        ))}
+      </Stack>
+    </InfoPanel>
+  );
+};
 
 const LIKELIHOOD_STYLE: Record<
   SpillLikelihood,
@@ -256,41 +236,32 @@ const RainfallCard: React.FC = () => {
 
             <Grid container spacing={1.5}>
               <Grid size={6}>
-                <ChangeTile
-                  label="1h"
-                  currentMm={maxAcrossGauges(gauges, (g) =>
+                <PeriodTile
+                  label="Past 1 Hour"
+                  totalMm={maxAcrossGauges(gauges, (g) =>
                     sumRecentMm(g, HOUR_MS)
                   )}
-                  previousMm={maxAcrossGauges(gauges, (g) =>
-                    sumRecentMm(g, HOUR_MS, HOUR_MS)
-                  )}
                 />
               </Grid>
               <Grid size={6}>
-                <ChangeTile
-                  label="8h"
-                  currentMm={maxAcrossGauges(gauges, (g) =>
+                <PeriodTile
+                  label="Past 8 Hours"
+                  totalMm={maxAcrossGauges(gauges, (g) =>
                     sumRecentMm(g, 8 * HOUR_MS)
                   )}
-                  previousMm={maxAcrossGauges(gauges, (g) =>
-                    sumRecentMm(g, 8 * HOUR_MS, 8 * HOUR_MS)
-                  )}
                 />
               </Grid>
               <Grid size={6}>
-                <ChangeTile
-                  label="24h"
-                  currentMm={maxAcrossGauges(gauges, (g) =>
+                <PeriodTile
+                  label="Past 24 Hours"
+                  totalMm={maxAcrossGauges(gauges, (g) =>
                     sumRecentMm(g, 24 * HOUR_MS)
                   )}
-                  previousMm={maxAcrossGauges(gauges, (g) =>
-                    sumRecentMm(g, 24 * HOUR_MS, 24 * HOUR_MS)
-                  )}
                 />
               </Grid>
               <Grid size={6}>
-                <TotalTile
-                  label="7d"
+                <PeriodTile
+                  label="Past 7 Days"
                   totalMm={maxAcrossGauges(gauges, (g) =>
                     sumRecentMm(g, 7 * 24 * HOUR_MS)
                   )}
@@ -299,6 +270,7 @@ const RainfallCard: React.FC = () => {
               <Grid size={12}>
                 <ForecastTile
                   totalMm={calculateForecast24hTotal(rainfall.forecast)}
+                  forecast={rainfall.forecast}
                 />
               </Grid>
             </Grid>
