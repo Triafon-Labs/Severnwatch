@@ -439,15 +439,13 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
         </ResponsiveContainer>
       </Box>
 
-      {isForecast && (
+      {isForecast && forecast.length === 0 && (
         <Typography
           variant="caption"
           color="text.secondary"
           sx={{ display: "block" }}
         >
-          {forecast.length > 0
-            ? "Dashed line is Open-Meteo's forecast for Worcester - a single point for the whole catchment, not a per-gauge reading. For guidance only."
-            : "Forecast is temporarily unavailable - showing observed rainfall only."}
+          Forecast is temporarily unavailable - showing observed rainfall only.
         </Typography>
       )}
     </Stack>

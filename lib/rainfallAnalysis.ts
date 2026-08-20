@@ -1,15 +1,13 @@
 import { RainfallForecastPoint, RainfallGaugeData } from "@/types";
 
-// Rough intensity/accumulation bands - not a validated meteorological or
-// hydrological standard, just a heuristic to make bursts and sustained rain
-// visually legible and to ballpark spill likelihood. Broadly aligned with
-// Met Office "moderate"/"heavy" rain intensity, and typical CSO trigger
-// behaviour (short heavy bursts and prolonged moderate rain both fill sewer
-// capacity).
-export const HOURLY_MODERATE_MM = 2; // mm/hr - sustained rain, medium likelihood
-export const HOURLY_HEAVY_MM = 8; // mm/hr - thunderstorm-level burst, high likelihood
-export const DAILY_MODERATE_MM = 10; // mm/day - a wet day, medium likelihood
-export const DAILY_HEAVY_MM = 25; // mm/day - a very wet day, high likelihood
+// UK Met Office rainfall rate intensity and accumulation thresholds:
+// - Hourly intensity: Light rain < 0.5 mm/hr, Moderate rain 0.5–4 mm/hr, Heavy rain > 4 mm/hr (Very Heavy > 8 mm/hr).
+// - Daily totals: 10 mm/day represents a wet day (moderate threshold) and 25 mm/day represents a very wet day (heavy threshold).
+// These UK Met Office standard thresholds reflect conditions where surface runoff and sewer capacity triggers are increasingly likely.
+export const HOURLY_MODERATE_MM = 0.5; // mm/hr - moderate rain rate (UK Met Office standard: 0.5 - 4 mm/hr)
+export const HOURLY_HEAVY_MM = 4; // mm/hr - heavy rain rate (UK Met Office standard: > 4 mm/hr)
+export const DAILY_MODERATE_MM = 10; // mm/day - wet day threshold (Met Office climate index RR >= 10mm)
+export const DAILY_HEAVY_MM = 25; // mm/day - very wet day threshold (Met Office climate index RR >= 25mm)
 
 export const HOUR_MS = 60 * 60 * 1000;
 export const DAY_MS = 24 * HOUR_MS;
@@ -160,6 +158,21 @@ export const sumRecentMm = (
       return t > from && t <= to;
     })
     .reduce((sum, r) => sum + r.valueMm, 0);
+  return Math.round(total * 10) / 10;
+};
+
+export const calculateForecast24hTotal = (
+  forecast: RainfallForecastPoint[]
+): number | null => {
+  if (!forecast || forecast.length === 0) return null;
+  const now = Date.now();
+  const next24h = now + 24 * HOUR_MS;
+  const relevant = forecast.filter((f) => {
+    const t = new Date(f.dateTime).getTime();
+    return t >= now - 30 * 60 * 1000 && t <= next24h;
+  });
+  if (relevant.length === 0) return null;
+  const total = relevant.reduce((sum, f) => sum + f.valueMm, 0);
   return Math.round(total * 10) / 10;
 };
 
