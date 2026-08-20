@@ -61,7 +61,7 @@ const OutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
         </Typography>
         {o.durationMinutes !== null && (
           <Typography variant="caption" sx={{ opacity: 0.85 }}>
-            &middot; {o.state === "Ongoing" ? "running" : "lasted"}{" "}
+            &middot; {o.state === "Ongoing" ? "Running" : "Lasted"}{" "}
             {formatDuration(o.durationMinutes)}
           </Typography>
         )}

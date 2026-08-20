@@ -1,8 +1,9 @@
 "use client";
 
 import { Box, Chip, Typography } from "@mui/material";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { CsoOutfall } from "@/types";
+import { formatDuration } from "@/lib/format";
 import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
 import InfoPanel from "@/components/InfoPanel";
 
@@ -11,26 +12,44 @@ import InfoPanel from "@/components/InfoPanel";
 // same row appears when a stop is expanded - so an outfall reads identically
 // wherever you meet it.
 
-const describeTiming = (o: CsoOutfall): string | null => {
-  const since = (iso: string | null, prefix: string) =>
+const getTimingDetails = (
+  o: CsoOutfall
+): { primaryTiming: string | null; durationText: string | null } => {
+  const relativeSince = (iso: string | null, prefix: string) =>
     iso
       ? `${prefix} ${formatDistanceToNow(new Date(iso), { addSuffix: true })}`
       : null;
 
+  const dateSince = (iso: string | null, prefix: string) =>
+    iso ? `${prefix} ${format(new Date(iso), "d MMM yyyy")}` : null;
+
+  let primaryTiming: string | null = null;
   switch (o.state) {
     case "Ongoing":
-      return since(o.startISO, "Started");
+      primaryTiming = relativeSince(o.startISO, "Started");
+      break;
     case "Recent":
-      return since(o.endISO, "Ended");
+      primaryTiming = relativeSince(o.endISO, "Ended");
+      break;
     case "Not discharging":
-      return since(o.startISO, "Clear since");
+      primaryTiming = dateSince(o.startISO, "Clear since");
+      break;
     case "Offline":
-      return null;
+      primaryTiming = null;
+      break;
   }
+
+  let durationText: string | null = null;
+  if (o.durationMinutes !== null) {
+    const verb = o.state === "Ongoing" ? "Running" : "Lasted";
+    durationText = `${verb} ${formatDuration(o.durationMinutes)}`;
+  }
+
+  return { primaryTiming, durationText };
 };
 
 const CsoOutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
-  const timing = describeTiming(o);
+  const { primaryTiming, durationText } = getTimingDetails(o);
   const title = o.locationName ?? o.watercourse;
   const subtitle = o.locationName
     ? `${o.watercourse} (${o.waypointName})`
@@ -51,13 +70,22 @@ const CsoOutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
         >
           {subtitle}
         </Typography>
-        {timing && (
+        {primaryTiming && (
           <Typography
             variant="caption"
             color="text.secondary"
             sx={{ display: "block" }}
           >
-            {timing}
+            {primaryTiming}
+          </Typography>
+        )}
+        {durationText && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block" }}
+          >
+            {durationText}
           </Typography>
         )}
       </Box>

@@ -4,8 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@mui/material/styles";
 import { Box, Stack, ToggleButton, Typography } from "@mui/material";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   ComposedChart,
   Legend,
@@ -24,7 +22,7 @@ import {
   HOURLY_HEAVY_MM,
   HOURLY_MODERATE_MM,
   buildCatchmentAverageIntensity,
-  buildDailyTotals,
+  buildCumulative7dSeries,
   buildForecastSeries,
   buildHourlyIntensity,
 } from "@/lib/rainfallAnalysis";
@@ -143,8 +141,8 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
       intensityHours > 0 ? buildHourlyIntensity(gauges, intensityHours) : [],
     [gauges, intensityHours]
   );
-  const dailyData = useMemo(
-    () => (isDaily ? buildDailyTotals(gauges) : []),
+  const cumulative7dData = useMemo(
+    () => (isDaily ? buildCumulative7dSeries(gauges) : []),
     [gauges, isDaily]
   );
 
@@ -164,6 +162,17 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
   // data even if it's a few minutes stale.
   const boundaryMs = observedAvg[observedAvg.length - 1]?.sortKey;
 
+  const cumulative7dTicks = useMemo(
+    () =>
+      isDaily
+        ? buildTimeTicks(
+            cumulative7dData[0]?.sortKey,
+            cumulative7dData[cumulative7dData.length - 1]?.sortKey,
+            1440
+          )
+        : [],
+    [cumulative7dData, isDaily]
+  );
   const intensityTicks = useMemo(
     () =>
       intensityHours > 0
@@ -191,7 +200,7 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
   const heavyMm = isDaily ? DAILY_HEAVY_MM : HOURLY_HEAVY_MM;
 
   const caption = isDaily
-    ? "Daily rainfall (mm), last 7 days"
+    ? "Cumulative rainfall (mm), last 7 days"
     : isForecast
       ? "Rainfall intensity (mm/hr)"
       : `Rainfall intensity (mm/hr), last ${range}`;
@@ -208,6 +217,7 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
       fill={moderateColor}
       fillOpacity={0.08}
       strokeWidth={0}
+      ifOverflow="hidden"
     />,
     <ReferenceArea
       key="band-heavy"
@@ -216,6 +226,7 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
       fill={heavyColor}
       fillOpacity={0.08}
       strokeWidth={0}
+      ifOverflow="hidden"
     />,
     <ReferenceLine
       key="line-moderate"
@@ -301,10 +312,8 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
       <Box ref={chartRef} sx={{ width: "100%", height: 220 }}>
         <ResponsiveContainer width="100%" height="100%">
           {isDaily ? (
-            <BarChart
-              data={dailyData}
-              barGap={2}
-              barCategoryGap="20%"
+            <ComposedChart
+              data={cumulative7dData}
               margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
               {...chartMoveProps}
             >
@@ -314,31 +323,30 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
                 strokeDasharray="0"
               />
               {thresholdBands()}
-              <XAxis
-                dataKey="label"
-                tick={{ fill: chrome.axis, fontSize: 12 }}
-                axisLine={{ stroke: chrome.grid }}
-                tickLine={false}
-              />
+              {timeAxis(cumulative7dTicks)}
               {yAxis()}
               <Tooltip
                 active={tooltipActive}
+                labelFormatter={(value) => formatTimeTick(value as number)}
                 formatter={(value, name) => [`${value} mm`, name]}
                 contentStyle={tooltipStyle}
-                cursor={{ fill: chrome.grid, fillOpacity: 0.4 }}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
               {gauges.map((gauge, i) => (
-                <Bar
+                <Line
                   key={gauge.id}
                   dataKey={gauge.id}
                   name={gauge.label}
-                  fill={colors[i % colors.length]}
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={24}
+                  stroke={colors[i % colors.length]}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  connectNulls
+                  type="monotone"
+                  isAnimationActive={false}
                 />
               ))}
-            </BarChart>
+            </ComposedChart>
           ) : isForecast ? (
             <ComposedChart
               data={forecastData}
