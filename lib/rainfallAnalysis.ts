@@ -273,7 +273,7 @@ export const findForecastRiskWindows = (
         ).toISOString();
         const startFmt = formatHHMM(startISO);
         const endFmt = formatHHMM(endISO);
-        const riskText = riskLevel === "high" ? "high spill risk" : "elevated spill risk";
+        const riskText = riskLevel === "high" ? "high spill risk" : "moderate spill risk";
         windows.push({
           startTimeISO: startISO,
           endTimeISO: endISO,
@@ -294,7 +294,7 @@ export const findForecastRiskWindows = (
     ).toISOString();
     const startFmt = formatHHMM(startISO);
     const endFmt = formatHHMM(endISO);
-    const riskText = riskLevel === "high" ? "high spill risk" : "elevated spill risk";
+    const riskText = riskLevel === "high" ? "high spill risk" : "moderate spill risk";
     windows.push({
       startTimeISO: startISO,
       endTimeISO: endISO,
