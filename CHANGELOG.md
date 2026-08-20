@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.7](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.6...severnwatch-v0.1.7) (2026-08-20)
+
+
+### Bug Fixes
+
+* include Holt River Severn CSO in catchment corridor ([51f2061](https://github.com/dylanr97/Severnwatch/commit/51f206115c8ae87fc554e7b6a1dc0f28777584a0))
+* refine River Severn waypoint coordinates and include Holt CSO ([0cd95d1](https://github.com/dylanr97/Severnwatch/commit/0cd95d1def5d8e1ac9f4dcf45a1cafe57e4eed5f))
+
 ## [0.1.6](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.5...severnwatch-v0.1.6) (2026-08-20)
 
 
