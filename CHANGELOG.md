@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.5](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.4...severnwatch-v0.1.5) (2026-08-20)
+
+
+### Bug Fixes
+
+* correct sewage spill duration calculation for recent spills ([b74bf51](https://github.com/dylanr97/Severnwatch/commit/b74bf515beaaaaa787c035107142c4d60b81466c))
+
 ## [0.1.4](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.3...severnwatch-v0.1.4) (2026-08-16)
 
 ## [0.1.3](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.2...severnwatch-v0.1.3) (2026-08-16)
