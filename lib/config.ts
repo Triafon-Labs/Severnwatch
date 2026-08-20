@@ -140,9 +140,9 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
   {
     name: "Ombersley/Hawford",
     label: "Ombersley & Hawford",
-    lat: 52.253,
-    lon: -2.212,
-    radiusKm: 5,
+    lat: 52.25,
+    lon: -2.238,
+    radiusKm: 4,
     branch: "severn",
     downstreamOrder: 3,
     plumeTravelHours: 4,
@@ -155,7 +155,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     label: "Bevere",
     lat: 52.224,
     lon: -2.235,
-    radiusKm: 3,
+    radiusKm: 2,
     branch: "severn",
     downstreamOrder: 4,
     isReach: true,
@@ -165,8 +165,8 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     name: "Worcester (Barbourne/Claines)",
     label: "Barbourne & Claines",
     lat: 52.213,
-    lon: -2.208,
-    radiusKm: 5,
+    lon: -2.235,
+    radiusKm: 3,
     branch: "severn",
     downstreamOrder: 5,
     isReach: true,
@@ -238,8 +238,6 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
 // deliberately left out as too marginal a signal for the Worcester reach
 // (small/unmonitored catchments or too far up a tributary).
 export const CATCHMENT_EXCLUDED_LOCALITIES = [
-  "holt heath",
-  "holt",
   "bromsgrove",
 ];
 
