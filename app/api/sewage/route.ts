@@ -11,6 +11,7 @@ interface SewageFeatureAttributes {
   Id: string | number;
   Status: number; // 1 = discharging, 0 = not discharging, -1 = monitor offline
   StatusStart: number | null; // epoch ms
+  LatestEventStart: number | null; // epoch ms
   LatestEventEnd: number | null; // epoch ms
   Latitude: number;
   Longitude: number;
@@ -122,12 +123,27 @@ export async function GET() {
           state = "Offline";
         }
 
-        const startMs = attributes.StatusStart;
-        const endMs = state === "Recent" ? attributes.LatestEventEnd : null;
-        const durationMinutes =
-          startMs !== null
-            ? Math.round(((endMs ?? now) - startMs) / 60000)
-            : null;
+        let startMs: number | null = null;
+        let endMs: number | null = null;
+        let durationMinutes: number | null = null;
+
+        if (state === "Ongoing") {
+          startMs = attributes.StatusStart ?? attributes.LatestEventStart;
+          endMs = null;
+          if (startMs !== null) {
+            durationMinutes = Math.max(0, Math.round((now - startMs) / 60000));
+          }
+        } else if (state === "Recent") {
+          startMs = attributes.LatestEventStart ?? attributes.StatusStart;
+          endMs = attributes.LatestEventEnd;
+          if (startMs !== null && endMs !== null && endMs >= startMs) {
+            durationMinutes = Math.max(0, Math.round((endMs - startMs) / 60000));
+          }
+        } else {
+          startMs = attributes.StatusStart;
+          endMs = attributes.LatestEventEnd;
+          durationMinutes = null;
+        }
 
         return {
           id: String(attributes.Id),
