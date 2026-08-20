@@ -37,7 +37,7 @@ const describeTiming = (o: CsoOutfall): string | null => {
   if (!baseText) return null;
 
   if (o.durationMinutes !== null) {
-    const verb = o.state === "Ongoing" ? "running" : "lasted";
+    const verb = o.state === "Ongoing" ? "Running" : "Lasted";
     return `${baseText} · ${verb} ${formatDuration(o.durationMinutes)}`;
   }
 

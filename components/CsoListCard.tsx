@@ -87,12 +87,6 @@ const CsoListCard: React.FC = () => {
               </Typography>
             )}
 
-            {outfalls.length > 0 && notableGroups.length === 0 && (
-              <Typography variant="body2" color="text.secondary">
-                Nothing discharging right now.
-              </Typography>
-            )}
-
             {notableGroups.map((group) => (
               <NotableGroup
                 key={group.state}
@@ -103,9 +97,6 @@ const CsoListCard: React.FC = () => {
 
             {outfalls.length > 0 && (
               <Stack spacing={1}>
-                <Typography variant="overline" color="text.secondary">
-                  The catchment upstream
-                </Typography>
                 <RiverSchematic outfalls={outfalls} />
               </Stack>
             )}
