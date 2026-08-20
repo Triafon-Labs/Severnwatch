@@ -238,8 +238,6 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
 // deliberately left out as too marginal a signal for the Worcester reach
 // (small/unmonitored catchments or too far up a tributary).
 export const CATCHMENT_EXCLUDED_LOCALITIES = [
-  "holt heath",
-  "holt",
   "bromsgrove",
 ];
 
