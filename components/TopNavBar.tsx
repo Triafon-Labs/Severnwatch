@@ -19,6 +19,7 @@ import SettingsModal from "@/components/SettingsModal";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import { DATA_STALE_THRESHOLD_MS, OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
 import { getLondonHHMM, getRelativeTimeString } from "@/lib/time";
+import { formatOutfallSubtitle } from "@/lib/format";
 import { collapseMotion } from "@/lib/m3-palette";
 import { assessRainfallLikelihood } from "@/lib/rainfallAnalysis";
 import { CsoResponse, RainfallResponse } from "@/types";
@@ -70,7 +71,7 @@ const buildShareText = (
       ongoing.forEach((o) => {
         const title = o.locationName ?? o.watercourse;
         const subtitle = o.locationName
-          ? `${o.watercourse} (${o.waypointName})`
+          ? formatOutfallSubtitle(o.watercourse, o.waypointName)
           : o.waypointName;
         lines.push(`• ${title} - ${subtitle}`);
       });
@@ -81,7 +82,7 @@ const buildShareText = (
       recent.forEach((o) => {
         const title = o.locationName ?? o.watercourse;
         const subtitle = o.locationName
-          ? `${o.watercourse} (${o.waypointName})`
+          ? formatOutfallSubtitle(o.watercourse, o.waypointName)
           : o.waypointName;
         lines.push(`• ${title} - ${subtitle}`);
       });

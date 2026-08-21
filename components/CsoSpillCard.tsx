@@ -1,12 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import {
   Box,
+  ButtonBase,
   Card,
   CardContent,
-  Chip,
+  Collapse,
   Divider,
-  Link,
   Skeleton,
   Stack,
   Typography,
@@ -15,11 +16,11 @@ import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { formatDistanceToNow } from "date-fns";
 import { CsoOutfall } from "@/types";
-import { SEVERN_TRENT_MAP_URL } from "@/lib/config";
-import { formatDuration } from "@/lib/format";
-import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
+import { formatDuration, formatOutfallSubtitle } from "@/lib/format";
+import { CSO_STATE_UI } from "@/lib/csoStatus";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import InfoPanel from "@/components/InfoPanel";
 
@@ -31,11 +32,11 @@ const relativeTime = (iso: string | null): string =>
 const OutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
   const title = o.locationName ?? o.watercourse;
   const subtitle = o.locationName
-    ? `${o.watercourse} (${o.waypointName})`
+    ? formatOutfallSubtitle(o.watercourse, o.waypointName)
     : o.waypointName;
 
   return (
-    <Box>
+    <Box sx={{ minWidth: 0 }}>
       <Typography variant="body2" sx={{ fontWeight: 600 }}>
         {title}
       </Typography>
@@ -48,12 +49,6 @@ const OutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
         alignItems="baseline"
         sx={{ flexWrap: "wrap", mt: 0.25 }}
       >
-        {/* Lower emphasis by fading the container's own on-colour, not by
-            switching to `text.secondary`. These rows sit on the error/warning
-            container fill, and the global secondary text colour is a neutral
-            tuned for the card surface - on the dark scheme's deep red it lands
-            at 4.3:1 and reads as a different, clashing grey rather than as
-            quieter text. */}
         <Typography variant="caption" sx={{ opacity: 0.85 }}>
           {o.state === "Ongoing"
             ? `Started ${relativeTime(o.startISO)}`
@@ -70,19 +65,25 @@ const OutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
   );
 };
 
-// The card's headline reading, drawn as a tonal container panel rather than a
-// bordered Alert. M3 carries severity with the container fill and the icon;
-// the outlined Alert this replaced drew a saturated ring around body text
-// sitting on the bare card, which is a Material 2 shape and read as an error
-// state even when the message was "no spills reported".
 const SpillGroup: React.FC<{
   state: "Ongoing" | "Recent";
-  title: string;
   outfalls: CsoOutfall[];
-}> = ({ state, title, outfalls }) => {
+}> = ({ state, outfalls }) => {
   const ui = CSO_STATE_UI[state];
   const Icon = state === "Ongoing" ? ReportProblemIcon : InfoOutlinedIcon;
   const role = state === "Ongoing" ? "error" : "warning";
+  const multiple = outfalls.length > 1;
+
+  // Start minimised if there are multiple spills
+  const [expanded, setExpanded] = useState(!multiple);
+
+  const headingText = multiple
+    ? `${outfalls.length} sewage spills ${state === "Ongoing" ? "in progress" : "recently ended"}`
+    : state === "Ongoing"
+    ? "Sewage spill in progress"
+    : "Recent sewage spill";
+
+  const toggleExpand = () => setExpanded((prev) => !prev);
 
   return (
     <InfoPanel
@@ -96,15 +97,47 @@ const SpillGroup: React.FC<{
     >
       <Icon sx={{ color: ui.color, flexShrink: 0 }} />
       <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-          {title}
-        </Typography>
-        {outfalls.map((o, idx) => (
-          <Box key={o.id}>
-            {idx > 0 && <Divider sx={{ my: 1, opacity: 0.4 }} />}
-            <OutfallRow outfall={o} />
-          </Box>
-        ))}
+        <Box
+          {...(multiple
+            ? {
+                component: ButtonBase,
+                onClick: toggleExpand,
+                sx: {
+                  display: "block",
+                  textAlign: "left",
+                  width: "100%",
+                  borderRadius: 1,
+                  cursor: "pointer",
+                },
+              }
+            : {})}
+        >
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              {headingText}
+            </Typography>
+            {multiple && (
+              <ExpandMoreIcon
+                sx={{
+                  transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s ease-in-out",
+                  opacity: 0.9,
+                  ml: 1,
+                }}
+              />
+            )}
+          </Stack>
+        </Box>
+        <Collapse in={expanded} unmountOnExit>
+          <Stack spacing={1} sx={{ minWidth: 0, mt: 0.5 }}>
+            {outfalls.map((o, idx) => (
+              <Box key={o.id}>
+                {idx > 0 && <Divider sx={{ my: 1, opacity: 0.4 }} />}
+                <OutfallRow outfall={o} />
+              </Box>
+            ))}
+          </Stack>
+        </Collapse>
       </Stack>
     </InfoPanel>
   );
@@ -120,30 +153,20 @@ const CsoSpillCard: React.FC = () => {
 
   return (
     <Card>
-      <CardContent>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          <Typography variant="h5" component="h2">
-            Sewage Spill Status
-          </Typography>
-          {ongoing.length > 0 && (
-            <Chip
-              label="Spill in progress"
-              size="small"
-              sx={statusChipSx("Ongoing")}
-            />
-          )}
-        </Stack>
+      <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+        <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
+          Sewage Spill Status
+        </Typography>
 
         {showSkeleton && (
           <Stack spacing={1}>
-            <Skeleton variant="rounded" height={72} />
-            <Skeleton variant="text" width="40%" />
+            <Skeleton variant="rounded" height={100} />
           </Stack>
         )}
 
         {!showSkeleton && csoError && !cso && (
-          <InfoPanel align="flex-start">
-            <CloudOffIcon color="warning" sx={{ flexShrink: 0 }} />
+          <InfoPanel align="flex-start" sx={{ borderRadius: 3, p: 2 }}>
+            <CloudOffIcon color="warning" sx={{ flexShrink: 0, fontSize: 32 }} />
             <Typography variant="body2" color="text.secondary">
               Couldn&apos;t load sewage spill data right now. It&apos;ll retry
               on the next refresh.
@@ -152,20 +175,22 @@ const CsoSpillCard: React.FC = () => {
         )}
 
         {!showSkeleton && cso && (
-          <Stack spacing={1.5}>
+          <Stack spacing={2}>
             {ongoing.length === 0 && recent.length === 0 && (
               <InfoPanel
+                align="flex-start"
                 sx={{
                   bgcolor: "success.container",
                   color: "success.onContainer",
+                  borderLeft: "4px solid",
+                  borderColor: "success.main",
                 }}
               >
                 <CheckCircleOutlineIcon
                   sx={{ color: "success.main", flexShrink: 0 }}
                 />
                 <Typography variant="body2">
-                  No spills currently reported in this catchment (Worcester to
-                  Bewdley).
+                  No spills currently reported in this catchment.
                 </Typography>
               </InfoPanel>
             )}
@@ -173,7 +198,6 @@ const CsoSpillCard: React.FC = () => {
             {ongoing.length > 0 && (
               <SpillGroup
                 state="Ongoing"
-                title="Sewage spill in progress"
                 outfalls={ongoing}
               />
             )}
@@ -181,22 +205,9 @@ const CsoSpillCard: React.FC = () => {
             {recent.length > 0 && (
               <SpillGroup
                 state="Recent"
-                title="Recent sewage spill"
                 outfalls={recent}
               />
             )}
-
-            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-              <Link
-                href={SEVERN_TRENT_MAP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                variant="caption"
-                sx={{ fontWeight: 600 }}
-              >
-                Severn Trent
-              </Link>
-            </Box>
           </Stack>
         )}
       </CardContent>
