@@ -6,10 +6,8 @@ import {
   ButtonBase,
   Card,
   CardContent,
-  Chip,
   Collapse,
   Divider,
-  Link,
   Skeleton,
   Stack,
   Typography,
@@ -21,9 +19,8 @@ import CloudOffIcon from "@mui/icons-material/CloudOff";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { formatDistanceToNow } from "date-fns";
 import { CsoOutfall } from "@/types";
-import { SEVERN_TRENT_MAP_URL } from "@/lib/config";
 import { formatDuration, formatOutfallSubtitle } from "@/lib/format";
-import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
+import { CSO_STATE_UI } from "@/lib/csoStatus";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import InfoPanel from "@/components/InfoPanel";
 
@@ -157,18 +154,9 @@ const CsoSpillCard: React.FC = () => {
   return (
     <Card>
       <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-          <Typography variant="h5" component="h2">
-            Sewage Spill Status
-          </Typography>
-          {ongoing.length > 0 && (
-            <Chip
-              label="Spill in progress"
-              size="small"
-              sx={statusChipSx("Ongoing")}
-            />
-          )}
-        </Stack>
+        <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
+          Sewage Spill Status
+        </Typography>
 
         {showSkeleton && (
           <Stack spacing={1}>
@@ -220,18 +208,6 @@ const CsoSpillCard: React.FC = () => {
                 outfalls={recent}
               />
             )}
-
-            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-              <Link
-                href={SEVERN_TRENT_MAP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                variant="caption"
-                sx={{ fontWeight: 600 }}
-              >
-                Severn Trent
-              </Link>
-            </Box>
           </Stack>
         )}
       </CardContent>
