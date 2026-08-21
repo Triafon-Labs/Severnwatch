@@ -40,17 +40,17 @@ const OutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
 
   return (
     <Box sx={{ minWidth: 0 }}>
-      <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
         {title}
       </Typography>
-      <Typography variant="caption" sx={{ opacity: 0.9, display: "block", mb: 0.25 }}>
+      <Typography variant="caption" sx={{ opacity: 0.9, display: "block" }}>
         {subtitle}
       </Typography>
       <Stack
         direction="row"
         spacing={1}
         alignItems="baseline"
-        sx={{ flexWrap: "wrap" }}
+        sx={{ flexWrap: "wrap", mt: 0.25 }}
       >
         <Typography variant="caption" sx={{ opacity: 0.85 }}>
           {o.state === "Ongoing"
@@ -94,74 +94,53 @@ const SpillGroup: React.FC<{
       sx={{
         bgcolor: `${role}.container`,
         color: `${role}.onContainer`,
-        borderLeft: "6px solid",
+        borderLeft: "4px solid",
         borderColor: ui.color,
-        borderRadius: 3,
-        p: 2,
       }}
     >
-      <Stack direction="row" spacing={2} sx={{ width: "100%", minWidth: 0 }}>
-        <Icon sx={{ color: ui.color, fontSize: 36, mt: 0.25, flexShrink: 0 }} />
-        <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
-          <Box
-            {...(multiple
-              ? {
-                  component: ButtonBase,
-                  onClick: toggleExpand,
-                  sx: {
-                    display: "block",
-                    textAlign: "left",
-                    width: "100%",
-                    borderRadius: 1,
-                    cursor: "pointer",
-                  },
-                }
-              : {})}
-          >
-            <Typography
-              variant="caption"
-              sx={{
-                display: "block",
-                letterSpacing: "0.08em",
-                fontWeight: 600,
-                opacity: 0.8,
-                textTransform: "uppercase",
-                mb: 0.25,
-              }}
-            >
-              CATCHMENT - WORCESTER TO BEWDLEY
+      <Icon sx={{ color: ui.color, flexShrink: 0 }} />
+      <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
+        <Box
+          {...(multiple
+            ? {
+                component: ButtonBase,
+                onClick: toggleExpand,
+                sx: {
+                  display: "block",
+                  textAlign: "left",
+                  width: "100%",
+                  borderRadius: 1,
+                  cursor: "pointer",
+                },
+              }
+            : {})}
+        >
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              {headingText}
             </Typography>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography
-                variant="h5"
-                component="h3"
-                sx={{ fontWeight: 700, lineHeight: 1.2 }}
-              >
-                {headingText}
-              </Typography>
-              {multiple && (
-                <ExpandMoreIcon
-                  sx={{
-                    transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.2s ease-in-out",
-                    opacity: 0.9,
-                    ml: 1,
-                  }}
-                />
-              )}
-            </Stack>
-          </Box>
-          <Collapse in={expanded} unmountOnExit>
-            <Stack spacing={1.5} sx={{ minWidth: 0, mt: 0.5 }}>
-              {outfalls.map((o, idx) => (
-                <Box key={o.id}>
-                  {idx > 0 && <Divider sx={{ my: 1, opacity: 0.3 }} />}
-                  <OutfallRow outfall={o} />
-                </Box>
-              ))}
-            </Stack>
-          </Collapse>
-        </Stack>
+            {multiple && (
+              <ExpandMoreIcon
+                sx={{
+                  transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s ease-in-out",
+                  opacity: 0.9,
+                  ml: 1,
+                }}
+              />
+            )}
+          </Stack>
+        </Box>
+        <Collapse in={expanded} unmountOnExit>
+          <Stack spacing={1} sx={{ minWidth: 0, mt: 0.5 }}>
+            {outfalls.map((o, idx) => (
+              <Box key={o.id}>
+                {idx > 0 && <Divider sx={{ my: 1, opacity: 0.4 }} />}
+                <OutfallRow outfall={o} />
+              </Box>
+            ))}
+          </Stack>
+        </Collapse>
       </Stack>
     </InfoPanel>
   );
@@ -215,37 +194,16 @@ const CsoSpillCard: React.FC = () => {
                 sx={{
                   bgcolor: "success.container",
                   color: "success.onContainer",
-                  borderLeft: "6px solid",
+                  borderLeft: "4px solid",
                   borderColor: "success.main",
-                  borderRadius: 3,
-                  p: 2,
                 }}
               >
-                <Stack direction="row" spacing={2} sx={{ width: "100%", minWidth: 0 }}>
-                  <CheckCircleOutlineIcon
-                    sx={{ color: "success.main", fontSize: 36, mt: 0.25, flexShrink: 0 }}
-                  />
-                  <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        display: "block",
-                        letterSpacing: "0.08em",
-                        fontWeight: 600,
-                        opacity: 0.8,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      CATCHMENT - WORCESTER TO BEWDLEY
-                    </Typography>
-                    <Typography variant="h5" component="h3" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-                      No spills reported
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
-                      No spills currently reported in this catchment.
-                    </Typography>
-                  </Stack>
-                </Stack>
+                <CheckCircleOutlineIcon
+                  sx={{ color: "success.main", flexShrink: 0 }}
+                />
+                <Typography variant="body2">
+                  No spills currently reported in this catchment.
+                </Typography>
               </InfoPanel>
             )}
 

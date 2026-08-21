@@ -2,49 +2,22 @@
 
 import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
-import { CsoOutfall, CsoState } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
-import {
-  CSO_STATE_ORDER,
-  CSO_STATE_UI,
-} from "@/lib/csoStatus";
 import InfoPanel from "@/components/InfoPanel";
-import CsoOutfallRow from "@/components/CsoOutfallRow";
 import RiverSchematic from "@/components/RiverSchematic";
-
-// Anything discharging or recently discharged is spelled out in full above
-// the diagram. The schematic below carries the whole network - including
-// these - but a live spill is news, and news should not be something you have
-// to find by reading colours off a map.
-const NotableGroup: React.FC<{ state: CsoState; outfalls: CsoOutfall[] }> = ({
-  state,
-  outfalls,
-}) => (
-  <Stack spacing={1}>
-    <Typography variant="overline" color="text.secondary">
-      {CSO_STATE_UI[state].groupLabel} ({outfalls.length})
-    </Typography>
-    {outfalls.map((o) => (
-      <CsoOutfallRow key={o.id} outfall={o} />
-    ))}
-  </Stack>
-);
 
 const CsoListCard: React.FC = () => {
   const { cso, csoError, loading } = useSevernContext();
   const outfalls = cso?.outfalls ?? [];
   const showSkeleton = loading && !cso;
 
-  const notableGroups = CSO_STATE_ORDER.filter((state) => state === "Ongoing")
-    .map((state) => ({
-      state,
-      outfalls: outfalls.filter((o) => o.state === state),
-    }))
-    .filter((group) => group.outfalls.length > 0);
-
   return (
     <Card>
       <CardContent>
+        <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
+          CSO Monitoring Map
+        </Typography>
+
         {showSkeleton && (
           <Stack spacing={1}>
             <Skeleton variant="rounded" height={56} />
@@ -71,20 +44,11 @@ const CsoListCard: React.FC = () => {
               </Typography>
             )}
 
-            {notableGroups.map((group) => (
-              <NotableGroup
-                key={group.state}
-                state={group.state}
-                outfalls={group.outfalls}
-              />
-            ))}
-
             {outfalls.length > 0 && (
               <Stack spacing={1}>
                 <RiverSchematic outfalls={outfalls} />
               </Stack>
             )}
-
           </Stack>
         )}
       </CardContent>
