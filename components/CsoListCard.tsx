@@ -45,22 +45,6 @@ const CsoListCard: React.FC = () => {
   return (
     <Card>
       <CardContent>
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ mb: 2 }}
-        >
-          <Typography variant="h5" component="h2">
-            CSO Monitoring Points
-          </Typography>
-          {cso && (
-            <Typography variant="caption" color="text.secondary">
-              {outfalls.length} in catchment
-            </Typography>
-          )}
-        </Stack>
-
         {showSkeleton && (
           <Stack spacing={1}>
             <Skeleton variant="rounded" height={56} />

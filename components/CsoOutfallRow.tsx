@@ -3,7 +3,7 @@
 import { Box, Chip, Typography } from "@mui/material";
 import { format, formatDistanceToNow } from "date-fns";
 import { CsoOutfall } from "@/types";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatOutfallSubtitle } from "@/lib/format";
 import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
 import InfoPanel from "@/components/InfoPanel";
 
@@ -52,7 +52,7 @@ const CsoOutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
   const { primaryTiming, durationText } = getTimingDetails(o);
   const title = o.locationName ?? o.watercourse;
   const subtitle = o.locationName
-    ? `${o.watercourse} (${o.waypointName})`
+    ? formatOutfallSubtitle(o.watercourse, o.waypointName)
     : o.waypointName;
 
   return (

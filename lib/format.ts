@@ -29,6 +29,15 @@ export const formatAsOf = (iso: string): string => {
   return `Data as of ${get("hour")}:${get("minute")}, ${get("day")} ${get("month")}`;
 };
 
+// Formats an outfall's subtitle, preventing double bracketing when waypointName contains parentheses
+export const formatOutfallSubtitle = (
+  watercourse: string,
+  waypointName: string
+): string => {
+  const cleanWaypoint = waypointName.replace(/\s*\(([^)]+)\)/g, " - $1");
+  return `${watercourse} (${cleanWaypoint})`;
+};
+
 // Formats raw ALL-CAPS or unformatted watercourse names into clean Title Case UK English.
 export const formatWatercourse = (raw: string | null | undefined): string => {
   if (!raw) return "Unknown watercourse";
