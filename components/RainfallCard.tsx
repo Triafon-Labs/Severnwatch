@@ -1,10 +1,8 @@
 "use client";
 
 import {
-  Box,
   Card,
   CardContent,
-  Chip,
   Divider,
   Grid,
   Grow,
@@ -12,24 +10,17 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import RestoreIcon from "@mui/icons-material/Restore";
-import ScheduleIcon from "@mui/icons-material/Schedule";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import HistoryIcon from "@mui/icons-material/History";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import UpdateIcon from "@mui/icons-material/Update";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { RainfallGaugeData } from "@/types";
-import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
   HOUR_MS,
-  SpillLikelihood,
-  assessRainfallLikelihood,
   calculateForecast24hTotal,
-  findForecastRiskWindows,
   sumRecentMm,
 } from "@/lib/rainfallAnalysis";
-import { RainfallForecastPoint } from "@/types";
 import InfoPanel from "@/components/InfoPanel";
 import RainfallChart from "@/components/RainfallChart";
 import { springTransition } from "@/lib/m3-palette";
@@ -39,7 +30,15 @@ const GaugeStat: React.FC<{
   latestMm: number | null;
   last24hTotalMm: number;
 }> = ({ label, latestMm, last24hTotalMm }) => (
-  <Stack spacing={0.25} sx={{ minWidth: 140 }}>
+  <InfoPanel
+    align="center"
+    sx={{
+      flexDirection: "column",
+      gap: 0.5,
+      height: "100%",
+      textAlign: "center",
+    }}
+  >
     <Typography variant="caption" color="text.secondary">
       {label}
     </Typography>
@@ -59,7 +58,7 @@ const GaugeStat: React.FC<{
         ? `${latestMm} mm in the last 15 min`
         : "no recent reading"}
     </Typography>
-  </Stack>
+  </InfoPanel>
 );
 
 // Worst (highest) reading across the catchment's gauges - the number that
@@ -70,16 +69,26 @@ const maxAcrossGauges = (
   value: (g: RainfallGaugeData) => number
 ): number => Math.max(...gauges.map(value));
 
-const PeriodTile: React.FC<{ label: string; totalMm: number }> = ({
+const PeriodTile: React.FC<{
+  label: string;
+  totalMm: number;
+  icon?: React.ReactNode;
+}> = ({
   label,
   totalMm,
+  icon = <HistoryIcon sx={{ fontSize: 20, color: "primary.main" }} />,
 }) => (
   <InfoPanel
-    align="flex-start"
-    sx={{ flexDirection: "column", gap: 0.5, height: "100%" }}
+    align="center"
+    sx={{
+      flexDirection: "column",
+      gap: 0.75,
+      height: "100%",
+      textAlign: "center",
+    }}
   >
-    <Stack direction="row" spacing={0.5} alignItems="center">
-      <RestoreIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+    <Stack direction="row" spacing={0.75} alignItems="center">
+      {icon}
       <Typography variant="caption" color="text.secondary">
         {label}
       </Typography>
@@ -92,38 +101,21 @@ const PeriodTile: React.FC<{ label: string; totalMm: number }> = ({
 
 const ForecastTile: React.FC<{
   totalMm: number | null;
-  forecast: RainfallForecastPoint[];
-}> = ({ totalMm, forecast }) => {
-  const riskWindows = findForecastRiskWindows(forecast);
-  const highRiskWindows = riskWindows.filter(
-    (window) => window.riskLevel === "high"
-  );
-  const moderateRiskWindows = riskWindows.filter(
-    (window) => window.riskLevel === "medium"
-  );
-  const riskLines = [
-    highRiskWindows.length > 0
-      ? `High spill risk: ${highRiskWindows
-          .map((window) => `${window.startFormatted}–${window.endFormatted}`)
-          .join(", ")}`
-      : null,
-    moderateRiskWindows.length > 0
-      ? `Moderate spill risk: ${moderateRiskWindows
-          .map((window) => `${window.startFormatted}–${window.endFormatted}`)
-          .join(", ")}`
-      : null,
-  ].filter((line): line is string => line !== null);
-  const riskLevel = highRiskWindows.length > 0 ? "high" : "medium";
-
+}> = ({ totalMm }) => {
   return (
     <InfoPanel
-      align="flex-start"
-      sx={{ flexDirection: "column", gap: 0.5, height: "100%" }}
+      align="center"
+      sx={{
+        flexDirection: "column",
+        gap: 0.75,
+        height: "100%",
+        textAlign: "center",
+      }}
     >
-      <Stack direction="row" spacing={0.5} alignItems="center">
-        <ScheduleIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+      <Stack direction="row" spacing={0.75} alignItems="center">
+        <UpdateIcon sx={{ fontSize: 20, color: "primary.main" }} />
         <Typography variant="caption" color="text.secondary">
-          24h Forecast Total
+          24h Forecast (Worcester only)
         </Typography>
       </Stack>
       <Stack
@@ -135,81 +127,6 @@ const ForecastTile: React.FC<{
         <Typography variant="h6" component="p">
           {totalMm !== null ? `${totalMm} mm` : "—"}
         </Typography>
-      </Stack>
-      {riskWindows.length > 0 && (
-        <Chip
-          label={riskLines.join("; ")}
-          color={riskLevel === "high" ? "error" : "warning"}
-          sx={{
-            alignSelf: "flex-start",
-            height: "auto",
-            maxWidth: "100%",
-            fontWeight: 600,
-            "& .MuiChip-label": {
-              display: "block",
-              whiteSpace: "normal",
-              py: 0.5,
-            },
-          }}
-        />
-      )}
-    </InfoPanel>
-  );
-};
-
-const LIKELIHOOD_STYLE: Record<
-  SpillLikelihood,
-  {
-    role: "success" | "warning" | "error";
-    accent: string;
-    onColor: string;
-    icon: React.ReactNode;
-    description: string;
-  }
-> = {
-  Low: {
-    role: "success",
-    accent: STATUS_COLORS.darkGreen,
-    onColor: ON_STATUS_COLORS.darkGreen,
-    icon: <CheckCircleOutlineIcon />,
-    description: "Rainfall doesn't currently suggest an elevated spill risk.",
-  },
-  Medium: {
-    role: "warning",
-    accent: STATUS_COLORS.amber,
-    onColor: ON_STATUS_COLORS.amber,
-    icon: <WarningAmberIcon />,
-    description:
-      "Sustained rain across the catchment - a spill is more plausible than usual.",
-  },
-  High: {
-    role: "error",
-    accent: STATUS_COLORS.red,
-    onColor: ON_STATUS_COLORS.red,
-    icon: <ReportProblemIcon />,
-    description:
-      "Heavy, thunderstorm-level rainfall in the catchment - a spill is more likely.",
-  },
-};
-
-const LikelihoodPanel: React.FC<{ likelihood: SpillLikelihood }> = ({
-  likelihood,
-}) => {
-  const style = LIKELIHOOD_STYLE[likelihood];
-  return (
-    <InfoPanel
-      align="flex-start"
-      sx={{
-        bgcolor: style.accent,
-        color: style.onColor,
-      }}
-    >
-      <Box sx={{ display: "flex", flexShrink: 0 }}>{style.icon}</Box>
-      <Stack spacing={0.25}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-          Rainfall-based spill likelihood: {likelihood}
-        </Typography>
-        <Typography variant="body2">{style.description}</Typography>
       </Stack>
     </InfoPanel>
   );
@@ -260,9 +177,9 @@ const RainfallCard: React.FC = () => {
                 ))}
               </Grid>
 
-              <Divider />
-
               <RainfallChart gauges={gauges} forecast={rainfall.forecast} />
+
+              <Divider />
 
               <Grid container spacing={1.5}>
                 <Grid size={6}>
@@ -295,17 +212,19 @@ const RainfallCard: React.FC = () => {
                     totalMm={maxAcrossGauges(gauges, (g) =>
                       sumRecentMm(g, 7 * 24 * HOUR_MS)
                     )}
+                    icon={
+                      <CalendarTodayIcon
+                        sx={{ fontSize: 20, color: "primary.main" }}
+                      />
+                    }
                   />
                 </Grid>
                 <Grid size={12}>
                   <ForecastTile
                     totalMm={calculateForecast24hTotal(rainfall.forecast)}
-                    forecast={rainfall.forecast}
                   />
                 </Grid>
               </Grid>
-
-              <LikelihoodPanel likelihood={assessRainfallLikelihood(gauges)} />
             </Stack>
           </Grow>
         )}
