@@ -36,10 +36,14 @@ const CsoStatusHero: React.FC<{
 
   let Icon = CheckCircleOutlineIcon;
   let label = "No Recent Spills";
+  let subtitle: string | null = null;
 
   if (activeState === "Ongoing") {
     Icon = ReportProblemIcon;
     label = `${ongoingCount} Active Spill${ongoingCount === 1 ? "" : "s"}`;
+    if (recentCount > 0) {
+      subtitle = `Plus ${recentCount} Recent Spill${recentCount === 1 ? "" : "s"}`;
+    }
   } else if (activeState === "Recent") {
     Icon = HistoryIcon;
     label = `${recentCount} Recent Spill${recentCount === 1 ? "" : "s"}`;
@@ -48,6 +52,12 @@ const CsoStatusHero: React.FC<{
   const otherStatuses = CSO_STATUS_SCALE.filter((s) => s !== activeState)
     .map((s) => CSO_STATE_UI[s].groupLabel)
     .join(" and ");
+
+  const fullAriaLabel = `Sewage spill scale: ${label}${
+    subtitle ? `, ${subtitle}` : ""
+  }, step ${CSO_STATUS_SCALE.indexOf(activeState) + 1} of ${
+    CSO_STATUS_SCALE.length
+  }. Other statuses are ${otherStatuses}.`;
 
   return (
     <Box>
@@ -62,25 +72,36 @@ const CsoStatusHero: React.FC<{
         }}
       >
         <Icon sx={{ fontSize: { xs: 40, sm: 56 }, flexShrink: 0 }} />
-        <Typography
-          variant="h3"
-          component="p"
-          sx={{
-            minWidth: 0,
-            fontWeight: 500,
-            lineHeight: 1.1,
-            fontSize: { xs: "1.625rem", sm: "2rem" },
-          }}
-        >
-          {label}
-        </Typography>
+        <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+          <Typography
+            variant="h3"
+            component="p"
+            sx={{
+              fontWeight: 500,
+              lineHeight: 1.1,
+              fontSize: { xs: "1.625rem", sm: "2rem" },
+            }}
+          >
+            {label}
+          </Typography>
+          {subtitle && (
+            <Typography
+              variant="body1"
+              sx={{
+                fontWeight: 500,
+                opacity: 0.9,
+                fontSize: { xs: "0.95rem", sm: "1.1rem" },
+              }}
+            >
+              {subtitle}
+            </Typography>
+          )}
+        </Stack>
       </InfoPanel>
 
       <Box
         role="img"
-        aria-label={`Sewage spill scale: ${label}, step ${
-          CSO_STATUS_SCALE.indexOf(activeState) + 1
-        } of ${CSO_STATUS_SCALE.length}. Other statuses are ${otherStatuses}.`}
+        aria-label={fullAriaLabel}
         sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 1.5 }}
       >
         {CSO_STATUS_SCALE.map((state) => {
