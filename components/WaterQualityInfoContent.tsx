@@ -73,7 +73,6 @@ export const INLAND_THRESHOLDS: ThresholdRow[] = [
   },
 ];
 
-
 export const ThresholdTable: React.FC<{ rows: ThresholdRow[] }> = ({
   rows,
 }) => (
@@ -139,9 +138,9 @@ export const ClassificationTablesSection: React.FC = () => (
       color="text.secondary"
       sx={{ display: "block", mt: 1.5 }}
     >
-      Values are colony-forming units per 100mL for inland waters under the Bathing
-      Water Regulations 2013. A site&apos;s overall classification is whichever
-      of E. coli or Enterococci comes out lower.
+      Values are colony-forming units per 100ml for inland waters under the
+      Bathing Water Regulations 2013. A site&apos;s overall classification is
+      whichever of E. coli or Enterococci comes out lower.
     </Typography>
   </>
 );

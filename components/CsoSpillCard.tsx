@@ -1,172 +1,122 @@
 "use client";
 
-import { useState } from "react";
 import {
   Box,
-  ButtonBase,
   Card,
   CardContent,
-  Collapse,
-  Divider,
+  Grow,
   Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { formatDistanceToNow } from "date-fns";
-import { CsoOutfall } from "@/types";
-import { formatDuration, formatOutfallSubtitle } from "@/lib/format";
 import { CSO_STATE_UI } from "@/lib/csoStatus";
 import { useSevernContext } from "@/lib/SevernDataContext";
+import { m3Spring, spring, springTransition } from "@/lib/m3-palette";
 import InfoPanel from "@/components/InfoPanel";
 
-const relativeTime = (iso: string | null): string =>
-  iso
-    ? formatDistanceToNow(new Date(iso), { addSuffix: true })
-    : "unknown time";
+const CSO_STATUS_SCALE = ["Not discharging", "Recent", "Ongoing"] as const;
 
-const OutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
-  const title = o.locationName ?? o.watercourse;
-  const subtitle = o.locationName
-    ? formatOutfallSubtitle(o.watercourse, o.waypointName)
-    : o.waypointName;
+const CsoStatusHero: React.FC<{ ongoingCount: number }> = ({
+  ongoingCount,
+}) => {
+  const isDischarging = ongoingCount > 0;
+  const activeState = isDischarging ? "Ongoing" : "Not discharging";
+  const ui = CSO_STATE_UI[activeState];
+  const Icon = isDischarging ? ReportProblemIcon : CheckCircleOutlineIcon;
+  const label = isDischarging ? "Discharging now" : "No active spills";
 
   return (
-    <Box sx={{ minWidth: 0 }}>
-      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-        {title}
-      </Typography>
-      <Typography variant="caption" sx={{ opacity: 0.9, display: "block" }}>
-        {subtitle}
-      </Typography>
-      <Stack
-        direction="row"
-        spacing={1}
-        alignItems="baseline"
-        sx={{ flexWrap: "wrap", mt: 0.25 }}
+    <Box>
+      <InfoPanel
+        sx={{
+          gap: { xs: 1.75, sm: 2.5 },
+          p: { xs: 2, sm: 3 },
+          borderRadius: "28px",
+          backgroundColor: ui.color,
+          color: ui.onColor,
+          transition: spring("background-color", m3Spring.effectsDefault),
+        }}
       >
-        <Typography variant="caption" sx={{ opacity: 0.85 }}>
-          {o.state === "Ongoing"
-            ? `Started ${relativeTime(o.startISO)}`
-            : `Ended ${relativeTime(o.endISO)}`}
+        <Icon sx={{ fontSize: { xs: 40, sm: 56 }, flexShrink: 0 }} />
+        <Typography
+          variant="h3"
+          component="p"
+          sx={{
+            minWidth: 0,
+            fontWeight: 500,
+            lineHeight: 1.1,
+            fontSize: { xs: "1.625rem", sm: "2rem" },
+          }}
+        >
+          {label}
         </Typography>
-        {o.durationMinutes !== null && (
-          <Typography variant="caption" sx={{ opacity: 0.85 }}>
-            &middot; {o.state === "Ongoing" ? "Running" : "Lasted"}{" "}
-            {formatDuration(o.durationMinutes)}
-          </Typography>
-        )}
-      </Stack>
+      </InfoPanel>
+
+      <Box
+        role="img"
+        aria-label={`Sewage spill scale: ${label}, step ${CSO_STATUS_SCALE.indexOf(activeState) + 1} of ${CSO_STATUS_SCALE.length}. Other statuses are Not discharging and Recent.`}
+        sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 1.5 }}
+      >
+        {CSO_STATUS_SCALE.map((state) => {
+          const isActive = state === activeState;
+          return (
+            <Box
+              key={state}
+              title={CSO_STATE_UI[state].groupLabel}
+              sx={{
+                flex: isActive ? 2.2 : 1,
+                height: isActive ? 10 : 6,
+                borderRadius: 9999,
+                backgroundColor: CSO_STATE_UI[state].color,
+                opacity: isActive ? 1 : 0.32,
+                transition: [
+                  spring("flex-grow, height", m3Spring.spatialDefault),
+                  spring("opacity", m3Spring.effectsDefault),
+                ].join(", "),
+              }}
+            />
+          );
+        })}
+      </Box>
     </Box>
   );
 };
 
-const SpillGroup: React.FC<{
-  state: "Ongoing" | "Recent";
-  outfalls: CsoOutfall[];
-}> = ({ state, outfalls }) => {
-  const ui = CSO_STATE_UI[state];
-  const Icon = state === "Ongoing" ? ReportProblemIcon : InfoOutlinedIcon;
-  const role = state === "Ongoing" ? "error" : "warning";
-  const multiple = outfalls.length > 1;
-
-  // Start minimised if there are multiple spills
-  const [expanded, setExpanded] = useState(!multiple);
-
-  const headingText = multiple
-    ? `${outfalls.length} sewage spills ${state === "Ongoing" ? "in progress" : "recently ended"}`
-    : state === "Ongoing"
-    ? "Sewage spill in progress"
-    : "Recent sewage spill";
-
-  const toggleExpand = () => setExpanded((prev) => !prev);
-
-  return (
-    <InfoPanel
-      align="flex-start"
-      sx={{
-        bgcolor: `${role}.container`,
-        color: `${role}.onContainer`,
-        borderLeft: "4px solid",
-        borderColor: ui.color,
-      }}
-    >
-      <Icon sx={{ color: ui.color, flexShrink: 0 }} />
-      <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
-        <Box
-          {...(multiple
-            ? {
-                component: ButtonBase,
-                onClick: toggleExpand,
-                sx: {
-                  display: "block",
-                  textAlign: "left",
-                  width: "100%",
-                  borderRadius: 1,
-                  cursor: "pointer",
-                },
-              }
-            : {})}
-        >
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              {headingText}
-            </Typography>
-            {multiple && (
-              <ExpandMoreIcon
-                sx={{
-                  transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-                  transition: "transform 0.2s ease-in-out",
-                  opacity: 0.9,
-                  ml: 1,
-                }}
-              />
-            )}
-          </Stack>
-        </Box>
-        <Collapse in={expanded} unmountOnExit>
-          <Stack spacing={1} sx={{ minWidth: 0, mt: 0.5 }}>
-            {outfalls.map((o, idx) => (
-              <Box key={o.id}>
-                {idx > 0 && <Divider sx={{ my: 1, opacity: 0.4 }} />}
-                <OutfallRow outfall={o} />
-              </Box>
-            ))}
-          </Stack>
-        </Collapse>
-      </Stack>
-    </InfoPanel>
-  );
-};
-
 const CsoSpillCard: React.FC = () => {
-  const { cso, csoError, loading } = useSevernContext();
-
-  const outfalls = cso?.outfalls ?? [];
-  const ongoing = outfalls.filter((o) => o.state === "Ongoing");
-  const recent = outfalls.filter((o) => o.state === "Recent");
-  const showSkeleton = loading && !cso;
+  const { cso, csoError, loading, isRefreshing, isOffline } =
+    useSevernContext();
+  const ongoing = (cso?.outfalls ?? []).filter(
+    (outfall) => outfall.state === "Ongoing"
+  );
+  const showSkeleton = loading || (isRefreshing && !isOffline);
 
   return (
     <Card>
-      <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+      <CardContent>
         <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
           Sewage Spill Status
         </Typography>
 
         {showSkeleton && (
           <Stack spacing={1}>
-            <Skeleton variant="rounded" height={100} />
+            <Skeleton
+              variant="rounded"
+              height={120}
+              animation="wave"
+              sx={{ borderRadius: "28px" }}
+            />
           </Stack>
         )}
 
         {!showSkeleton && csoError && !cso && (
           <InfoPanel align="flex-start" sx={{ borderRadius: 3, p: 2 }}>
-            <CloudOffIcon color="warning" sx={{ flexShrink: 0, fontSize: 32 }} />
+            <CloudOffIcon
+              color="warning"
+              sx={{ flexShrink: 0, fontSize: 32 }}
+            />
             <Typography variant="body2" color="text.secondary">
               Couldn&apos;t load sewage spill data right now. It&apos;ll retry
               on the next refresh.
@@ -175,40 +125,11 @@ const CsoSpillCard: React.FC = () => {
         )}
 
         {!showSkeleton && cso && (
-          <Stack spacing={2}>
-            {ongoing.length === 0 && recent.length === 0 && (
-              <InfoPanel
-                align="flex-start"
-                sx={{
-                  bgcolor: "success.container",
-                  color: "success.onContainer",
-                  borderLeft: "4px solid",
-                  borderColor: "success.main",
-                }}
-              >
-                <CheckCircleOutlineIcon
-                  sx={{ color: "success.main", flexShrink: 0 }}
-                />
-                <Typography variant="body2">
-                  No spills currently reported in this catchment.
-                </Typography>
-              </InfoPanel>
-            )}
-
-            {ongoing.length > 0 && (
-              <SpillGroup
-                state="Ongoing"
-                outfalls={ongoing}
-              />
-            )}
-
-            {recent.length > 0 && (
-              <SpillGroup
-                state="Recent"
-                outfalls={recent}
-              />
-            )}
-          </Stack>
+          <Grow in appear {...springTransition()}>
+            <Box>
+              <CsoStatusHero ongoingCount={ongoing.length} />
+            </Box>
+          </Grow>
         )}
       </CardContent>
     </Card>

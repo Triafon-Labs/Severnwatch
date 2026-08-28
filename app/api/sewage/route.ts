@@ -9,6 +9,11 @@ import {
 import { nearestWaypoint, isExcludedLocality } from "@/lib/catchment";
 import { formatWatercourse } from "@/lib/format";
 
+// Cache the completed response, including reverse-geocoded place names. The
+// upstream feed is already cached for five minutes, but without this route
+// cache every manual refresh would repeat the slow Nominatim pass.
+export const revalidate = 300;
+
 interface SewageFeatureAttributes {
   Id: string | number;
   Status: number; // 1 = discharging, 0 = not discharging, -1 = monitor offline
@@ -140,7 +145,10 @@ export async function GET() {
           startMs = attributes.LatestEventStart ?? attributes.StatusStart;
           endMs = attributes.LatestEventEnd;
           if (startMs !== null && endMs !== null && endMs >= startMs) {
-            durationMinutes = Math.max(0, Math.round((endMs - startMs) / 60000));
+            durationMinutes = Math.max(
+              0,
+              Math.round((endMs - startMs) / 60000)
+            );
           }
         } else {
           startMs = attributes.StatusStart;

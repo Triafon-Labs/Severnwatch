@@ -57,7 +57,7 @@ const RANGE_LABEL: Record<Range, string> = {
   "7d": "7d",
 };
 
-const RANGES = Object.keys(RANGE_LABEL) as Range[];
+const RANGES: Range[] = ["7d", "24h", "8h", "1h", "forecast"];
 
 const isRange = (value: string | null): value is Range =>
   value !== null && (RANGES as string[]).includes(value);
@@ -209,50 +209,54 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
   // all three chart shapes. Returned as a flat array rather than a fragment:
   // recharts inspects its children's types to decide what to render, and a
   // Fragment is opaque to that walk, so its contents are silently dropped.
-  const thresholdBands = () => [
-    <ReferenceArea
-      key="band-moderate"
-      y1={moderateMm}
-      y2={heavyMm}
-      fill={moderateColor}
-      fillOpacity={0.08}
-      strokeWidth={0}
-      ifOverflow="hidden"
-    />,
-    <ReferenceArea
-      key="band-heavy"
-      y1={heavyMm}
-      y2={BAND_CEILING}
-      fill={heavyColor}
-      fillOpacity={0.08}
-      strokeWidth={0}
-      ifOverflow="hidden"
-    />,
-    <ReferenceLine
-      key="line-moderate"
-      y={moderateMm}
-      stroke={moderateColor}
-      strokeDasharray="4 4"
-      label={{
-        value: "Moderate",
-        position: "insideTopRight",
-        fill: chrome.text,
-        fontSize: 11,
-      }}
-    />,
-    <ReferenceLine
-      key="line-heavy"
-      y={heavyMm}
-      stroke={heavyColor}
-      strokeDasharray="4 4"
-      label={{
-        value: "Heavy",
-        position: "insideTopRight",
-        fill: chrome.text,
-        fontSize: 11,
-      }}
-    />,
-  ];
+  const thresholdBands = () => {
+    if (isDaily) return [];
+
+    return [
+      <ReferenceArea
+        key="band-moderate"
+        y1={moderateMm}
+        y2={heavyMm}
+        fill={moderateColor}
+        fillOpacity={0.08}
+        strokeWidth={0}
+        ifOverflow="hidden"
+      />,
+      <ReferenceArea
+        key="band-heavy"
+        y1={heavyMm}
+        y2={BAND_CEILING}
+        fill={heavyColor}
+        fillOpacity={0.08}
+        strokeWidth={0}
+        ifOverflow="hidden"
+      />,
+      <ReferenceLine
+        key="line-moderate"
+        y={moderateMm}
+        stroke={moderateColor}
+        strokeDasharray="4 4"
+        label={{
+          value: "Moderate",
+          position: "insideTopRight",
+          fill: chrome.text,
+          fontSize: 11,
+        }}
+      />,
+      <ReferenceLine
+        key="line-heavy"
+        y={heavyMm}
+        stroke={heavyColor}
+        strokeDasharray="4 4"
+        label={{
+          value: "Heavy",
+          position: "insideTopRight",
+          fill: chrome.text,
+          fontSize: 11,
+        }}
+      />,
+    ];
+  };
 
   const yAxis = () => (
     <YAxis

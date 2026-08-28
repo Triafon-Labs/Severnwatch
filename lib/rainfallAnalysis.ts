@@ -229,23 +229,11 @@ export const findForecastRiskWindows = (
       const t = new Date(f.dateTime).getTime();
       return t >= now - 30 * 60 * 1000 && t <= next24h;
     })
-    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+    .sort(
+      (a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
+    );
 
   if (relevant.length === 0) return [];
-
-  const highRiskPoints = relevant.filter((f) => f.valueMm >= HOURLY_HEAVY_MM);
-  const targetPoints =
-    highRiskPoints.length > 0
-      ? highRiskPoints
-      : relevant.filter((f) => f.valueMm >= HOURLY_MODERATE_MM);
-
-  if (targetPoints.length === 0) return [];
-
-  const riskLevel: "high" | "medium" =
-    highRiskPoints.length > 0 ? "high" : "medium";
-
-  const windows: ForecastRiskWindow[] = [];
-  let currentGroup: RainfallForecastPoint[] = [];
 
   const formatHHMM = (iso: string) => {
     return new Date(iso).toLocaleTimeString("en-GB", {
@@ -256,56 +244,65 @@ export const findForecastRiskWindows = (
     });
   };
 
-  for (let i = 0; i < targetPoints.length; i++) {
-    const pt = targetPoints[i];
-    if (currentGroup.length === 0) {
-      currentGroup.push(pt);
-    } else {
-      const prev = currentGroup[currentGroup.length - 1];
-      const prevTime = new Date(prev.dateTime).getTime();
-      const currTime = new Date(pt.dateTime).getTime();
-      if (currTime - prevTime <= HOUR_MS + 60000) {
-        currentGroup.push(pt);
+  const buildWindows = (
+    points: RainfallForecastPoint[],
+    riskLevel: "high" | "medium"
+  ): ForecastRiskWindow[] => {
+    const windows: ForecastRiskWindow[] = [];
+    let currentGroup: RainfallForecastPoint[] = [];
+
+    const addWindow = (group: RainfallForecastPoint[]) => {
+      const startISO = group[0].dateTime;
+      const endISO = new Date(
+        new Date(group[group.length - 1].dateTime).getTime() + HOUR_MS
+      ).toISOString();
+      const startFmt = formatHHMM(startISO);
+      const endFmt = formatHHMM(endISO);
+      const riskText =
+        riskLevel === "high" ? "high spill risk" : "moderate spill risk";
+      windows.push({
+        startTimeISO: startISO,
+        endTimeISO: endISO,
+        startFormatted: startFmt,
+        endFormatted: endFmt,
+        label: `${startFmt}–${endFmt}: ${riskText}`,
+        riskLevel,
+      });
+    };
+
+    for (const point of points) {
+      if (currentGroup.length === 0) {
+        currentGroup.push(point);
+        continue;
+      }
+      const previous = currentGroup[currentGroup.length - 1];
+      const gap =
+        new Date(point.dateTime).getTime() -
+        new Date(previous.dateTime).getTime();
+      if (gap <= HOUR_MS + 60000) {
+        currentGroup.push(point);
       } else {
-        const startISO = currentGroup[0].dateTime;
-        const endISO = new Date(
-          new Date(currentGroup[currentGroup.length - 1].dateTime).getTime() + HOUR_MS
-        ).toISOString();
-        const startFmt = formatHHMM(startISO);
-        const endFmt = formatHHMM(endISO);
-        const riskText = riskLevel === "high" ? "high spill risk" : "moderate spill risk";
-        windows.push({
-          startTimeISO: startISO,
-          endTimeISO: endISO,
-          startFormatted: startFmt,
-          endFormatted: endFmt,
-          label: `${startFmt}–${endFmt}: ${riskText}`,
-          riskLevel,
-        });
-        currentGroup = [pt];
+        addWindow(currentGroup);
+        currentGroup = [point];
       }
     }
-  }
 
-  if (currentGroup.length > 0) {
-    const startISO = currentGroup[0].dateTime;
-    const endISO = new Date(
-      new Date(currentGroup[currentGroup.length - 1].dateTime).getTime() + HOUR_MS
-    ).toISOString();
-    const startFmt = formatHHMM(startISO);
-    const endFmt = formatHHMM(endISO);
-    const riskText = riskLevel === "high" ? "high spill risk" : "moderate spill risk";
-    windows.push({
-      startTimeISO: startISO,
-      endTimeISO: endISO,
-      startFormatted: startFmt,
-      endFormatted: endFmt,
-      label: `${startFmt}–${endFmt}: ${riskText}`,
-      riskLevel,
-    });
-  }
+    if (currentGroup.length > 0) addWindow(currentGroup);
+    return windows;
+  };
 
-  return windows;
+  const highRiskPoints = relevant.filter((f) => f.valueMm >= HOURLY_HEAVY_MM);
+  const moderateRiskPoints = relevant.filter(
+    (f) => f.valueMm >= HOURLY_MODERATE_MM && f.valueMm < HOURLY_HEAVY_MM
+  );
+
+  return [
+    ...buildWindows(moderateRiskPoints, "medium"),
+    ...buildWindows(highRiskPoints, "high"),
+  ].sort(
+    (a, b) =>
+      new Date(a.startTimeISO).getTime() - new Date(b.startTimeISO).getTime()
+  );
 };
 
 export const calculateForecast24hTotal = (

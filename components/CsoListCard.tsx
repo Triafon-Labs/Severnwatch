@@ -1,15 +1,24 @@
 "use client";
 
-import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  Grow,
+  Skeleton,
+  Stack,
+  Typography,
+} from "@mui/material";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import InfoPanel from "@/components/InfoPanel";
 import RiverSchematic from "@/components/RiverSchematic";
+import { springTransition } from "@/lib/m3-palette";
 
 const CsoListCard: React.FC = () => {
-  const { cso, csoError, loading } = useSevernContext();
+  const { cso, csoError, loading, isRefreshing, isOffline } =
+    useSevernContext();
   const outfalls = cso?.outfalls ?? [];
-  const showSkeleton = loading && !cso;
+  const showSkeleton = loading || (isRefreshing && !isOffline);
 
   return (
     <Card>
@@ -20,9 +29,9 @@ const CsoListCard: React.FC = () => {
 
         {showSkeleton && (
           <Stack spacing={1}>
-            <Skeleton variant="rounded" height={56} />
-            <Skeleton variant="rounded" height={56} />
-            <Skeleton variant="rounded" height={56} />
+            <Skeleton variant="rounded" height={56} animation="wave" />
+            <Skeleton variant="rounded" height={56} animation="wave" />
+            <Skeleton variant="rounded" height={56} animation="wave" />
           </Stack>
         )}
 
@@ -37,19 +46,21 @@ const CsoListCard: React.FC = () => {
         )}
 
         {!showSkeleton && cso && (
-          <Stack spacing={2}>
-            {outfalls.length === 0 && (
-              <Typography variant="body2" color="text.secondary">
-                No monitored CSOs found in this catchment.
-              </Typography>
-            )}
+          <Grow in appear {...springTransition()}>
+            <Stack spacing={2}>
+              {outfalls.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  No monitored CSOs found in this catchment.
+                </Typography>
+              )}
 
-            {outfalls.length > 0 && (
-              <Stack spacing={1}>
-                <RiverSchematic outfalls={outfalls} />
-              </Stack>
-            )}
-          </Stack>
+              {outfalls.length > 0 && (
+                <Stack spacing={1}>
+                  <RiverSchematic outfalls={outfalls} />
+                </Stack>
+              )}
+            </Stack>
+          </Grow>
         )}
       </CardContent>
     </Card>

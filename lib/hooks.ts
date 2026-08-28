@@ -25,10 +25,9 @@ export interface SevernData {
   rainfall: RainfallResponse | null;
   csoError: boolean;
   rainfallError: boolean;
-  // True only while there is genuinely nothing to render - the first load
-  // with no cache behind it. A background refresh over data already on
-  // screen is `isRefreshing`, not `loading`, so the cards don't collapse
-  // back into skeletons every five minutes.
+  // True while there is no usable data to render. Automatic polling waits for
+  // stale data, while an explicit refresh may set this again to let the cards
+  // show their loading skeletons.
   loading: boolean;
   isRefreshing: boolean;
   isOffline: boolean;
@@ -85,8 +84,18 @@ export const useSevernData = (): SevernData => {
   // A ref rather than state: nothing renders off it, and making it state
   // would re-render every component on the page on each tick.
   const pollCount = useRef(0);
+  const newestDataAt = useRef<number | null>(null);
 
-  const load = useCallback(async (includeRainfall: boolean) => {
+  const load = useCallback(async (includeRainfall: boolean, force = false) => {
+    if (
+      !force &&
+      newestDataAt.current !== null &&
+      Date.now() - newestDataAt.current <= DATA_STALE_THRESHOLD_MS
+    ) {
+      setUsingCachedData(false);
+      return;
+    }
+
     setIsRefreshing(true);
 
     // Each source is fetched independently and falls back to its own cached
@@ -135,6 +144,14 @@ export const useSevernData = (): SevernData => {
       setRainfallError(rainfallResult.fromCache && !rainfallResult.body);
     }
 
+    const newestResultTime = newest(
+      csoResult.body?.asOf,
+      rainfallResult?.body?.asOf
+    );
+    if (newestResultTime) {
+      newestDataAt.current = new Date(newestResultTime).getTime();
+    }
+
     const servedFromCache =
       csoResult.fromCache || Boolean(rainfallResult?.fromCache);
     setUsingCachedData(servedFromCache);
@@ -150,7 +167,7 @@ export const useSevernData = (): SevernData => {
   }, []);
 
   const refetch = useCallback(() => {
-    void load(true);
+    void load(true, true);
   }, [load]);
 
   // Seed from cache before the first fetch resolves, so a returning reader
@@ -168,16 +185,20 @@ export const useSevernData = (): SevernData => {
       );
       if (cachedCso) setCso(cachedCso);
       if (cachedRainfall) setRainfall(cachedRainfall);
+      const cachedDataTime = newest(cachedCso?.asOf, cachedRainfall?.asOf);
+      if (cachedDataTime) {
+        newestDataAt.current = new Date(cachedDataTime).getTime();
+      }
       if (cachedCso || cachedRainfall) {
         setUsingCachedData(true);
         setLoading(false);
       }
-      void load(true);
+      void load(true, false);
     });
 
     const interval = setInterval(() => {
       pollCount.current += 1;
-      void load(pollCount.current % RAINFALL_EVERY_N_POLLS === 0);
+      void load(pollCount.current % RAINFALL_EVERY_N_POLLS === 0, false);
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
@@ -201,7 +222,7 @@ export const useSevernData = (): SevernData => {
   // the rest of the poll interval on stale numbers.
   useEffect(() => {
     if (!isOffline) return;
-    const onReconnect = () => void load(true);
+    const onReconnect = () => void load(true, false);
     window.addEventListener("online", onReconnect);
     return () => window.removeEventListener("online", onReconnect);
   }, [isOffline, load]);

@@ -7,6 +7,7 @@ import {
   Chip,
   Divider,
   Grid,
+  Grow,
   Skeleton,
   Stack,
   Typography,
@@ -18,7 +19,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { RainfallGaugeData } from "@/types";
-import { STATUS_COLORS } from "@/lib/statusColors";
+import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
   HOUR_MS,
@@ -31,6 +32,7 @@ import {
 import { RainfallForecastPoint } from "@/types";
 import InfoPanel from "@/components/InfoPanel";
 import RainfallChart from "@/components/RainfallChart";
+import { springTransition } from "@/lib/m3-palette";
 
 const GaugeStat: React.FC<{
   label: string;
@@ -93,6 +95,25 @@ const ForecastTile: React.FC<{
   forecast: RainfallForecastPoint[];
 }> = ({ totalMm, forecast }) => {
   const riskWindows = findForecastRiskWindows(forecast);
+  const highRiskWindows = riskWindows.filter(
+    (window) => window.riskLevel === "high"
+  );
+  const moderateRiskWindows = riskWindows.filter(
+    (window) => window.riskLevel === "medium"
+  );
+  const riskLines = [
+    highRiskWindows.length > 0
+      ? `High spill risk: ${highRiskWindows
+          .map((window) => `${window.startFormatted}–${window.endFormatted}`)
+          .join(", ")}`
+      : null,
+    moderateRiskWindows.length > 0
+      ? `Moderate spill risk: ${moderateRiskWindows
+          .map((window) => `${window.startFormatted}–${window.endFormatted}`)
+          .join(", ")}`
+      : null,
+  ].filter((line): line is string => line !== null);
+  const riskLevel = highRiskWindows.length > 0 ? "high" : "medium";
 
   return (
     <InfoPanel
@@ -114,17 +135,24 @@ const ForecastTile: React.FC<{
         <Typography variant="h6" component="p">
           {totalMm !== null ? `${totalMm} mm` : "—"}
         </Typography>
-        {riskWindows.map((w) => (
-          <Chip
-            key={w.label}
-            label={w.label}
-            size="small"
-            color={w.riskLevel === "high" ? "error" : "warning"}
-            variant="outlined"
-            sx={{ fontWeight: 600, fontSize: "0.75rem" }}
-          />
-        ))}
       </Stack>
+      {riskWindows.length > 0 && (
+        <Chip
+          label={riskLines.join("; ")}
+          color={riskLevel === "high" ? "error" : "warning"}
+          sx={{
+            alignSelf: "flex-start",
+            height: "auto",
+            maxWidth: "100%",
+            fontWeight: 600,
+            "& .MuiChip-label": {
+              display: "block",
+              whiteSpace: "normal",
+              py: 0.5,
+            },
+          }}
+        />
+      )}
     </InfoPanel>
   );
 };
@@ -134,6 +162,7 @@ const LIKELIHOOD_STYLE: Record<
   {
     role: "success" | "warning" | "error";
     accent: string;
+    onColor: string;
     icon: React.ReactNode;
     description: string;
   }
@@ -141,12 +170,14 @@ const LIKELIHOOD_STYLE: Record<
   Low: {
     role: "success",
     accent: STATUS_COLORS.darkGreen,
+    onColor: ON_STATUS_COLORS.darkGreen,
     icon: <CheckCircleOutlineIcon />,
     description: "Rainfall doesn't currently suggest an elevated spill risk.",
   },
   Medium: {
     role: "warning",
     accent: STATUS_COLORS.amber,
+    onColor: ON_STATUS_COLORS.amber,
     icon: <WarningAmberIcon />,
     description:
       "Sustained rain across the catchment - a spill is more plausible than usual.",
@@ -154,6 +185,7 @@ const LIKELIHOOD_STYLE: Record<
   High: {
     role: "error",
     accent: STATUS_COLORS.red,
+    onColor: ON_STATUS_COLORS.red,
     icon: <ReportProblemIcon />,
     description:
       "Heavy, thunderstorm-level rainfall in the catchment - a spill is more likely.",
@@ -168,15 +200,11 @@ const LikelihoodPanel: React.FC<{ likelihood: SpillLikelihood }> = ({
     <InfoPanel
       align="flex-start"
       sx={{
-        bgcolor: `${style.role}.container`,
-        color: `${style.role}.onContainer`,
-        borderLeft: "4px solid",
-        borderColor: style.accent,
+        bgcolor: style.accent,
+        color: style.onColor,
       }}
     >
-      <Box sx={{ color: style.accent, display: "flex", flexShrink: 0 }}>
-        {style.icon}
-      </Box>
+      <Box sx={{ display: "flex", flexShrink: 0 }}>{style.icon}</Box>
       <Stack spacing={0.25}>
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
           Rainfall-based spill likelihood: {likelihood}
@@ -188,9 +216,10 @@ const LikelihoodPanel: React.FC<{ likelihood: SpillLikelihood }> = ({
 };
 
 const RainfallCard: React.FC = () => {
-  const { rainfall, rainfallError, loading } = useSevernContext();
+  const { rainfall, rainfallError, loading, isRefreshing, isOffline } =
+    useSevernContext();
   const gauges = rainfall?.gauges ?? [];
-  const showSkeleton = loading && !rainfall;
+  const showSkeleton = loading || (isRefreshing && !isOffline);
 
   return (
     <Card>
@@ -201,8 +230,8 @@ const RainfallCard: React.FC = () => {
 
         {showSkeleton && (
           <Stack spacing={1}>
-            <Skeleton variant="rounded" height={72} />
-            <Skeleton variant="rounded" height={220} />
+            <Skeleton variant="rounded" height={72} animation="wave" />
+            <Skeleton variant="rounded" height={220} animation="wave" />
           </Stack>
         )}
 
@@ -217,66 +246,68 @@ const RainfallCard: React.FC = () => {
         )}
 
         {!showSkeleton && rainfall && gauges.length > 0 && (
-          <Stack spacing={2}>
-            <Grid container spacing={2}>
-              {gauges.map((gauge) => (
-                <Grid key={gauge.id} size={{ xs: 12, sm: 4 }}>
-                  <GaugeStat
-                    label={gauge.label}
-                    latestMm={gauge.latestMm}
-                    last24hTotalMm={gauge.last24hTotalMm}
+          <Grow in appear {...springTransition()}>
+            <Stack spacing={2}>
+              <Grid container spacing={2}>
+                {gauges.map((gauge) => (
+                  <Grid key={gauge.id} size={{ xs: 12, sm: 4 }}>
+                    <GaugeStat
+                      label={gauge.label}
+                      latestMm={gauge.latestMm}
+                      last24hTotalMm={gauge.last24hTotalMm}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+
+              <Divider />
+
+              <RainfallChart gauges={gauges} forecast={rainfall.forecast} />
+
+              <Grid container spacing={1.5}>
+                <Grid size={6}>
+                  <PeriodTile
+                    label="Past 1 Hour"
+                    totalMm={maxAcrossGauges(gauges, (g) =>
+                      sumRecentMm(g, HOUR_MS)
+                    )}
                   />
                 </Grid>
-              ))}
-            </Grid>
+                <Grid size={6}>
+                  <PeriodTile
+                    label="Past 8 Hours"
+                    totalMm={maxAcrossGauges(gauges, (g) =>
+                      sumRecentMm(g, 8 * HOUR_MS)
+                    )}
+                  />
+                </Grid>
+                <Grid size={6}>
+                  <PeriodTile
+                    label="Past 24 Hours"
+                    totalMm={maxAcrossGauges(gauges, (g) =>
+                      sumRecentMm(g, 24 * HOUR_MS)
+                    )}
+                  />
+                </Grid>
+                <Grid size={6}>
+                  <PeriodTile
+                    label="Past 7 Days"
+                    totalMm={maxAcrossGauges(gauges, (g) =>
+                      sumRecentMm(g, 7 * 24 * HOUR_MS)
+                    )}
+                  />
+                </Grid>
+                <Grid size={12}>
+                  <ForecastTile
+                    totalMm={calculateForecast24hTotal(rainfall.forecast)}
+                    forecast={rainfall.forecast}
+                  />
+                </Grid>
+              </Grid>
 
-            <Divider />
-
-            <RainfallChart gauges={gauges} forecast={rainfall.forecast} />
-
-            <Grid container spacing={1.5}>
-              <Grid size={6}>
-                <PeriodTile
-                  label="Past 1 Hour"
-                  totalMm={maxAcrossGauges(gauges, (g) =>
-                    sumRecentMm(g, HOUR_MS)
-                  )}
-                />
-              </Grid>
-              <Grid size={6}>
-                <PeriodTile
-                  label="Past 8 Hours"
-                  totalMm={maxAcrossGauges(gauges, (g) =>
-                    sumRecentMm(g, 8 * HOUR_MS)
-                  )}
-                />
-              </Grid>
-              <Grid size={6}>
-                <PeriodTile
-                  label="Past 24 Hours"
-                  totalMm={maxAcrossGauges(gauges, (g) =>
-                    sumRecentMm(g, 24 * HOUR_MS)
-                  )}
-                />
-              </Grid>
-              <Grid size={6}>
-                <PeriodTile
-                  label="Past 7 Days"
-                  totalMm={maxAcrossGauges(gauges, (g) =>
-                    sumRecentMm(g, 7 * 24 * HOUR_MS)
-                  )}
-                />
-              </Grid>
-              <Grid size={12}>
-                <ForecastTile
-                  totalMm={calculateForecast24hTotal(rainfall.forecast)}
-                  forecast={rainfall.forecast}
-                />
-              </Grid>
-            </Grid>
-
-            <LikelihoodPanel likelihood={assessRainfallLikelihood(gauges)} />
-          </Stack>
+              <LikelihoodPanel likelihood={assessRainfallLikelihood(gauges)} />
+            </Stack>
+          </Grow>
         )}
       </CardContent>
     </Card>
