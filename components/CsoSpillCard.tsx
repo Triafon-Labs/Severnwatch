@@ -11,22 +11,43 @@ import {
 } from "@mui/material";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import HistoryIcon from "@mui/icons-material/History";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { CSO_STATE_UI } from "@/lib/csoStatus";
+import { CsoState } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import { m3Spring, spring, springTransition } from "@/lib/m3-palette";
 import InfoPanel from "@/components/InfoPanel";
 
 const CSO_STATUS_SCALE = ["Not discharging", "Recent", "Ongoing"] as const;
 
-const CsoStatusHero: React.FC<{ ongoingCount: number }> = ({
-  ongoingCount,
-}) => {
-  const isDischarging = ongoingCount > 0;
-  const activeState = isDischarging ? "Ongoing" : "Not discharging";
+const CsoStatusHero: React.FC<{
+  ongoingCount: number;
+  recentCount: number;
+}> = ({ ongoingCount, recentCount }) => {
+  const activeState: CsoState =
+    ongoingCount > 0
+      ? "Ongoing"
+      : recentCount > 0
+      ? "Recent"
+      : "Not discharging";
+
   const ui = CSO_STATE_UI[activeState];
-  const Icon = isDischarging ? ReportProblemIcon : CheckCircleOutlineIcon;
-  const label = isDischarging ? "Discharging now" : "No active spills";
+
+  let Icon = CheckCircleOutlineIcon;
+  let label = "No Recent Spills";
+
+  if (activeState === "Ongoing") {
+    Icon = ReportProblemIcon;
+    label = `${ongoingCount} Active Spill${ongoingCount === 1 ? "" : "s"}`;
+  } else if (activeState === "Recent") {
+    Icon = HistoryIcon;
+    label = `${recentCount} Recent Spill${recentCount === 1 ? "" : "s"}`;
+  }
+
+  const otherStatuses = CSO_STATUS_SCALE.filter((s) => s !== activeState)
+    .map((s) => CSO_STATE_UI[s].groupLabel)
+    .join(" and ");
 
   return (
     <Box>
@@ -57,7 +78,9 @@ const CsoStatusHero: React.FC<{ ongoingCount: number }> = ({
 
       <Box
         role="img"
-        aria-label={`Sewage spill scale: ${label}, step ${CSO_STATUS_SCALE.indexOf(activeState) + 1} of ${CSO_STATUS_SCALE.length}. Other statuses are Not discharging and Recent.`}
+        aria-label={`Sewage spill scale: ${label}, step ${
+          CSO_STATUS_SCALE.indexOf(activeState) + 1
+        } of ${CSO_STATUS_SCALE.length}. Other statuses are ${otherStatuses}.`}
         sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 1.5 }}
       >
         {CSO_STATUS_SCALE.map((state) => {
@@ -90,6 +113,9 @@ const CsoSpillCard: React.FC = () => {
     useSevernContext();
   const ongoing = (cso?.outfalls ?? []).filter(
     (outfall) => outfall.state === "Ongoing"
+  );
+  const recent = (cso?.outfalls ?? []).filter(
+    (outfall) => outfall.state === "Recent"
   );
   const showSkeleton = loading || (isRefreshing && !isOffline);
 
@@ -127,7 +153,10 @@ const CsoSpillCard: React.FC = () => {
         {!showSkeleton && cso && (
           <Grow in appear {...springTransition()}>
             <Box>
-              <CsoStatusHero ongoingCount={ongoing.length} />
+              <CsoStatusHero
+                ongoingCount={ongoing.length}
+                recentCount={recent.length}
+              />
             </Box>
           </Grow>
         )}
