@@ -3,6 +3,10 @@ import { RainfallForecastPoint, RainfallResponse } from "@/types";
 import { RAINFALL_GAUGES } from "@/lib/config";
 import { fetchGaugeData, fetchRainfallForecast } from "@/lib/rainfall";
 
+// Match the EA gauge and Open-Meteo source cadence. Manual refreshes can still
+// animate immediately while this route serves its cached response.
+export const revalidate = 900;
+
 export async function GET() {
   try {
     const gauges = await Promise.all(RAINFALL_GAUGES.map(fetchGaugeData));

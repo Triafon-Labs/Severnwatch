@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Card, CardContent, Divider, IconButton, Typography } from "@mui/material";
+import {
+  Box,
+  Card,
+  CardContent,
+  Divider,
+  IconButton,
+  Typography,
+} from "@mui/material";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import { SAS_MAP_EMBED_URL } from "@/lib/config";
@@ -55,10 +62,9 @@ const WaterQualityMap: React.FC = () => {
           Citizen Science Water Quality
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Surfers Against Sewage&apos;s water quality map, showing citizen science
-          bacteria sampling results across the whole UK. This isn&apos;t filtered
-          to Worcester - pan and zoom to the River Severn to find results near
-          here.
+          Surfers Against Sewage&apos;s water quality map, showing citizen
+          science bacteria sampling results across the UK. Zoom in to Worcester
+          to view local results for the Severn.
         </Typography>
         <Box
           ref={containerRef}
@@ -78,7 +84,9 @@ const WaterQualityMap: React.FC = () => {
         >
           <IconButton
             onClick={toggleFullscreen}
-            aria-label={isFullscreen ? "Exit fullscreen" : "Expand map to fullscreen"}
+            aria-label={
+              isFullscreen ? "Exit fullscreen" : "Expand map to fullscreen"
+            }
             sx={{
               position: "absolute",
               top: 12,

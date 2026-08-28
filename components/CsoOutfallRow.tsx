@@ -1,7 +1,10 @@
 "use client";
 
-import { Box, Chip, Typography } from "@mui/material";
-import { format, formatDistanceToNow } from "date-fns";
+import { Chip, Stack, Typography } from "@mui/material";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import HistoryIcon from "@mui/icons-material/History";
+import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
+import { format } from "date-fns";
 import { CsoOutfall } from "@/types";
 import { formatDuration, formatOutfallSubtitle } from "@/lib/format";
 import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
@@ -15,21 +18,16 @@ import InfoPanel from "@/components/InfoPanel";
 const getTimingDetails = (
   o: CsoOutfall
 ): { primaryTiming: string | null; durationText: string | null } => {
-  const relativeSince = (iso: string | null, prefix: string) =>
-    iso
-      ? `${prefix} ${formatDistanceToNow(new Date(iso), { addSuffix: true })}`
-      : null;
-
   const dateSince = (iso: string | null, prefix: string) =>
-    iso ? `${prefix} ${format(new Date(iso), "d MMM yyyy")}` : null;
+    iso ? `${prefix} ${format(new Date(iso), "dd/MM/yyyy")}` : null;
 
   let primaryTiming: string | null = null;
   switch (o.state) {
     case "Ongoing":
-      primaryTiming = relativeSince(o.startISO, "Started");
+      primaryTiming = dateSince(o.startISO, "Started");
       break;
     case "Recent":
-      primaryTiming = relativeSince(o.endISO, "Ended");
+      primaryTiming = dateSince(o.endISO, "Ended");
       break;
     case "Not discharging":
       primaryTiming = dateSince(o.startISO, "Clear since");
@@ -48,6 +46,31 @@ const getTimingDetails = (
   return { primaryTiming, durationText };
 };
 
+const MetaLine: React.FC<{
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ icon, children }) => (
+  <Stack direction="row" spacing={0.5} alignItems="flex-start">
+    <span
+      style={{
+        display: "inline-flex",
+        marginTop: 2,
+        flexShrink: 0,
+        color: "inherit",
+      }}
+    >
+      {icon}
+    </span>
+    <Typography
+      variant="caption"
+      color="text.secondary"
+      sx={{ lineHeight: 1.35 }}
+    >
+      {children}
+    </Typography>
+  </Stack>
+);
+
 const CsoOutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
   const { primaryTiming, durationText } = getTimingDetails(o);
   const title = o.locationName ?? o.watercourse;
@@ -57,42 +80,37 @@ const CsoOutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
 
   return (
     <InfoPanel
-      sx={{ justifyContent: "space-between", alignItems: "flex-start" }}
+      sx={{
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: 1.5,
+      }}
     >
-      <Box sx={{ minWidth: 0, flex: 1, mr: 1 }}>
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+      <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+        <Typography
+          variant="body2"
+          sx={{ fontWeight: 600, overflowWrap: "anywhere" }}
+        >
           {title}
         </Typography>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: "block" }}
-        >
+        <MetaLine icon={<LocationOnOutlinedIcon sx={{ fontSize: 16 }} />}>
           {subtitle}
-        </Typography>
+        </MetaLine>
         {primaryTiming && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block" }}
-          >
+          <MetaLine icon={<HistoryIcon sx={{ fontSize: 16 }} />}>
             {primaryTiming}
-          </Typography>
+          </MetaLine>
         )}
         {durationText && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block" }}
-          >
+          <MetaLine icon={<TimerOutlinedIcon sx={{ fontSize: 16 }} />}>
             {durationText}
-          </Typography>
+          </MetaLine>
         )}
-      </Box>
+      </Stack>
       <Chip
         label={CSO_STATE_UI[o.state].label}
         size="small"
-        sx={{ ...statusChipSx(o.state), flexShrink: 0 }}
+        sx={{ ...statusChipSx(o.state), flexShrink: 0, mt: 0.125 }}
       />
     </InfoPanel>
   );

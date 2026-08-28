@@ -24,7 +24,7 @@ import {
   TRUNK_LANE,
   buildRiverSchematic,
 } from "@/lib/riverSchematic";
-import { m3Spring, spring } from "@/lib/m3-palette";
+import { collapseMotion, m3Spring, spring } from "@/lib/m3-palette";
 import CsoOutfallRow from "@/components/CsoOutfallRow";
 
 // The CSO monitoring network drawn as a transit diagram: the Severn as a
@@ -280,7 +280,7 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
                 expanded={isExpanded}
                 onToggle={() => setExpanded(isExpanded ? null : row.key)}
               />
-              <Collapse in={isExpanded} unmountOnExit>
+              <Collapse in={isExpanded} unmountOnExit {...collapseMotion}>
                 <Stack spacing={1} sx={{ pb: 1.5, px: 1 }}>
                   {row.station.outfalls.map((outfall) => (
                     <CsoOutfallRow key={outfall.id} outfall={outfall} />
