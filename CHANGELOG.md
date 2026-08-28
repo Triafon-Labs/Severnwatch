@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.12](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.11...severnwatch-v0.1.12) (2026-08-28)
+
+
+### Features
+
+* align Severnwatch with Paddlecheck UI ([6632d57](https://github.com/dylanr97/Severnwatch/commit/6632d57c1426aae6337f7bb468edea988387f4d5))
+* enhance RainfallCard UI components for better alignment with Paddlecheck design ([dabb571](https://github.com/dylanr97/Severnwatch/commit/dabb571df629a3e0a507a64d4fd8c5e48253ffe5))
+
 ## [0.1.11](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.10...severnwatch-v0.1.11) (2026-08-21)
 
 ## [0.1.10](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.9...severnwatch-v0.1.10) (2026-08-20)
