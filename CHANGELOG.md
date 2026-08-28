@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.13](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.12...severnwatch-v0.1.13) (2026-08-28)
+
+
+### Bug Fixes
+
+* **cso:** surface recent spills and counts in overall status hero ([0733b76](https://github.com/dylanr97/Severnwatch/commit/0733b763a8995ded49000571041dcab9b631cd2f))
+* **cso:** surface recent spills and spill counts in overall status hero ([e79ec04](https://github.com/dylanr97/Severnwatch/commit/e79ec049e07aa49ed60dfd3def0afa55b17e83ab))
+
 ## [0.1.12](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.11...severnwatch-v0.1.12) (2026-08-28)
 
 
