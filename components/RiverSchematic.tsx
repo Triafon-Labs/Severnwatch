@@ -292,7 +292,12 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
                 expanded={isExpanded}
                 onToggle={() => toggleExpanded(row.key)}
               />
-              <Collapse in={isExpanded} unmountOnExit {...collapseMotion}>
+              <Collapse
+                in={isExpanded}
+                unmountOnExit
+                easing={collapseMotion.easing}
+                timeout="auto"
+              >
                 <Stack spacing={1} sx={{ pb: 1.5, px: 1 }}>
                   {row.station.outfalls.map((outfall) => (
                     <CsoOutfallRow key={outfall.id} outfall={outfall} />
