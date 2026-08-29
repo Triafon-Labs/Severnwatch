@@ -75,10 +75,20 @@ const buildTimeTicks = (
 ): number[] => {
   if (!Number.isFinite(minMs) || !Number.isFinite(maxMs) || minMs >= maxMs)
     return [];
-  const ticks: number[] = [];
-  for (let t = Math.ceil(minMs / MIN_MS) * MIN_MS; t <= maxMs; t += MIN_MS) {
+  const stepMs = stepMinutes * MIN_MS;
+  let t = Math.ceil(minMs / MIN_MS) * MIN_MS;
+
+  // Find the first timestamp aligned to the stepMinutes boundary
+  while (t <= maxMs) {
     const { hour, minute } = londonParts(t);
-    if ((hour * 60 + Number(minute)) % stepMinutes === 0) ticks.push(t);
+    if ((hour * 60 + Number(minute)) % stepMinutes === 0) break;
+    t += MIN_MS;
+  }
+
+  const ticks: number[] = [];
+  while (t <= maxMs) {
+    ticks.push(t);
+    t += stepMs;
   }
   return ticks;
 };

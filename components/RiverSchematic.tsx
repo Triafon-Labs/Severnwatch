@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   ButtonBase,
@@ -216,11 +216,23 @@ const StationHeader: React.FC<{
 };
 
 const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const rows = buildRiverSchematic(outfalls);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
+  const rows = useMemo(() => buildRiverSchematic(outfalls), [outfalls]);
+
+  const toggleExpanded = (key: string) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
 
   const renderRow = (row: SchematicRow) => {
-    const isExpanded = row.kind === "station" && expanded === row.key;
+    const isExpanded = row.kind === "station" && expandedKeys.has(row.key);
     return (
       <Box key={row.key} sx={{ display: "flex", alignItems: "stretch" }}>
         <Box
@@ -278,7 +290,7 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
               <StationHeader
                 row={row}
                 expanded={isExpanded}
-                onToggle={() => setExpanded(isExpanded ? null : row.key)}
+                onToggle={() => toggleExpanded(row.key)}
               />
               <Collapse in={isExpanded} unmountOnExit {...collapseMotion}>
                 <Stack spacing={1} sx={{ pb: 1.5, px: 1 }}>

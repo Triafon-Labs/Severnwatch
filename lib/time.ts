@@ -35,15 +35,17 @@ export const getLondonHHMM = (date: Date = new Date()): string =>
 // A timestamp's Europe/London wall-clock parts, without pulling in a timezone
 // library - used to align the rainfall chart's x-axis ticks to clean local
 // times and to build its tick and tooltip labels.
+const londonDateTimeFormat = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/London",
+  weekday: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  hourCycle: "h23",
+});
+
 export const londonParts = (ms: number) => {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    hourCycle: "h23",
-  }).formatToParts(ms);
+  const parts = londonDateTimeFormat.formatToParts(ms);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return {
     weekday: get("weekday"),
