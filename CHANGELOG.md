@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.15](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.14...severnwatch-v0.1.15) (2026-08-30)
+
+
+### Features
+
+* collapse clear monitors into sub-group within stations ([06abaa3](https://github.com/dylanr97/Severnwatch/commit/06abaa3896a8f72cff077cdefbf622d213a93cdb))
+* group clear monitors into collapsible sub-row within station drops ([ba6aa40](https://github.com/dylanr97/Severnwatch/commit/ba6aa404241ac8066895e87733ba52b1e1e5fe33))
+
+
+### Performance Improvements
+
+* optimize rainfall time range switching and CSO dropdown toggle ([0203520](https://github.com/dylanr97/Severnwatch/commit/0203520fb34899c0ef52198e3ac6e55467e4beb1))
+* use auto timeout for Collapse on river schematic dropdowns ([6d7fed3](https://github.com/dylanr97/Severnwatch/commit/6d7fed3f42d2526b1151cf689456741488648197))
+
 ## [0.1.14](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.13...severnwatch-v0.1.14) (2026-08-30)
 
 
