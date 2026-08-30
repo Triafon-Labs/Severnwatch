@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.14](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.13...severnwatch-v0.1.14) (2026-08-30)
+
+
+### Bug Fixes
+
+* update recent spill ended timing format and align row icons ([0c92bd0](https://github.com/dylanr97/Severnwatch/commit/0c92bd016422761ce3c40d63b06cdaccb0d4358a))
+
 ## [0.1.13](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.12...severnwatch-v0.1.13) (2026-08-28)
 
 
