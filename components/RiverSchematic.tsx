@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   ButtonBase,
@@ -137,6 +137,83 @@ const StationDot: React.FC<{ row: StationRow }> = ({ row }) => {
   );
 };
 
+const ClearMonitorsGroup: React.FC<{
+  stationKey: string;
+  clearOutfalls: CsoOutfall[];
+  expanded: boolean;
+  onToggle: () => void;
+}> = ({ clearOutfalls, expanded, onToggle }) => {
+  const count = clearOutfalls.length;
+  if (count === 0) return null;
+
+  const label = `${count} clear monitor${count === 1 ? "" : "s"}`;
+
+  return (
+    <Stack spacing={1}>
+      <ButtonBase
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-label={label}
+        sx={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justify: "space-between",
+          px: 1.5,
+          py: 1,
+          borderRadius: 2,
+          bgcolor: "surfaces.containerLow",
+          border: "1px solid",
+          borderColor: "divider",
+          textAlign: "left",
+          "&:hover": {
+            bgcolor: "surfaces.container",
+          },
+          "&:focus-visible": {
+            outline: "3px solid",
+            outlineColor: "primary.main",
+            outlineOffset: -3,
+          },
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
+          {label}
+        </Typography>
+        <Chip
+          label="Clear"
+          size="small"
+          sx={{
+            ...statusChipSx("Not discharging"),
+            flexShrink: 0,
+            mr: 1,
+          }}
+        />
+        <ExpandMoreIcon
+          fontSize="small"
+          sx={{
+            flexShrink: 0,
+            color: "text.secondary",
+            transition: spring("transform", m3Spring.effectsFast),
+            transform: expanded ? "rotate(180deg)" : "none",
+          }}
+        />
+      </ButtonBase>
+      <Collapse
+        in={expanded}
+        unmountOnExit
+        easing={collapseMotion.easing}
+        timeout="auto"
+      >
+        <Stack spacing={1} sx={{ pt: 0.5 }}>
+          {clearOutfalls.map((outfall) => (
+            <CsoOutfallRow key={outfall.id} outfall={outfall} />
+          ))}
+        </Stack>
+      </Collapse>
+    </Stack>
+  );
+};
+
 const StationHeader: React.FC<{
   row: StationRow;
   expanded: boolean;
@@ -216,11 +293,48 @@ const StationHeader: React.FC<{
 };
 
 const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const rows = buildRiverSchematic(outfalls);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
+  const [expandedClearKeys, setExpandedClearKeys] = useState<Set<string>>(
+    () => new Set()
+  );
+  const rows = useMemo(() => buildRiverSchematic(outfalls), [outfalls]);
+
+  const toggleExpanded = (key: string) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const toggleClearExpanded = (key: string) => {
+    setExpandedClearKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
 
   const renderRow = (row: SchematicRow) => {
-    const isExpanded = row.kind === "station" && expanded === row.key;
+    const isExpanded = row.kind === "station" && expandedKeys.has(row.key);
+    const isClearExpanded =
+      row.kind === "station" && expandedClearKeys.has(row.key);
+    const nonClearOutfalls =
+      row.kind === "station"
+        ? row.station.outfalls.filter((o) => o.state !== "Not discharging")
+        : [];
+    const clearOutfalls =
+      row.kind === "station"
+        ? row.station.outfalls.filter((o) => o.state === "Not discharging")
+        : [];
     return (
       <Box key={row.key} sx={{ display: "flex", alignItems: "stretch" }}>
         <Box
@@ -278,13 +392,26 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
               <StationHeader
                 row={row}
                 expanded={isExpanded}
-                onToggle={() => setExpanded(isExpanded ? null : row.key)}
+                onToggle={() => toggleExpanded(row.key)}
               />
-              <Collapse in={isExpanded} unmountOnExit {...collapseMotion}>
+              <Collapse
+                in={isExpanded}
+                unmountOnExit
+                easing={collapseMotion.easing}
+                timeout="auto"
+              >
                 <Stack spacing={1} sx={{ pb: 1.5, px: 1 }}>
-                  {row.station.outfalls.map((outfall) => (
+                  {nonClearOutfalls.map((outfall) => (
                     <CsoOutfallRow key={outfall.id} outfall={outfall} />
                   ))}
+                  {clearOutfalls.length > 0 && (
+                    <ClearMonitorsGroup
+                      stationKey={row.key}
+                      clearOutfalls={clearOutfalls}
+                      expanded={isClearExpanded}
+                      onToggle={() => toggleClearExpanded(row.key)}
+                    />
+                  )}
                 </Stack>
               </Collapse>
             </>
