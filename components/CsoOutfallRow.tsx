@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { CsoOutfall } from "@/types";
 import { formatDuration, formatOutfallSubtitle } from "@/lib/format";
 import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
+import { getRelativeTimeString } from "@/lib/time";
 import InfoPanel from "@/components/InfoPanel";
 
 // One monitored outfall, as a labelled row. Shared by the CSO card's
@@ -26,9 +27,16 @@ const getTimingDetails = (
     case "Ongoing":
       primaryTiming = dateSince(o.startISO, "Started");
       break;
-    case "Recent":
-      primaryTiming = dateSince(o.endISO, "Ended");
+    case "Recent": {
+      if (o.endISO) {
+        const relative = getRelativeTimeString(o.endISO);
+        const dateTimeStr = format(new Date(o.endISO), "dd/MM/yyyy HH:mm");
+        primaryTiming = `Ended ${relative} (${dateTimeStr})`;
+      } else {
+        primaryTiming = null;
+      }
       break;
+    }
     case "Not discharging":
       primaryTiming = dateSince(o.startISO, "Clear since");
       break;
@@ -50,11 +58,10 @@ const MetaLine: React.FC<{
   icon: React.ReactNode;
   children: React.ReactNode;
 }> = ({ icon, children }) => (
-  <Stack direction="row" spacing={0.5} alignItems="flex-start">
+  <Stack direction="row" spacing={0.5} alignItems="center">
     <span
       style={{
         display: "inline-flex",
-        marginTop: 2,
         flexShrink: 0,
         color: "inherit",
       }}
