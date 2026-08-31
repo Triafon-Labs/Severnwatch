@@ -24,9 +24,16 @@ const getTimingDetails = (
 
   let primaryTiming: string | null = null;
   switch (o.state) {
-    case "Ongoing":
-      primaryTiming = dateSince(o.startISO, "Started");
+    case "Ongoing": {
+      if (o.startISO) {
+        const relative = getRelativeTimeString(o.startISO);
+        const dateTimeStr = format(new Date(o.startISO), "dd/MM/yyyy HH:mm");
+        primaryTiming = `Started ${relative} (${dateTimeStr})`;
+      } else {
+        primaryTiming = null;
+      }
       break;
+    }
     case "Recent": {
       if (o.endISO) {
         const relative = getRelativeTimeString(o.endISO);
