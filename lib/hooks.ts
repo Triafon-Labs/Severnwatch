@@ -85,17 +85,11 @@ export const useSevernData = (): SevernData => {
   // would re-render every component on the page on each tick.
   const pollCount = useRef(0);
   const newestDataAt = useRef<number | null>(null);
+  const lastFetchTime = useRef<number | null>(null);
+  const isRefreshingRef = useRef(false);
 
-  const load = useCallback(async (includeRainfall: boolean, force = false) => {
-    if (
-      !force &&
-      newestDataAt.current !== null &&
-      Date.now() - newestDataAt.current <= DATA_STALE_THRESHOLD_MS
-    ) {
-      setUsingCachedData(false);
-      return;
-    }
-
+  const load = useCallback(async (includeRainfall: boolean) => {
+    isRefreshingRef.current = true;
     setIsRefreshing(true);
 
     // Each source is fetched independently and falls back to its own cached
@@ -162,12 +156,29 @@ export const useSevernData = (): SevernData => {
       !gotSomething && !navigator.onLine ? OFFLINE_NO_CACHE_ERROR : null
     );
 
+    lastFetchTime.current = Date.now();
     setLoading(false);
     setIsRefreshing(false);
+    isRefreshingRef.current = false;
   }, []);
 
   const refetch = useCallback(() => {
-    void load(true, true);
+    void load(true);
+  }, [load]);
+
+  // Auto-refresh when opening or returning to the app if data is stale.
+  const checkAndRefresh = useCallback(() => {
+    if (isRefreshingRef.current) return;
+    const isStale =
+      newestDataAt.current === null ||
+      Date.now() - newestDataAt.current >= POLL_INTERVAL_MS;
+    const recentlyFetched =
+      lastFetchTime.current !== null &&
+      Date.now() - lastFetchTime.current < 10000;
+
+    if (isStale && !recentlyFetched) {
+      void load(true);
+    }
   }, [load]);
 
   // Seed from cache before the first fetch resolves, so a returning reader
@@ -193,12 +204,12 @@ export const useSevernData = (): SevernData => {
         setUsingCachedData(true);
         setLoading(false);
       }
-      void load(true, false);
+      void load(true);
     });
 
     const interval = setInterval(() => {
       pollCount.current += 1;
-      void load(pollCount.current % RAINFALL_EVERY_N_POLLS === 0, false);
+      void load(pollCount.current % RAINFALL_EVERY_N_POLLS === 0);
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
@@ -218,14 +229,29 @@ export const useSevernData = (): SevernData => {
     };
   }, []);
 
-  // Coming back from offline, refresh straight away rather than waiting out
-  // the rest of the poll interval on stale numbers.
+  // Auto-refresh on focus/visibility change when app is opened or foregrounded.
+  useEffect(() => {
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        checkAndRefresh();
+      }
+    };
+
+    window.addEventListener("visibilitychange", onVisibilityOrFocus);
+    window.addEventListener("focus", onVisibilityOrFocus);
+    return () => {
+      window.removeEventListener("visibilitychange", onVisibilityOrFocus);
+      window.removeEventListener("focus", onVisibilityOrFocus);
+    };
+  }, [checkAndRefresh]);
+
+  // Coming back from offline, refresh straight away if stale.
   useEffect(() => {
     if (!isOffline) return;
-    const onReconnect = () => void load(true, false);
+    const onReconnect = () => checkAndRefresh();
     window.addEventListener("online", onReconnect);
     return () => window.removeEventListener("online", onReconnect);
-  }, [isOffline, load]);
+  }, [isOffline, checkAndRefresh]);
 
   return {
     cso,
