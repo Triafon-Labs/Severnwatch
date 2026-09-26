@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.21](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.20...severnwatch-v0.1.21) (2026-09-26)
+
 ## [0.1.20](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.19...severnwatch-v0.1.20) (2026-09-26)
 
 
