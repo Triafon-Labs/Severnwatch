@@ -79,7 +79,6 @@ const WaterQualityMap: React.FC = () => {
     }
   }, [showToast]);
 
-
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
 
@@ -136,104 +135,113 @@ const WaterQualityMap: React.FC = () => {
             border: isFullscreen ? "none" : "1px solid",
             borderColor: "divider",
             bgcolor: "background.paper",
+            display: isFullscreen ? "flex" : "block",
+            flexDirection:
+              isFullscreen && isLandscape ? "row" : "column",
           }}
         >
-          {/* Fullscreen toggle button */}
-          <IconButton
-            onClick={toggleFullscreen}
-            aria-label={
-              isFullscreen ? "Exit fullscreen" : "Expand map to fullscreen"
-            }
+          {/* Map wrapper area (takes remaining space in flex container) */}
+          <Box
             sx={{
-              position: "absolute",
-              top: isFullscreen
-                ? "calc(12px + env(safe-area-inset-top, 0px))"
-                : 12,
-              right: isFullscreen
+              position: "relative",
+              flex: 1,
+              width: "100%",
+              height: isFullscreen
                 ? isLandscape
-                  ? isLegendExpanded
-                    ? "calc(320px + 12px + env(safe-area-inset-right, 0px))"
-                    : "calc(44px + 12px + env(safe-area-inset-right, 0px))"
-                  : "calc(12px + env(safe-area-inset-right, 0px))"
-                : 12,
-              zIndex: 25,
-              bgcolor: "background.paper",
-              color: "text.primary",
-              boxShadow: 2,
-              transition: "right 0.25s ease-in-out",
-              "&:hover": {
-                bgcolor: "surfaces.containerHigh",
-              },
+                  ? "100%"
+                  : "auto"
+                : "100%",
+              minHeight: 0,
+              minWidth: 0,
             }}
           >
-            {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-          </IconButton>
-
-          {/* Map iframe */}
-          <Box
-            component="iframe"
-            src={SAS_MAP_EMBED_URL}
-            title="SAS Water Quality Map"
-            loading="lazy"
-            allow="geolocation"
-            sx={{ width: "100%", height: "100%", border: 0, display: "block" }}
-          />
-
-          {/* Fullscreen Toast notification recommending landscape orientation */}
-          {isFullscreen && showToast && !isLandscape && (
-            <Paper
-              elevation={6}
+            {/* Fullscreen toggle button */}
+            <IconButton
+              onClick={toggleFullscreen}
+              aria-label={
+                isFullscreen ? "Exit fullscreen" : "Expand map to fullscreen"
+              }
               sx={{
                 position: "absolute",
-                top: "calc(16px + env(safe-area-inset-top, 0px))",
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 30,
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 2,
-                py: 1,
-                borderRadius: 2,
-                bgcolor: "surfaces.containerHigh",
+                top: isFullscreen
+                  ? "calc(12px + env(safe-area-inset-top, 0px))"
+                  : 12,
+                right: isFullscreen
+                  ? "calc(12px + env(safe-area-inset-right, 0px))"
+                  : 12,
+                zIndex: 25,
+                bgcolor: "background.paper",
                 color: "text.primary",
-                boxShadow: 4,
-                maxWidth: "calc(100vw - 32px)",
+                boxShadow: 2,
+                "&:hover": {
+                  bgcolor: "surfaces.containerHigh",
+                },
               }}
             >
-              <ScreenRotationOutlinedIcon fontSize="small" color="primary" />
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 500, fontSize: "0.85rem" }}
-              >
-                Rotate phone for landscape view
-              </Typography>
-              <IconButton
-                size="small"
-                onClick={() => setShowToast(false)}
-                aria-label="Dismiss notification"
-                sx={{ ml: 0.5, p: 0.5 }}
-              >
-                <CloseIcon fontSize="small" />
-              </IconButton>
-            </Paper>
-          )}
+              {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+            </IconButton>
 
-          {/* Fullscreen minimisable legend overlay */}
-          {isFullscreen &&
-            (isLandscape ? (
-              /* Landscape mode: side panel on the right */
-              <Box
+            {/* Map iframe */}
+            <Box
+              component="iframe"
+              src={SAS_MAP_EMBED_URL}
+              title="SAS Water Quality Map"
+              loading="lazy"
+              allow="geolocation"
+              sx={{ width: "100%", height: "100%", border: 0, display: "block" }}
+            />
+
+            {/* Fullscreen Toast notification recommending landscape orientation */}
+            {isFullscreen && showToast && !isLandscape && (
+              <Paper
+                elevation={6}
                 sx={{
                   position: "absolute",
-                  top: 0,
-                  right: 0,
-                  bottom: 0,
-                  zIndex: 20,
+                  top: "calc(16px + env(safe-area-inset-top, 0px))",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  zIndex: 30,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 2,
+                  bgcolor: "surfaces.containerHigh",
+                  color: "text.primary",
+                  boxShadow: 4,
+                  maxWidth: "calc(100vw - 32px)",
+                }}
+              >
+                <ScreenRotationOutlinedIcon fontSize="small" color="primary" />
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 500, fontSize: "0.85rem" }}
+                >
+                  Rotate phone for landscape view
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => setShowToast(false)}
+                  aria-label="Dismiss notification"
+                  sx={{ ml: 0.5, p: 0.5 }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Paper>
+            )}
+          </Box>
+
+          {/* Fullscreen minimisable legend panel (side-by-side in landscape, stacked at bottom in portrait) */}
+          {isFullscreen &&
+            (isLandscape ? (
+              /* Landscape mode: side panel sitting alongside map embed */
+              <Box
+                sx={{
                   bgcolor: "background.paper",
                   borderLeft: "1px solid",
                   borderColor: "divider",
-                  boxShadow: "-4px 0 16px rgba(0,0,0,0.15)",
+                  boxShadow: "-4px 0 16px rgba(0,0,0,0.1)",
                   display: "flex",
                   flexDirection: "column",
                   width: isLegendExpanded ? 320 : 44,
@@ -244,6 +252,8 @@ const WaterQualityMap: React.FC = () => {
                   transition:
                     "width 0.25s ease-in-out, max-width 0.25s ease-in-out",
                   overflow: "hidden",
+                  flexShrink: 0,
+                  height: "100%",
                 }}
               >
                 <Box
@@ -326,22 +336,19 @@ const WaterQualityMap: React.FC = () => {
                 )}
               </Box>
             ) : (
-              /* Portrait mode: panel at the bottom */
+              /* Portrait mode: stacked panel sitting below map embed */
               <Box
                 sx={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  zIndex: 20,
                   bgcolor: "background.paper",
                   borderTop: "1px solid",
                   borderColor: "divider",
-                  boxShadow: "0 -4px 16px rgba(0,0,0,0.15)",
+                  boxShadow: "0 -4px 16px rgba(0,0,0,0.1)",
                   pb: "env(safe-area-inset-bottom, 0px)",
                   pl: "env(safe-area-inset-left, 0px)",
                   pr: "env(safe-area-inset-right, 0px)",
                   transition: "all 0.25s ease-in-out",
+                  flexShrink: 0,
+                  width: "100%",
                 }}
               >
                 <Box
