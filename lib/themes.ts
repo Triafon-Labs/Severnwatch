@@ -146,7 +146,7 @@ const m3Typography: ThemeOptions["typography"] = {
     letterSpacing: "0em",
     fontVariationSettings: OPSZ_DEFAULT,
   },
-  // Headline Small - used for card titles ("Sewage Spill Status", "Rainfall")
+  // Headline Small - used for card titles ("Water Quality Status", "Rainfall")
   h5: {
     fontSize: "1.5rem",
     fontWeight: 600,
