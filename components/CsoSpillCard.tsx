@@ -144,7 +144,7 @@ const CsoSpillCard: React.FC = () => {
     <Card>
       <CardContent>
         <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
-          Sewage Spill Status
+          Water Quality Status
         </Typography>
 
         {showSkeleton && (
