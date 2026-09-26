@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.22](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.21...severnwatch-v0.1.22) (2026-09-26)
+
+
+### Features
+
+* keep map legend side-by-side in fullscreen landscape mode ([d2ff9c6](https://github.com/dylanr97/Severnwatch/commit/d2ff9c683a58cb689a15973083449bb75ee30d0d))
+* keep map legend visible and minimisable in fullscreen ([a0b79f6](https://github.com/dylanr97/Severnwatch/commit/a0b79f67b9f7dfde0ac1a9f1b16866c325fb21ad))
+
 ## [0.1.21](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.20...severnwatch-v0.1.21) (2026-09-26)
 
 ## [0.1.20](https://github.com/dylanr97/Severnwatch/compare/severnwatch-v0.1.19...severnwatch-v0.1.20) (2026-09-26)
