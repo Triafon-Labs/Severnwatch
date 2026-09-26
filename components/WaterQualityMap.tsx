@@ -5,14 +5,24 @@ import {
   Box,
   Card,
   CardContent,
+  Collapse,
   Divider,
   IconButton,
+  Paper,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ScreenRotationOutlinedIcon from "@mui/icons-material/ScreenRotationOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 import { SAS_MAP_EMBED_URL } from "@/lib/config";
 import WaterQualityExplainer from "@/components/WaterQualityExplainer";
+import { ClassificationTablesSection } from "@/components/WaterQualityInfoContent";
 
 // Kept as its own component (rather than inlined into the page) so it can be
 // swapped out later if a way to filter this down to just the Worcester area
@@ -25,10 +35,32 @@ import WaterQualityExplainer from "@/components/WaterQualityExplainer";
 const WaterQualityMap: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLegendExpanded, setIsLegendExpanded] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+
+  const isLandscape = useMediaQuery("(orientation: landscape)");
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+      const active = Boolean(document.fullscreenElement);
+      setIsFullscreen(active);
+      if (active) {
+        if (
+          typeof window !== "undefined" &&
+          window.screen?.orientation?.unlock
+        ) {
+          try {
+            window.screen.orientation.unlock();
+          } catch {
+            // ignore if not permitted by browser
+          }
+        }
+        if (!window.matchMedia("(orientation: landscape)").matches) {
+          setShowToast(true);
+        }
+      } else {
+        setShowToast(false);
+      }
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -37,17 +69,41 @@ const WaterQualityMap: React.FC = () => {
     };
   }, []);
 
+  // Auto-hide toast after 4 seconds
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => {
+        setShowToast(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
+
+
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
 
-    if (!document.fullscreenElement) {
+    if (!document.fullscreenElement && !isFullscreen) {
       if (containerRef.current.requestFullscreen) {
         void containerRef.current.requestFullscreen();
       } else {
         setIsFullscreen(true);
+        if (
+          typeof window !== "undefined" &&
+          window.screen?.orientation?.unlock
+        ) {
+          try {
+            window.screen.orientation.unlock();
+          } catch {
+            // ignore
+          }
+        }
+        if (!window.matchMedia("(orientation: landscape)").matches) {
+          setShowToast(true);
+        }
       }
     } else {
-      if (document.exitFullscreen) {
+      if (document.exitFullscreen && document.fullscreenElement) {
         void document.exitFullscreen();
       } else {
         setIsFullscreen(false);
@@ -82,6 +138,7 @@ const WaterQualityMap: React.FC = () => {
             bgcolor: "background.paper",
           }}
         >
+          {/* Fullscreen toggle button */}
           <IconButton
             onClick={toggleFullscreen}
             aria-label={
@@ -89,12 +146,21 @@ const WaterQualityMap: React.FC = () => {
             }
             sx={{
               position: "absolute",
-              top: 12,
-              right: 12,
-              zIndex: 10,
+              top: isFullscreen
+                ? "calc(12px + env(safe-area-inset-top, 0px))"
+                : 12,
+              right: isFullscreen
+                ? isLandscape
+                  ? isLegendExpanded
+                    ? "calc(320px + 12px + env(safe-area-inset-right, 0px))"
+                    : "calc(44px + 12px + env(safe-area-inset-right, 0px))"
+                  : "calc(12px + env(safe-area-inset-right, 0px))"
+                : 12,
+              zIndex: 25,
               bgcolor: "background.paper",
               color: "text.primary",
               boxShadow: 2,
+              transition: "right 0.25s ease-in-out",
               "&:hover": {
                 bgcolor: "surfaces.containerHigh",
               },
@@ -102,6 +168,8 @@ const WaterQualityMap: React.FC = () => {
           >
             {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
           </IconButton>
+
+          {/* Map iframe */}
           <Box
             component="iframe"
             src={SAS_MAP_EMBED_URL}
@@ -110,6 +178,212 @@ const WaterQualityMap: React.FC = () => {
             allow="geolocation"
             sx={{ width: "100%", height: "100%", border: 0, display: "block" }}
           />
+
+          {/* Fullscreen Toast notification recommending landscape orientation */}
+          {isFullscreen && showToast && !isLandscape && (
+            <Paper
+              elevation={6}
+              sx={{
+                position: "absolute",
+                top: "calc(16px + env(safe-area-inset-top, 0px))",
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 30,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                bgcolor: "surfaces.containerHigh",
+                color: "text.primary",
+                boxShadow: 4,
+                maxWidth: "calc(100vw - 32px)",
+              }}
+            >
+              <ScreenRotationOutlinedIcon fontSize="small" color="primary" />
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 500, fontSize: "0.85rem" }}
+              >
+                Rotate phone for landscape view
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => setShowToast(false)}
+                aria-label="Dismiss notification"
+                sx={{ ml: 0.5, p: 0.5 }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Paper>
+          )}
+
+          {/* Fullscreen minimisable legend overlay */}
+          {isFullscreen &&
+            (isLandscape ? (
+              /* Landscape mode: side panel on the right */
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 20,
+                  bgcolor: "background.paper",
+                  borderLeft: "1px solid",
+                  borderColor: "divider",
+                  boxShadow: "-4px 0 16px rgba(0,0,0,0.15)",
+                  display: "flex",
+                  flexDirection: "column",
+                  width: isLegendExpanded ? 320 : 44,
+                  maxWidth: isLegendExpanded ? "40vw" : 44,
+                  pt: "env(safe-area-inset-top, 0px)",
+                  pb: "env(safe-area-inset-bottom, 0px)",
+                  pr: "env(safe-area-inset-right, 0px)",
+                  transition:
+                    "width 0.25s ease-in-out, max-width 0.25s ease-in-out",
+                  overflow: "hidden",
+                }}
+              >
+                <Box
+                  onClick={() => setIsLegendExpanded(!isLegendExpanded)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: isLegendExpanded
+                      ? "space-between"
+                      : "center",
+                    p: 1,
+                    cursor: "pointer",
+                    userSelect: "none",
+                    bgcolor: "surfaces.containerHigh",
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    minHeight: 44,
+                  }}
+                >
+                  {isLegendExpanded && (
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        fontWeight: 600,
+                        pl: 1,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      Water Quality Legend
+                    </Typography>
+                  )}
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsLegendExpanded(!isLegendExpanded);
+                    }}
+                    aria-label={
+                      isLegendExpanded ? "Minimize legend" : "Expand legend"
+                    }
+                  >
+                    {isLegendExpanded ? (
+                      <ChevronRightIcon />
+                    ) : (
+                      <ChevronLeftIcon />
+                    )}
+                  </IconButton>
+                </Box>
+                {isLegendExpanded ? (
+                  <Box sx={{ p: 2, flex: 1, overflowY: "auto" }}>
+                    <ClassificationTablesSection />
+                  </Box>
+                ) : (
+                  <Box
+                    onClick={() => setIsLegendExpanded(true)}
+                    sx={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      py: 2,
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        writingMode: "vertical-rl",
+                        textTransform: "uppercase",
+                        letterSpacing: 1,
+                        fontWeight: 600,
+                        color: "text.secondary",
+                      }}
+                    >
+                      Legend
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            ) : (
+              /* Portrait mode: panel at the bottom */
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 20,
+                  bgcolor: "background.paper",
+                  borderTop: "1px solid",
+                  borderColor: "divider",
+                  boxShadow: "0 -4px 16px rgba(0,0,0,0.15)",
+                  pb: "env(safe-area-inset-bottom, 0px)",
+                  pl: "env(safe-area-inset-left, 0px)",
+                  pr: "env(safe-area-inset-right, 0px)",
+                  transition: "all 0.25s ease-in-out",
+                }}
+              >
+                <Box
+                  onClick={() => setIsLegendExpanded(!isLegendExpanded)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    px: 2,
+                    py: 1,
+                    cursor: "pointer",
+                    userSelect: "none",
+                    bgcolor: "surfaces.containerHigh",
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Water Quality Legend
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsLegendExpanded(!isLegendExpanded);
+                    }}
+                    aria-label={
+                      isLegendExpanded ? "Minimize legend" : "Expand legend"
+                    }
+                  >
+                    {isLegendExpanded ? (
+                      <ExpandMoreIcon />
+                    ) : (
+                      <ExpandLessIcon />
+                    )}
+                  </IconButton>
+                </Box>
+                <Collapse in={isLegendExpanded}>
+                  <Box sx={{ p: 2, maxHeight: "45vh", overflowY: "auto" }}>
+                    <ClassificationTablesSection />
+                  </Box>
+                </Collapse>
+              </Box>
+            ))}
         </Box>
 
         <Divider sx={{ mt: 2 }} />
