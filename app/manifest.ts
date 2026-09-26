@@ -13,7 +13,6 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    orientation: "portrait-primary",
     // Both are the dark scheme's page surface (m3Dark.surface). background_color
     // paints the splash screen an installed app shows before first paint, and
     // theme_color the system chrome around it; picking the brand teal for
