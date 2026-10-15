@@ -188,17 +188,26 @@ const TopNavBar: React.FC = () => {
             : " – showing cached data"}
         </StatusBanner>
       </Collapse>
-      {/* A stale cache normally heals itself on the next poll, so this only
-          fires once an attempt has actually finished and genuinely couldn't
-          get fresh data - not while one may still be in flight. */}
+      {/* Only once an attempt has actually finished - not while one may
+          still be in flight. Two different situations, worded differently:
+          a fetch that fell back to the cache is a failure, but data that is
+          merely old isn't - there is no background poll, so a page left open
+          and visible simply hasn't been asked to refresh, and calling that
+          "Live update failed" would claim a failure that never happened. */}
       <Collapse
-        in={!isOffline && !isOfflineError && !isRefreshing && (usingCachedData || isStale)}
+        in={
+          !isOffline &&
+          !isOfflineError &&
+          !isRefreshing &&
+          (usingCachedData || isStale)
+        }
         unmountOnExit
         {...collapseMotion}
       >
         <StatusBanner severity="warning">
-          Live update failed
-          {freshnessText ? ` – showing data from ${freshnessText}` : ""}
+          {usingCachedData
+            ? `Live update failed${freshnessText ? ` – showing data from ${freshnessText}` : ""}`
+            : `Showing data from ${freshnessText} – refresh for the latest`}
         </StatusBanner>
       </Collapse>
       <Collapse in={isOfflineError} unmountOnExit {...collapseMotion}>

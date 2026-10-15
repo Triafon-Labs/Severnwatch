@@ -4,13 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CsoResponse, RainfallResponse } from "@/types";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 
-// The CSO feed is near-real-time and its route caches for 5 minutes; the EA
-// rainfall gauges only report every 15, so polling them faster just spends
-// requests to re-read the same numbers. One refresh drives both, but the
-// background poll runs on the slower of the two and only re-pulls rainfall
-// every third tick.
-const POLL_INTERVAL_MS = 5 * 60 * 1000;
-const RAINFALL_EVERY_N_POLLS = 3;
+// There is no background poll. Like Paddlecheck, data is fetched on load, on
+// a manual refresh, and when the reader comes back to the app (tab shown,
+// window focused, signal regained, page restored from the back/forward
+// cache) with data older than this - the sewage route's own cache window, so
+// a sooner refetch would only re-read the same response. A 5-minute poll
+// used to run while the page was open, and since every fetch puts the cards
+// back into their skeletons, the page blanked every five minutes under
+// whoever was reading it.
+const REFETCH_AFTER_MS = 5 * 60 * 1000;
 
 export const OFFLINE_NO_CACHE_ERROR =
   "You're offline and there's no saved data to show yet.";
@@ -25,9 +27,10 @@ export interface SevernData {
   rainfall: RainfallResponse | null;
   csoError: boolean;
   rainfallError: boolean;
-  // True while there is no usable data to render. Automatic polling waits for
-  // stale data, while an explicit refresh may set this again to let the cards
-  // show their loading skeletons.
+  // True until the first fetch (or the cache seeded ahead of it) has given the
+  // cards something to render. The cards also show their skeletons while
+  // isRefreshing - every fetch, as in Paddlecheck, so the skeletons clearing
+  // means what's on screen just came from the network.
   loading: boolean;
   isRefreshing: boolean;
   isOffline: boolean;
@@ -80,15 +83,11 @@ export const useSevernData = (): SevernData => {
   const [usingCachedData, setUsingCachedData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Counts background polls so rainfall can run at a third of the CSO rate.
-  // A ref rather than state: nothing renders off it, and making it state
-  // would re-render every component on the page on each tick.
-  const pollCount = useRef(0);
   const newestDataAt = useRef<number | null>(null);
   const lastFetchTime = useRef<number | null>(null);
   const isRefreshingRef = useRef(false);
 
-  const load = useCallback(async (includeRainfall: boolean) => {
+  const load = useCallback(async () => {
     isRefreshingRef.current = true;
     setIsRefreshing(true);
 
@@ -109,21 +108,19 @@ export const useSevernData = (): SevernData => {
         fromCache: true,
       }));
 
-    const rainfallPromise = includeRainfall
-      ? fetch("/api/rainfall")
-          .then((res) => {
-            if (!res.ok) throw new Error(`rainfall: ${res.status}`);
-            return res.json() as Promise<RainfallResponse>;
-          })
-          .then((body) => {
-            writeCache(STORAGE_KEYS.RAINFALL_DATA, body);
-            return { body, fromCache: false };
-          })
-          .catch(() => ({
-            body: readCache<RainfallResponse>(STORAGE_KEYS.RAINFALL_DATA),
-            fromCache: true,
-          }))
-      : Promise.resolve(null);
+    const rainfallPromise = fetch("/api/rainfall")
+      .then((res) => {
+        if (!res.ok) throw new Error(`rainfall: ${res.status}`);
+        return res.json() as Promise<RainfallResponse>;
+      })
+      .then((body) => {
+        writeCache(STORAGE_KEYS.RAINFALL_DATA, body);
+        return { body, fromCache: false };
+      })
+      .catch(() => ({
+        body: readCache<RainfallResponse>(STORAGE_KEYS.RAINFALL_DATA),
+        fromCache: true,
+      }));
 
     const [csoResult, rainfallResult] = await Promise.all([
       csoPromise,
@@ -133,25 +130,22 @@ export const useSevernData = (): SevernData => {
     if (csoResult.body) setCso(csoResult.body);
     setCsoError(csoResult.fromCache && !csoResult.body);
 
-    if (rainfallResult) {
-      if (rainfallResult.body) setRainfall(rainfallResult.body);
-      setRainfallError(rainfallResult.fromCache && !rainfallResult.body);
-    }
+    if (rainfallResult.body) setRainfall(rainfallResult.body);
+    setRainfallError(rainfallResult.fromCache && !rainfallResult.body);
 
     const newestResultTime = newest(
       csoResult.body?.asOf,
-      rainfallResult?.body?.asOf
+      rainfallResult.body?.asOf
     );
     if (newestResultTime) {
       newestDataAt.current = new Date(newestResultTime).getTime();
     }
 
-    const servedFromCache =
-      csoResult.fromCache || Boolean(rainfallResult?.fromCache);
+    const servedFromCache = csoResult.fromCache || rainfallResult.fromCache;
     setUsingCachedData(servedFromCache);
 
     const gotSomething =
-      Boolean(csoResult.body) || Boolean(rainfallResult?.body);
+      Boolean(csoResult.body) || Boolean(rainfallResult.body);
     setError(
       !gotSomething && !navigator.onLine ? OFFLINE_NO_CACHE_ERROR : null
     );
@@ -163,7 +157,7 @@ export const useSevernData = (): SevernData => {
   }, []);
 
   const refetch = useCallback(() => {
-    void load(true);
+    void load();
   }, [load]);
 
   // Auto-refresh when opening or returning to the app if data is stale.
@@ -171,13 +165,13 @@ export const useSevernData = (): SevernData => {
     if (isRefreshingRef.current) return;
     const isStale =
       newestDataAt.current === null ||
-      Date.now() - newestDataAt.current >= POLL_INTERVAL_MS;
+      Date.now() - newestDataAt.current >= REFETCH_AFTER_MS;
     const recentlyFetched =
       lastFetchTime.current !== null &&
       Date.now() - lastFetchTime.current < 10000;
 
     if (isStale && !recentlyFetched) {
-      void load(true);
+      void load();
     }
   }, [load]);
 
@@ -204,15 +198,8 @@ export const useSevernData = (): SevernData => {
         setUsingCachedData(true);
         setLoading(false);
       }
-      void load(true);
+      void load();
     });
-
-    const interval = setInterval(() => {
-      pollCount.current += 1;
-      void load(pollCount.current % RAINFALL_EVERY_N_POLLS === 0);
-    }, POLL_INTERVAL_MS);
-
-    return () => clearInterval(interval);
   }, [load]);
 
   // Connectivity is read from the events rather than polled: `navigator.onLine`
@@ -237,11 +224,20 @@ export const useSevernData = (): SevernData => {
       }
     };
 
+    // A page restored from the back/forward cache never remounts, and one
+    // that was already visible when it was frozen fires no visibilitychange
+    // either; pageshow is the one event both paths share (as in Paddlecheck).
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) onVisibilityOrFocus();
+    };
+
     window.addEventListener("visibilitychange", onVisibilityOrFocus);
     window.addEventListener("focus", onVisibilityOrFocus);
+    window.addEventListener("pageshow", onPageShow);
     return () => {
       window.removeEventListener("visibilitychange", onVisibilityOrFocus);
       window.removeEventListener("focus", onVisibilityOrFocus);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, [checkAndRefresh]);
 

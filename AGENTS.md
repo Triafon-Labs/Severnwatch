@@ -184,7 +184,7 @@ one fetch rather than three.
   csoError: boolean          // that source failed AND had no cache to fall back on
   rainfallError: boolean
   loading: boolean           // true only when there is genuinely nothing to render
-  isRefreshing: boolean      // any fetch in flight, including background polls
+  isRefreshing: boolean      // any fetch in flight
   isOffline: boolean
   usingCachedData: boolean
   lastUpdated: string | null // newest asOf across whichever sources returned
@@ -195,15 +195,23 @@ one fetch rather than three.
 
 The two sources are fetched independently, each falling back to its own
 `localStorage` copy on failure, so one feed blipping doesn't discard data that
-arrived fine from the other. The background poll runs at 5 minutes (the CSO
-route's cache window) and only re-pulls rainfall every third tick, since the EA
-gauges report every 15 minutes and polling them faster just re-reads the same
-numbers.
+arrived fine from the other.
 
-`loading` is deliberately _not_ set for background refreshes — the cards would
-otherwise collapse back into skeletons every five minutes. Freshness is
-communicated by the nav bar's "Updated HH:MM (n min ago)" line and, past
-`DATA_STALE_THRESHOLD_MS`, by a banner above the app bar.
+There is **no background poll**, matching Paddlecheck. Data is fetched on load,
+on a manual refresh, and when the reader comes back to the app — tab shown,
+window focused, signal regained, or page restored from the back/forward cache —
+with data older than 5 minutes (the sewage route's cache window). Every fetch
+puts the cards into their skeletons (they read `isRefreshing`), so the
+skeletons clearing means what's on screen just came from the network; a poll
+would blank the page under whoever was reading it.
+
+Freshness is communicated by the nav bar's "Updated HH:MM (n min ago)" line,
+the "As of" caption under the rainfall chart (the age of the newest gauge
+reading, which the EA typically receives only once or twice a day), and a
+banner above the app bar. That banner says "Live update failed" only when a
+fetch actually fell back to the cache; data that is merely past
+`DATA_STALE_THRESHOLD_MS` because nobody has refreshed gets "Showing data from
+… – refresh for the latest" instead.
 
 ---
 
