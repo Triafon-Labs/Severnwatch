@@ -58,6 +58,32 @@ const laneColour = (lane: number) =>
 // layout: text centred against the piece of line drawn beside it.
 const centredRow = { display: "flex", alignItems: "center", px: 1 } as const;
 
+// The M3 state layer and focus ring Paddlecheck's expandable rows carry
+// (PaddlingMatrixCard): an onSurface overlay at 8% on hover and 10% pressed,
+// drawn on a pseudo-element so it composites over whatever fill the row has
+// rather than replacing it. These rows used to swap their background on
+// hover instead, or show nothing at all until focused from the keyboard.
+const stateLayerSx = {
+  position: "relative",
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    inset: 0,
+    borderRadius: "inherit",
+    backgroundColor: "text.primary",
+    opacity: 0,
+    transition: spring("opacity", m3Spring.effectsFast),
+    pointerEvents: "none",
+  },
+  "&:hover::after": { opacity: 0.08 },
+  "&:active::after": { opacity: 0.1 },
+  "&:focus-visible": {
+    outline: "3px solid",
+    outlineColor: "primary.main",
+    outlineOffset: -3,
+  },
+} as const;
+
 const Segment: React.FC<{ segment: SchematicSegment }> = ({ segment }) => {
   const top = segment.from === "top" ? 0 : DOT_CENTRE_Y;
   return (
@@ -159,22 +185,14 @@ const ClearMonitorsGroup: React.FC<{
           width: "100%",
           display: "flex",
           alignItems: "center",
-          justify: "space-between",
           px: 1.5,
           py: 1,
           borderRadius: 2,
-          bgcolor: "surfaces.containerLow",
-          border: "1px solid",
-          borderColor: "divider",
+          // Borderless on containerHigh, like the outfall rows beside it
+          // and Paddlecheck's matrix rows.
+          bgcolor: "surfaces.containerHigh",
           textAlign: "left",
-          "&:hover": {
-            bgcolor: "surfaces.container",
-          },
-          "&:focus-visible": {
-            outline: "3px solid",
-            outlineColor: "primary.main",
-            outlineOffset: -3,
-          },
+          ...stateLayerSx,
         }}
       >
         <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
@@ -194,7 +212,7 @@ const ClearMonitorsGroup: React.FC<{
           sx={{
             flexShrink: 0,
             color: "text.secondary",
-            transition: spring("transform", m3Spring.effectsFast),
+            transition: spring("transform", m3Spring.spatialFast),
             transform: expanded ? "rotate(180deg)" : "none",
           }}
         />
@@ -249,7 +267,7 @@ const StationHeader: React.FC<{
           sx={{
             flexShrink: 0,
             color: "text.secondary",
-            transition: spring("transform", m3Spring.effectsFast),
+            transition: spring("transform", m3Spring.spatialFast),
             transform: expanded ? "rotate(180deg)" : "none",
           }}
         />
@@ -279,14 +297,7 @@ const StationHeader: React.FC<{
       aria-label={`${waypoint.label}, ${count} monitor${
         count === 1 ? "" : "s"
       }`}
-      sx={{
-        ...layout,
-        "&:focus-visible": {
-          outline: "3px solid",
-          outlineColor: "primary.main",
-          outlineOffset: -3,
-        },
-      }}
+      sx={{ ...layout, ...stateLayerSx }}
     >
       {body}
     </ButtonBase>
