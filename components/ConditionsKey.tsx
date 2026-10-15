@@ -205,7 +205,7 @@ const ConditionsKey: React.FC = () => {
           <WaterDropIcon fontSize="small" sx={{ color: "text.secondary" }} />
         }
         label={`${HOURLY_MODERATE_MM}–${HOURLY_HEAVY_MM} mm/hr`}
-        description="Moderate rain, by the Met Office's definition."
+        description="Moderate rain."
         chip={{
           label: "Moderate",
           bg: STATUS_COLORS.amber,
@@ -217,7 +217,7 @@ const ConditionsKey: React.FC = () => {
           <ThunderstormIcon fontSize="small" sx={{ color: "text.secondary" }} />
         }
         label={`${HOURLY_HEAVY_MM} mm/hr and above`}
-        description="Heavy rain - the kind most likely to set storm overflows off."
+        description="Heavy rain, by the Met Office's radar definition - the kind that can overwhelm combined sewers."
         chip={{
           label: "Heavy",
           bg: STATUS_COLORS.red,
@@ -227,7 +227,7 @@ const ConditionsKey: React.FC = () => {
       <KeyRow
         lead={<LineSwatch color={lineColor} />}
         label="Solid line"
-        description="Measured rainfall, one colour per gauge. On the Forecast view, the average across all three."
+        description="Measured rainfall, one colour per gauge. On the Forecast view, the average across the gauges."
       />
       <KeyRow
         lead={<LineSwatch color={lineColor} dashed />}

@@ -1,11 +1,16 @@
 import { RainfallForecastPoint, RainfallGaugeData } from "@/types";
 
-// UK Met Office rainfall rate intensity and accumulation thresholds:
+// Rainfall rate intensity and accumulation thresholds:
 // - Hourly intensity: Light rain < 0.5 mm/hr, Moderate rain 0.5–4 mm/hr, Heavy rain > 4 mm/hr (Very Heavy > 8 mm/hr).
+//   Only the 4 mm/hr "heavy" line is the Met Office's own (its radar guidance
+//   calls 4 mm/hr or more heavy); the 0.5 mm/hr "moderate" line is the
+//   commonly used light/moderate boundary, not a Met Office definition, and
+//   other Met Office products use different cut-offs (its spot data calls
+//   anything over 1 mm/hr heavy). The Conditions Key words them to match.
 // - Daily totals: 10 mm/day represents a wet day (moderate threshold) and 25 mm/day represents a very wet day (heavy threshold).
 // These UK Met Office standard thresholds reflect conditions where surface runoff and sewer capacity triggers are increasingly likely.
-export const HOURLY_MODERATE_MM = 0.5; // mm/hr - moderate rain rate (UK Met Office standard: 0.5 - 4 mm/hr)
-export const HOURLY_HEAVY_MM = 4; // mm/hr - heavy rain rate (UK Met Office standard: > 4 mm/hr)
+export const HOURLY_MODERATE_MM = 0.5; // mm/hr - moderate rain rate (0.5 - 4 mm/hr)
+export const HOURLY_HEAVY_MM = 4; // mm/hr - heavy rain rate (Met Office radar guidance: >= 4 mm/hr)
 export const DAILY_MODERATE_MM = 10; // mm/day - wet day threshold (Met Office climate index RR >= 10mm)
 export const DAILY_HEAVY_MM = 25; // mm/day - very wet day threshold (Met Office climate index RR >= 25mm)
 
