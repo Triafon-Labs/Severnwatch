@@ -149,11 +149,25 @@ const StationDot: React.FC<{ row: StationRow }> = ({ row }) => {
         height: DOT_SIZE,
         borderRadius: "50%",
         boxSizing: "border-box",
-        // A ring in the card's own colour lifts the dot off the line behind
-        // it, the way a transit map punches its interchange markers out.
         border: "2px solid",
-        borderColor: "background.paper",
-        backgroundColor: state ? CSO_STATE_UI[state].color : "surfaces.outline",
+        ...(state
+          ? {
+              // A ring in the card's own colour lifts the dot off the line
+              // behind it, the way a transit map punches its interchange
+              // markers out.
+              borderColor: "background.paper",
+              backgroundColor: CSO_STATE_UI[state].color,
+            }
+          : {
+              // A stop with no monitors is a hollow ring, not a grey dot. A
+              // filled outline-grey (#8A9DA4 in dark) was all but identical
+              // to the Offline status grey (#9E9E9E), and the two mean
+              // different things - "nothing to monitor here" against "the
+              // monitors here aren't reporting". Shape tells them apart where
+              // a third shade of grey wouldn't.
+              borderColor: "surfaces.outline",
+              backgroundColor: "background.paper",
+            }),
         ...(isReach && {
           outline: "2px solid",
           outlineColor: "primary.main",

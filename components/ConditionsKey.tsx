@@ -104,16 +104,20 @@ const KeyRow: React.FC<{
 );
 
 // A replica of the river map's stop marker (RiverSchematic's StationDot).
-const MapDot: React.FC<{ color: string; reach?: boolean }> = ({
-  color,
-  reach,
-}) => (
+const MapDot: React.FC<{
+  color: string;
+  reach?: boolean;
+  hollow?: boolean;
+}> = ({ color, reach, hollow }) => (
   <Box
     sx={{
       width: 13,
       height: 13,
       borderRadius: "50%",
-      backgroundColor: color,
+      boxSizing: "border-box",
+      ...(hollow
+        ? { border: "2px solid", borderColor: color }
+        : { backgroundColor: color }),
       ...(reach && {
         outline: "2px solid",
         outlineColor: "primary.main",
@@ -183,10 +187,10 @@ const ConditionsKey: React.FC = () => {
         description="The worst status among the monitors at that stop - one discharging outfall turns the whole stop red."
       />
       <KeyRow
-        lead={<MapDot color="surfaces.outline" />}
-        label="Grey stop"
+        lead={<MapDot color="surfaces.outline" hollow />}
+        label="Hollow stop"
         description={
-          'No monitored outfalls near this point on the river - the stop says "No monitors" underneath.'
+          "No monitored outfalls near this point on the river. A solid grey stop is different: its monitors are offline."
         }
       />
       <KeyRow
