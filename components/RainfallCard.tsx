@@ -24,6 +24,7 @@ import {
 import InfoPanel from "@/components/InfoPanel";
 import RainfallChart from "@/components/RainfallChart";
 import { springTransition } from "@/lib/m3-palette";
+import { RAINFALL_GAUGES } from "@/lib/config";
 import { formatDataAge, useNowTicking } from "@/lib/time";
 
 // When a gauge's newest reading was taken. EA gauges report on their own
@@ -146,6 +147,46 @@ const ForecastTile: React.FC<{
   );
 };
 
+// Mirrors the loaded layout piece for piece - gauge tiles, the chart's
+// caption row, range toggle and plot, then the period tiles - at their
+// rendered heights, so the card doesn't grow when the data lands. It used to
+// be two blocks totalling under 300px for a card that loads at 800-1000.
+const RainfallCardSkeleton: React.FC = () => (
+  <Stack spacing={2} aria-hidden>
+    <Grid container spacing={2}>
+      {Array.from({ length: RAINFALL_GAUGES.length }).map((_, i) => (
+        <Grid key={i} size={{ xs: 12, sm: 4 }}>
+          <Skeleton variant="rounded" height={96} animation="wave" />
+        </Grid>
+      ))}
+    </Grid>
+
+    <Stack spacing={1}>
+      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+        <Skeleton variant="text" width={150} height={17} animation="wave" />
+        <Skeleton variant="text" width={90} height={17} animation="wave" />
+      </Stack>
+      <Skeleton
+        variant="rounded"
+        height={41}
+        animation="wave"
+        sx={{ borderRadius: 9999 }}
+      />
+      <Skeleton variant="rounded" height={220} animation="wave" />
+    </Stack>
+
+    <Divider />
+
+    <Grid container spacing={1.5}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Grid key={i} size={i === 4 ? 12 : 6}>
+          <Skeleton variant="rounded" height={80} animation="wave" />
+        </Grid>
+      ))}
+    </Grid>
+  </Stack>
+);
+
 const RainfallCard: React.FC = () => {
   const { rainfall, rainfallError, loading, isRefreshing, isOffline } =
     useSevernContext();
@@ -170,12 +211,7 @@ const RainfallCard: React.FC = () => {
           Rainfall
         </Typography>
 
-        {showSkeleton && (
-          <Stack spacing={1}>
-            <Skeleton variant="rounded" height={72} animation="wave" />
-            <Skeleton variant="rounded" height={220} animation="wave" />
-          </Stack>
-        )}
+        {showSkeleton && <RainfallCardSkeleton />}
 
         {!showSkeleton && rainfallError && !rainfall && (
           <InfoPanel align="flex-start">

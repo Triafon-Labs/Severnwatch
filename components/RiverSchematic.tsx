@@ -6,6 +6,7 @@ import {
   ButtonBase,
   Chip,
   Collapse,
+  Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
@@ -293,7 +294,9 @@ const StationHeader: React.FC<{
 };
 
 const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(
+    () => new Set()
+  );
   const [expandedClearKeys, setExpandedClearKeys] = useState<Set<string>>(
     () => new Set()
   );
@@ -422,6 +425,68 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
   };
 
   return <Box>{rows.map(renderRow)}</Box>;
+};
+
+// Every catchment waypoint gets a row whether or not it has outfalls (see
+// buildRiverSchematic), so the diagram's shape is fixed by config rather than
+// by the data. The skeleton builds the same rows from an empty list and lays
+// out each at its real height - one generic block per row would have the card
+// grow by several hundred pixels when the data lands.
+export const RiverSchematicSkeleton: React.FC = () => {
+  const rows = useMemo(() => buildRiverSchematic([]), []);
+  return (
+    <Box aria-hidden>
+      {rows.map((row) => {
+        if (row.kind !== "station") {
+          const height =
+            row.kind === "confluence" ? CONFLUENCE_HEIGHT : BRANCH_LABEL_HEIGHT;
+          return (
+            <Box
+              key={row.key}
+              sx={{ height, ...centredRow, pl: `${CONNECTOR_WIDTH + 8}px` }}
+            >
+              <Skeleton variant="text" width={110} animation="wave" />
+            </Box>
+          );
+        }
+        return (
+          <Box
+            key={row.key}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              height: HEADER_MIN_HEIGHT,
+            }}
+          >
+            <Box
+              sx={{
+                position: "relative",
+                width: CONNECTOR_WIDTH,
+                flexShrink: 0,
+              }}
+            >
+              <Skeleton
+                variant="circular"
+                width={DOT_SIZE}
+                height={DOT_SIZE}
+                animation="wave"
+                sx={{ ml: `${LANE_X[row.lane] - DOT_SIZE / 2}px` }}
+              />
+            </Box>
+            <Box sx={{ px: 1, flex: 1, minWidth: 0 }}>
+              <Skeleton variant="text" width="45%" animation="wave" />
+              <Skeleton
+                variant="text"
+                width={72}
+                height={16}
+                animation="wave"
+              />
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
 };
 
 export default RiverSchematic;

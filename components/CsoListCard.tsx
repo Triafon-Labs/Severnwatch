@@ -1,17 +1,12 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  Grow,
-  Skeleton,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Card, CardContent, Grow, Stack, Typography } from "@mui/material";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import InfoPanel from "@/components/InfoPanel";
-import RiverSchematic from "@/components/RiverSchematic";
+import RiverSchematic, {
+  RiverSchematicSkeleton,
+} from "@/components/RiverSchematic";
 import { springTransition } from "@/lib/m3-palette";
 
 const CsoListCard: React.FC = () => {
@@ -27,13 +22,7 @@ const CsoListCard: React.FC = () => {
           CSO Monitoring Map
         </Typography>
 
-        {showSkeleton && (
-          <Stack spacing={1}>
-            <Skeleton variant="rounded" height={56} animation="wave" />
-            <Skeleton variant="rounded" height={56} animation="wave" />
-            <Skeleton variant="rounded" height={56} animation="wave" />
-          </Stack>
-        )}
+        {showSkeleton && <RiverSchematicSkeleton />}
 
         {!showSkeleton && csoError && !cso && (
           <InfoPanel align="flex-start">
