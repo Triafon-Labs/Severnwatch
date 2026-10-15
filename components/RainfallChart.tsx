@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@mui/material/styles";
-import { Box, Stack, ToggleButton, Typography } from "@mui/material";
+import { Box, Paper, Stack, ToggleButton, Typography } from "@mui/material";
 import {
   CartesianGrid,
   ComposedChart,
@@ -12,9 +12,14 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  NameType,
+  ValueType,
+} from "recharts/types/component/DefaultTooltipContent";
 import { RainfallForecastPoint, RainfallGaugeData } from "@/types";
 import {
   DAILY_HEAVY_MM,
@@ -32,6 +37,52 @@ import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { formatTimeTick, londonParts } from "@/lib/time";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 import { SERIES_COLORS } from "@/lib/chartColors";
+
+// Paddlecheck's chart tooltip, so a reading looks the same in both apps: a
+// plain Paper - which the MuiPaper override gives the raised containerHigh
+// tone, with no border - at a 16px inset, the time in body1 and each value
+// in body2 beneath it. The recharts default this replaces was a bordered
+// box in 13px type. With more than one series on the chart, each row carries
+// its line's colour, since the names alone don't say which line is which.
+const ChartTooltip = ({
+  active,
+  payload,
+  label,
+  unit,
+  nameFor = (name) => String(name),
+}: TooltipContentProps<ValueType, NameType> & {
+  unit: string;
+  nameFor?: (name: NameType | undefined) => string;
+}) => {
+  const rows = (payload ?? []).filter((p) => typeof p.value === "number");
+  if (!active || rows.length === 0 || label == null) return null;
+  return (
+    <Paper sx={{ p: 2, pointerEvents: "none" }}>
+      <Typography variant="body1">{formatTimeTick(Number(label))}</Typography>
+      {rows.map((p) => (
+        <Box
+          key={String(p.dataKey)}
+          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+        >
+          {rows.length > 1 && (
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                bgcolor: p.color,
+                flexShrink: 0,
+              }}
+            />
+          )}
+          <Typography variant="body2">
+            {nameFor(p.name)}: {p.value} {unit}
+          </Typography>
+        </Box>
+      ))}
+    </Paper>
+  );
+};
 
 const BAND_CEILING = 1000; // clipped to the plot area regardless of axis domain
 const FORECAST_HISTORY_HOURS = 24; // how far back the "Forecast" view shows observed data
@@ -283,17 +334,6 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
     />
   );
 
-  // M3's plain tooltip shape, matched to the one the theme gives MUI's own
-  // Tooltip - recharts renders its own DOM node and never sees that override.
-  const tooltipStyle = {
-    fontSize: 13,
-    borderRadius: 8,
-    border: `1px solid ${theme.palette.divider}`,
-    backgroundColor: theme.palette.surfaces.containerHigh,
-    color: theme.palette.text.primary,
-    boxShadow: "none",
-  };
-
   return (
     <Stack spacing={1}>
       <Stack spacing={1}>
@@ -352,9 +392,9 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
               {yAxis()}
               <Tooltip
                 active={tooltipActive}
-                labelFormatter={(value) => formatTimeTick(value as number)}
-                formatter={(value, name) => [`${value} mm`, name]}
-                contentStyle={tooltipStyle}
+                content={(props: TooltipContentProps<ValueType, NameType>) => (
+                  <ChartTooltip {...props} unit="mm" />
+                )}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
               {gauges.map((gauge, i) => (
@@ -401,12 +441,15 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
               {yAxis()}
               <Tooltip
                 active={tooltipActive}
-                labelFormatter={(value) => formatTimeTick(value as number)}
-                formatter={(value, name) => [
-                  `${value} mm/hr`,
-                  name === "observedMm" ? "Observed" : "Forecast",
-                ]}
-                contentStyle={tooltipStyle}
+                content={(props: TooltipContentProps<ValueType, NameType>) => (
+                  <ChartTooltip
+                    {...props}
+                    unit="mm/hr"
+                    nameFor={(name) =>
+                      name === "observedMm" ? "Observed" : "Forecast"
+                    }
+                  />
+                )}
               />
               <Line
                 dataKey="observedMm"
@@ -448,9 +491,9 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
               {yAxis()}
               <Tooltip
                 active={tooltipActive}
-                labelFormatter={(value) => formatTimeTick(value as number)}
-                formatter={(value, name) => [`${value} mm/hr`, name]}
-                contentStyle={tooltipStyle}
+                content={(props: TooltipContentProps<ValueType, NameType>) => (
+                  <ChartTooltip {...props} unit="mm/hr" />
+                )}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
               {gauges.map((gauge, i) => (
