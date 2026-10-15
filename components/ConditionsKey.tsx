@@ -79,8 +79,9 @@ const KeyRow: React.FC<{
         {label}
       </Typography>
       {/* Block, not the span a caption renders as by default: inline, it
-          sits on the 24px line boxes of the body2 block around it, which
-          spaced a two-line description out to double its own leading. */}
+          sits on the line boxes of the 16px body text it inherits from the
+          Box around it, which spread a wrapped description out well past
+          the caption's own line height. */}
       <Typography variant="caption" color="text.secondary" display="block">
         {description}
       </Typography>
