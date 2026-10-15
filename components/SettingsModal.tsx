@@ -22,6 +22,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 import { WaterQualityDeepDive } from "@/components/WaterQualityInfoContent";
+import ConditionsKey from "@/components/ConditionsKey";
 import { useAppTheme, ThemeMode } from "@/lib/ThemeContext";
 import { USEFUL_LINKS } from "@/lib/config";
 import { m3Duration, m3Easing, m3Spring, spring } from "@/lib/m3-palette";
@@ -46,6 +47,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   // Resetting it on every tab change keeps each visit to Info predictable
   // and avoids that phantom height.
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+  const [conditionsKeyOpen, setConditionsKeyOpen] = useState(false);
   const { themeMode, setThemeMode } = useAppTheme();
 
   // --- Drag to dismiss ---
@@ -227,6 +229,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
         onChange={(_, val: "settings" | "info") => {
           setActiveTab(val);
           setDeepDiveOpen(false);
+          setConditionsKeyOpen(false);
         }}
         variant="fullWidth"
         sx={{ px: 2, flexShrink: 0, borderBottom: 1, borderColor: "divider" }}
@@ -301,6 +304,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               </ListItem>
             ))}
           </List>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Accordion
+            expanded={conditionsKeyOpen}
+            onChange={(_, isExpanded) => setConditionsKeyOpen(isExpanded)}
+            disableGutters
+            elevation={0}
+            sx={{ "&:before": { display: "none" }, mx: -2 }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
+              <Typography variant="h6">Conditions Key</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ px: 2, pt: 0 }}>
+              <ConditionsKey />
+            </AccordionDetails>
+          </Accordion>
 
           <Divider sx={{ my: 2 }} />
 

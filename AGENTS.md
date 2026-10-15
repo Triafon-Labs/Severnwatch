@@ -102,7 +102,8 @@ app/
 
 components/
   TopNavBar.tsx              App bar – share, settings, refresh, freshness, banners
-  SettingsModal.tsx          Bottom sheet – theme, links, deep dive, version
+  SettingsModal.tsx          Bottom sheet – theme, links, conditions key, deep dive, version
+  ConditionsKey.tsx          Legend for the status colours, map markers and chart bands
   CsoSpillCard.tsx           Headline spill status for the catchment
   CsoListCard.tsx            Live/recent spills, then the network as a river diagram
   RiverSchematic.tsx         Transit-map view of the catchment, stops in downstream order
@@ -128,6 +129,7 @@ lib/
   catchment.ts          Nearest-waypoint filtering (which waypoint, and how far)
   riverSchematic.ts     Outfalls -> the river diagram's rows, lanes and confluences
   statusColors.ts       The status colour vocabulary
+  chartColors.ts        Chart series colours (kept out of the recharts chunk)
   m3-palette.ts         M3 tonal tokens + motion tokens
   themes.ts             The MUI theme
   ThemeContext.tsx      Colour-scheme provider/hooks (light/dark/system)
