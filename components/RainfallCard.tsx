@@ -24,12 +24,23 @@ import {
 import InfoPanel from "@/components/InfoPanel";
 import RainfallChart from "@/components/RainfallChart";
 import { springTransition } from "@/lib/m3-palette";
+import { formatDataAge, useNowTicking } from "@/lib/time";
+
+// When a gauge's newest reading was taken. EA gauges report on their own
+// telemetry schedules and often upload in batches, so the newest reading can
+// be well over the nominal 15 minutes old - and one gauge can fall hours
+// behind the others without the route failing.
+const latestReadingMs = (gauge: RainfallGaugeData): number | null =>
+  gauge.readings.length > 0
+    ? new Date(gauge.readings[gauge.readings.length - 1].dateTime).getTime()
+    : null;
 
 const GaugeStat: React.FC<{
   label: string;
   latestMm: number | null;
+  latestAgeLabel: string | null;
   last24hTotalMm: number;
-}> = ({ label, latestMm, last24hTotalMm }) => (
+}> = ({ label, latestMm, latestAgeLabel, last24hTotalMm }) => (
   <InfoPanel
     align="center"
     sx={{
@@ -54,8 +65,11 @@ const GaugeStat: React.FC<{
       </Typography>
     </Typography>
     <Typography variant="caption" color="text.secondary">
-      {latestMm !== null
-        ? `${latestMm} mm in the last 15 min`
+      {/* The reading's own age rather than a fixed "in the last 15 min",
+          which this used to claim for whatever the newest reading was -
+          including one from a gauge that had stopped reporting hours ago. */}
+      {latestMm !== null && latestAgeLabel
+        ? `Latest ${latestMm} mm (${latestAgeLabel})`
         : "no recent reading"}
     </Typography>
   </InfoPanel>
@@ -138,6 +152,17 @@ const RainfallCard: React.FC = () => {
   const gauges = rainfall?.gauges ?? [];
   const showSkeleton = loading || (isRefreshing && !isOffline);
 
+  // The age of the reading itself, not of the fetch. The app bar's "Updated"
+  // line is when /api/rainfall built its response, which is fresh by
+  // construction even when every gauge is an hour behind.
+  const now = useNowTicking();
+  const ageLabel = (ms: number | null) =>
+    ms !== null ? formatDataAge(ms, now) : null;
+  const newestReadingMs = gauges.reduce<number | null>((newest, gauge) => {
+    const ms = latestReadingMs(gauge);
+    return ms !== null && (newest === null || ms > newest) ? ms : newest;
+  }, null);
+
   return (
     <Card>
       <CardContent>
@@ -171,13 +196,18 @@ const RainfallCard: React.FC = () => {
                     <GaugeStat
                       label={gauge.label}
                       latestMm={gauge.latestMm}
+                      latestAgeLabel={ageLabel(latestReadingMs(gauge))}
                       last24hTotalMm={gauge.last24hTotalMm}
                     />
                   </Grid>
                 ))}
               </Grid>
 
-              <RainfallChart gauges={gauges} forecast={rainfall.forecast} />
+              <RainfallChart
+                gauges={gauges}
+                forecast={rainfall.forecast}
+                dataAgeLabel={ageLabel(newestReadingMs)}
+              />
 
               <Divider />
 
