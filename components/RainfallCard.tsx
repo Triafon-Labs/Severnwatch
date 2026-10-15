@@ -22,7 +22,7 @@ import {
   sumRecentMm,
 } from "@/lib/rainfallAnalysis";
 import InfoPanel from "@/components/InfoPanel";
-import RainfallChart from "@/components/RainfallChart";
+import dynamic from "next/dynamic";
 import { springTransition } from "@/lib/m3-palette";
 import { RAINFALL_GAUGES } from "@/lib/config";
 import { formatDataAge, useNowTicking } from "@/lib/time";
@@ -147,6 +147,34 @@ const ForecastTile: React.FC<{
   );
 };
 
+// The chart's caption row, range toggle and plot, at their rendered heights.
+// Shared by the card's own skeleton and the placeholder that holds the
+// chart's place while its chunk downloads.
+const ChartSkeleton: React.FC = () => (
+  <Stack spacing={1} aria-hidden>
+    <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+      <Skeleton variant="text" width={150} height={17} animation="wave" />
+      <Skeleton variant="text" width={90} height={17} animation="wave" />
+    </Stack>
+    <Skeleton
+      variant="rounded"
+      height={41}
+      animation="wave"
+      sx={{ borderRadius: 9999 }}
+    />
+    <Skeleton variant="rounded" height={220} animation="wave" />
+  </Stack>
+);
+
+// recharts is by far the heaviest client dependency, and nothing else on the
+// page uses it - load it as its own chunk so the CSO cards above paint
+// sooner, the way Paddlecheck loads its graphs. Client-only anyway:
+// ResponsiveContainer needs a real layout to measure.
+const RainfallChart = dynamic(() => import("@/components/RainfallChart"), {
+  ssr: false,
+  loading: () => <ChartSkeleton />,
+});
+
 // Mirrors the loaded layout piece for piece - gauge tiles, the chart's
 // caption row, range toggle and plot, then the period tiles - at their
 // rendered heights, so the card doesn't grow when the data lands. It used to
@@ -161,19 +189,7 @@ const RainfallCardSkeleton: React.FC = () => (
       ))}
     </Grid>
 
-    <Stack spacing={1}>
-      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-        <Skeleton variant="text" width={150} height={17} animation="wave" />
-        <Skeleton variant="text" width={90} height={17} animation="wave" />
-      </Stack>
-      <Skeleton
-        variant="rounded"
-        height={41}
-        animation="wave"
-        sx={{ borderRadius: 9999 }}
-      />
-      <Skeleton variant="rounded" height={220} animation="wave" />
-    </Stack>
+    <ChartSkeleton />
 
     <Divider />
 
