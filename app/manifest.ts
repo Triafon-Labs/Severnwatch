@@ -19,12 +19,28 @@ export default function manifest(): MetadataRoute.Manifest {
     // either makes the launch flash a colour the app itself never shows.
     background_color: "#0B1418",
     theme_color: "#0B1418",
-    // Only the maskable 192 and 512 PNGs, so the installed app gets images
-    // shaped for adaptive icon rendering. Paddlecheck also lists its
-    // favicon.svg here; this deliberately doesn't, because that file is a
-    // 1024px PNG wrapped in an SVG (914KB here) rather than a vector, so it
-    // costs a near-megabyte download for no gain in sharpness.
+    // A plain ("any") and a maskable icon at each of 192 and 512px, as
+    // separate entries. Chrome won't offer to install the app without an
+    // "any" icon of at least 144px - with only the maskable pair listed, its
+    // installability check failed with manifest-missing-suitable-icon. The
+    // "any" icons are the transparent artwork from favicon.svg, resized;
+    // the maskable ones have the white full-bleed background launchers crop.
+    //
+    // favicon.svg itself is deliberately not listed (Paddlecheck used to list
+    // its own): it is a 1024px PNG wrapped in an SVG, 914KB here, not a vector.
     icons: [
+      {
+        src: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
       {
         src: "/web-app-manifest-192x192.png",
         sizes: "192x192",
