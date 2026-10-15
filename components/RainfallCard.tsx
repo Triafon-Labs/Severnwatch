@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Box,
   Card,
   CardContent,
   Divider,
@@ -84,68 +85,45 @@ const maxAcrossGauges = (
   value: (g: RainfallGaugeData) => number
 ): number => Math.max(...gauges.map(value));
 
+// Same anatomy as Paddlecheck's change tiles (ChangeIndicator in its
+// RiverLevelGraph): 16px inset, a 24px primary icon beside a subtitle2
+// label, then the value in h6 a step below. These used to run a size down on
+// every count - 12px inset, 20px icon, caption label - so the two apps'
+// equivalent tiles didn't read as the same component. Labels are kept as
+// short as Paddlecheck's ("1h Change") and the chart's own range toggle:
+// at this size "Past 24 Hours" wraps in a half-width tile on a phone.
 const PeriodTile: React.FC<{
   label: string;
-  totalMm: number;
+  value: string;
   icon?: React.ReactNode;
-}> = ({
-  label,
-  totalMm,
-  icon = <HistoryIcon sx={{ fontSize: 20, color: "primary.main" }} />,
-}) => (
+}> = ({ label, value, icon = <HistoryIcon /> }) => (
   <InfoPanel
     align="center"
     sx={{
       flexDirection: "column",
-      gap: 0.75,
+      justifyContent: "center",
+      gap: 1,
+      p: 2,
       height: "100%",
+      // Grid items default to min-width: auto, so a long label would hold
+      // the column wider than its share on a narrow phone. Zero lets it wrap.
+      minWidth: 0,
       textAlign: "center",
     }}
   >
-    <Stack direction="row" spacing={0.75} alignItems="center">
+    <Box sx={{ display: "flex", alignItems: "center", color: "primary.main" }}>
       {icon}
-      <Typography variant="caption" color="text.secondary">
+      <Typography variant="subtitle2" color="text.secondary" sx={{ ml: 0.5 }}>
         {label}
       </Typography>
-    </Stack>
-    <Typography variant="h6" component="p">
-      {totalMm} mm
+    </Box>
+    {/* A wet week's "134.4 mm" otherwise splits number from unit in a
+        half-width tile on a 360px phone. */}
+    <Typography variant="h6" component="p" sx={{ whiteSpace: "nowrap" }}>
+      {value}
     </Typography>
   </InfoPanel>
 );
-
-const ForecastTile: React.FC<{
-  totalMm: number | null;
-}> = ({ totalMm }) => {
-  return (
-    <InfoPanel
-      align="center"
-      sx={{
-        flexDirection: "column",
-        gap: 0.75,
-        height: "100%",
-        textAlign: "center",
-      }}
-    >
-      <Stack direction="row" spacing={0.75} alignItems="center">
-        <UpdateIcon sx={{ fontSize: 20, color: "primary.main" }} />
-        <Typography variant="caption" color="text.secondary">
-          24h Forecast (Worcester only)
-        </Typography>
-      </Stack>
-      <Stack
-        direction="row"
-        spacing={1}
-        alignItems="center"
-        sx={{ flexWrap: "wrap", rowGap: 0.5 }}
-      >
-        <Typography variant="h6" component="p">
-          {totalMm !== null ? `${totalMm} mm` : "—"}
-        </Typography>
-      </Stack>
-    </InfoPanel>
-  );
-};
 
 // The chart's caption row, range toggle and plot, at their rendered heights.
 // Shared by the card's own skeleton and the placeholder that holds the
@@ -193,10 +171,10 @@ const RainfallCardSkeleton: React.FC = () => (
 
     <Divider />
 
-    <Grid container spacing={1.5}>
+    <Grid container spacing={2}>
       {Array.from({ length: 5 }).map((_, i) => (
         <Grid key={i} size={i === 4 ? 12 : 6}>
-          <Skeleton variant="rounded" height={80} animation="wave" />
+          <Skeleton variant="rounded" height={95} animation="wave" />
         </Grid>
       ))}
     </Grid>
@@ -215,6 +193,9 @@ const RainfallCard: React.FC = () => {
   const now = useNowTicking();
   const ageLabel = (ms: number | null) =>
     ms !== null ? formatDataAge(ms, now) : null;
+  const forecast24hMm = rainfall
+    ? calculateForecast24hTotal(rainfall.forecast)
+    : null;
   const newestReadingMs = gauges.reduce<number | null>((newest, gauge) => {
     const ms = latestReadingMs(gauge);
     return ms !== null && (newest === null || ms > newest) ? ms : newest;
@@ -263,47 +244,45 @@ const RainfallCard: React.FC = () => {
 
               <Divider />
 
-              <Grid container spacing={1.5}>
+              <Grid container spacing={2}>
                 <Grid size={6}>
                   <PeriodTile
-                    label="Past 1 Hour"
-                    totalMm={maxAcrossGauges(gauges, (g) =>
+                    label="Past 1h"
+                    value={`${maxAcrossGauges(gauges, (g) =>
                       sumRecentMm(g, HOUR_MS)
-                    )}
+                    )} mm`}
                   />
                 </Grid>
                 <Grid size={6}>
                   <PeriodTile
-                    label="Past 8 Hours"
-                    totalMm={maxAcrossGauges(gauges, (g) =>
+                    label="Past 8h"
+                    value={`${maxAcrossGauges(gauges, (g) =>
                       sumRecentMm(g, 8 * HOUR_MS)
-                    )}
+                    )} mm`}
                   />
                 </Grid>
                 <Grid size={6}>
                   <PeriodTile
-                    label="Past 24 Hours"
-                    totalMm={maxAcrossGauges(gauges, (g) =>
+                    label="Past 24h"
+                    value={`${maxAcrossGauges(gauges, (g) =>
                       sumRecentMm(g, 24 * HOUR_MS)
-                    )}
+                    )} mm`}
                   />
                 </Grid>
                 <Grid size={6}>
                   <PeriodTile
-                    label="Past 7 Days"
-                    totalMm={maxAcrossGauges(gauges, (g) =>
+                    label="Past 7d"
+                    value={`${maxAcrossGauges(gauges, (g) =>
                       sumRecentMm(g, 7 * 24 * HOUR_MS)
-                    )}
-                    icon={
-                      <CalendarTodayIcon
-                        sx={{ fontSize: 20, color: "primary.main" }}
-                      />
-                    }
+                    )} mm`}
+                    icon={<CalendarTodayIcon />}
                   />
                 </Grid>
                 <Grid size={12}>
-                  <ForecastTile
-                    totalMm={calculateForecast24hTotal(rainfall.forecast)}
+                  <PeriodTile
+                    label="24h Forecast (Worcester only)"
+                    value={forecast24hMm !== null ? `${forecast24hMm} mm` : "—"}
+                    icon={<UpdateIcon />}
                   />
                 </Grid>
               </Grid>
