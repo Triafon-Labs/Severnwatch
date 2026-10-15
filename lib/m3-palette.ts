@@ -41,9 +41,9 @@ export const m3Light = {
   // MUI's stock M2 green/orange don't belong to this app's colour language
   // either - so the accents are taken straight from the status palette in
   // lib/statusColors.ts (Dark Green, Amber, Red), the same source the CSO
-  // states and the rainfall spill likelihood draw from. A "Medium likelihood"
-  // panel then reads in the same amber as the "Recent spill" chip beside it,
-  // instead of introducing a second, unrelated orange. The container tones
+  // states and the rainfall intensity bands draw from. A warning alert then
+  // reads in the same amber as the "Recent" chip beside it, instead of
+  // introducing a second, unrelated orange. The container tones
   // stay on the M3 tonal ramp, since they back low-emphasis surfaces rather
   // than signalling status.
   //

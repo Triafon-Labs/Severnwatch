@@ -21,7 +21,6 @@ import { DATA_STALE_THRESHOLD_MS, OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
 import { getLondonHHMM, getRelativeTimeString } from "@/lib/time";
 import { formatOutfallSubtitle } from "@/lib/format";
 import { collapseMotion } from "@/lib/m3-palette";
-import { assessRainfallLikelihood } from "@/lib/rainfallAnalysis";
 import { CsoResponse, RainfallResponse } from "@/types";
 
 // Filled with the saturated accent rather than the tonal container pair.
@@ -95,9 +94,6 @@ const buildShareText = (
     lines.push("");
     const worst24h = Math.max(...rainfall.gauges.map((g) => g.last24hTotalMm));
     lines.push(`🌧️ *Rainfall (worst gauge, last 24h):* ${worst24h} mm`);
-    lines.push(
-      `📊 *Rainfall-based spill likelihood:* ${assessRainfallLikelihood(rainfall.gauges)}`
-    );
   }
 
   return lines.join("\n");

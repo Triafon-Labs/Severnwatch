@@ -1,12 +1,11 @@
 // The app's status colour language, in one place.
 //
 // These hues are the whole vocabulary for "how bad is this?" - CSO spill
-// states (Ongoing / Recent / Not discharging / Offline), the rainfall-based
-// spill likelihood (Low / Medium / High), the rainfall intensity bands on the
-// chart, the bathing-water classification tiers, and the theme's
-// error/success/warning roles in lib/m3-palette.ts all draw from here rather
-// than each keeping their own copy. Two copies drift: a "High" likelihood
-// chip ends up in one red while the "Ongoing" chip beside it renders in
+// states (Ongoing / Recent / Not discharging / Offline), the rainfall
+// intensity bands on the chart, the bathing-water classification tiers, and
+// the theme's error/success/warning roles in lib/m3-palette.ts all draw from
+// here rather than each keeping their own copy. Two copies drift: a "Heavy"
+// band ends up in one red while the "Ongoing" chip above it renders in
 // another, and nothing in the code says which one is right.
 //
 // They are deliberately scheme-independent. A status colour is the signal, so

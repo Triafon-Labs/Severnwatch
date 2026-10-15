@@ -107,7 +107,7 @@ components/
   CsoListCard.tsx            Live/recent spills, then the network as a river diagram
   RiverSchematic.tsx         Transit-map view of the catchment, stops in downstream order
   CsoOutfallRow.tsx          One outfall as a labelled row, shared by both of the above
-  RainfallCard.tsx           Gauge stats, chart, change tiles, spill likelihood
+  RainfallCard.tsx           Gauge stats, chart, change tiles
   RainfallChart.tsx          Recharts intensity/daily/forecast views
   WaterQualityMap.tsx        SAS citizen science map embed + explainer
   WaterQualityExplainer.tsx  Classification bands disclosure
@@ -124,7 +124,7 @@ lib/
   SevernDataContext.tsx React Context wrapping the hook
   csoStatus.ts          CSO state → label/colour/severity, in one place
   rainfall.ts           EA rainfall fetching and shaping
-  rainfallAnalysis.ts   Intensity/daily buckets, trailing sums, spill likelihood
+  rainfallAnalysis.ts   Intensity/daily buckets, trailing sums, forecast total
   catchment.ts          Nearest-waypoint filtering (which waypoint, and how far)
   riverSchematic.ts     Outfalls -> the river diagram's rows, lanes and confluences
   statusColors.ts       The status colour vocabulary
