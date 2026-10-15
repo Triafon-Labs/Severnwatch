@@ -19,9 +19,11 @@ export default function manifest(): MetadataRoute.Manifest {
     // either makes the launch flash a colour the app itself never shows.
     background_color: "#0B1418",
     theme_color: "#0B1418",
-    // Match Paddlecheck: expose only maskable 192 and 512 icons so the
-    // installed app receives the appropriately shaped images for adaptive
-    // icon rendering on Android/iOS.
+    // Only the maskable 192 and 512 PNGs, so the installed app gets images
+    // shaped for adaptive icon rendering. Paddlecheck also lists its
+    // favicon.svg here; this deliberately doesn't, because that file is a
+    // 1024px PNG wrapped in an SVG (914KB here) rather than a vector, so it
+    // costs a near-megabyte download for no gain in sharpness.
     icons: [
       {
         src: "/web-app-manifest-192x192.png",
