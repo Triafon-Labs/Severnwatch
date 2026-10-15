@@ -317,7 +317,9 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
       tick={{ fill: chrome.axis, fontSize: 12 }}
       axisLine={false}
       tickLine={false}
-      width={28}
+      // Sized to the widest tick rather than a fixed 28px, which clipped
+      // decimal labels like "1.65" and "0.55" to ".65" and ".55".
+      width="auto"
     />
   );
 
