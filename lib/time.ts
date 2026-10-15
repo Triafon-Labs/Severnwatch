@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 // Time formatting shared across the app. Everything here works in
 // Europe/London rather than the runtime's local zone: the data is all
 // UK-gauge data, and a reader in another timezone still wants to know what
@@ -21,6 +23,38 @@ export const getRelativeTimeString = (
 
   const diffDays = Math.floor(diffHours / 24);
   return diffDays === 1 ? "1 day ago" : `${diffDays} days ago`;
+};
+
+// Ticks once a minute so anything displaying data age stays accurate for as
+// long as the component stays mounted, even without a refetch.
+export const useNowTicking = (intervalMs: number = 60 * 1000): Date => {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), intervalMs);
+    return () => clearInterval(interval);
+  }, [intervalMs]);
+  return now;
+};
+
+// How long ago a reading was taken, as a compact duration - "45 min ago",
+// "2h 15m ago", "1d 3h ago". Unlike getRelativeTimeString above, which rounds
+// to the hour once past 60 minutes, this keeps the minutes: a gauge that is
+// 1h 50m behind is a different story from one that is 1h behind. Shared with
+// Paddlecheck, so the two apps' "As of" captions read the same.
+export const formatDataAge = (latestTs: number, now: Date): string => {
+  const ageMinutes = Math.round((now.getTime() - latestTs) / (60 * 1000));
+  if (ageMinutes < 1) return "just now";
+  if (ageMinutes < 60) return `${ageMinutes} min ago`;
+  const hours = Math.floor(ageMinutes / 60);
+  const minutes = ageMinutes % 60;
+  if (hours < 24) {
+    const duration = minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
+    return `${duration} ago`;
+  }
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  const duration = remHours === 0 ? `${days}d` : `${days}d ${remHours}h`;
+  return `${duration} ago`;
 };
 
 // "HH:MM" in Europe/London, regardless of the runtime's local timezone.

@@ -21,7 +21,6 @@ import { DATA_STALE_THRESHOLD_MS, OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
 import { getLondonHHMM, getRelativeTimeString } from "@/lib/time";
 import { formatOutfallSubtitle } from "@/lib/format";
 import { collapseMotion } from "@/lib/m3-palette";
-import { assessRainfallLikelihood } from "@/lib/rainfallAnalysis";
 import { CsoResponse, RainfallResponse } from "@/types";
 
 // Filled with the saturated accent rather than the tonal container pair.
@@ -95,9 +94,6 @@ const buildShareText = (
     lines.push("");
     const worst24h = Math.max(...rainfall.gauges.map((g) => g.last24hTotalMm));
     lines.push(`🌧️ *Rainfall (worst gauge, last 24h):* ${worst24h} mm`);
-    lines.push(
-      `📊 *Rainfall-based spill likelihood:* ${assessRainfallLikelihood(rainfall.gauges)}`
-    );
   }
 
   return lines.join("\n");
@@ -192,17 +188,26 @@ const TopNavBar: React.FC = () => {
             : " – showing cached data"}
         </StatusBanner>
       </Collapse>
-      {/* A stale cache normally heals itself on the next poll, so this only
-          fires once an attempt has actually finished and genuinely couldn't
-          get fresh data - not while one may still be in flight. */}
+      {/* Only once an attempt has actually finished - not while one may
+          still be in flight. Two different situations, worded differently:
+          a fetch that fell back to the cache is a failure, but data that is
+          merely old isn't - there is no background poll, so a page left open
+          and visible simply hasn't been asked to refresh, and calling that
+          "Live update failed" would claim a failure that never happened. */}
       <Collapse
-        in={!isOffline && !isOfflineError && !isRefreshing && (usingCachedData || isStale)}
+        in={
+          !isOffline &&
+          !isOfflineError &&
+          !isRefreshing &&
+          (usingCachedData || isStale)
+        }
         unmountOnExit
         {...collapseMotion}
       >
         <StatusBanner severity="warning">
-          Live update failed
-          {freshnessText ? ` – showing data from ${freshnessText}` : ""}
+          {usingCachedData
+            ? `Live update failed${freshnessText ? ` – showing data from ${freshnessText}` : ""}`
+            : `Showing data from ${freshnessText} – refresh for the latest`}
         </StatusBanner>
       </Collapse>
       <Collapse in={isOfflineError} unmountOnExit {...collapseMotion}>
@@ -237,8 +242,15 @@ const TopNavBar: React.FC = () => {
               minWidth: 0,
             }}
           >
+            {/* Not /favicon.svg: despite the name, that file is a 1024px PNG
+                wrapped in an SVG (914KB), and next/image serves SVGs
+                unoptimised - so a 40px logo was the heaviest download on the
+                page. This PNG is the same artwork, and the only icon both
+                transparent and big enough (favicon.ico is 48px; the 180px
+                and up have white corners). next/image only ever requests it
+                at 48 and 96px (1x/2x) for a fixed 40px image. */}
             <Image
-              src="/favicon.svg"
+              src="/favicon-96x96.png"
               alt="Severnwatch Logo"
               width={40}
               height={40}

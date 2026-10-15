@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@mui/material/styles";
-import { Box, Stack, ToggleButton, Typography } from "@mui/material";
+import { Box, Paper, Stack, ToggleButton, Typography } from "@mui/material";
 import {
   CartesianGrid,
   ComposedChart,
@@ -12,9 +12,14 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  NameType,
+  ValueType,
+} from "recharts/types/component/DefaultTooltipContent";
 import { RainfallForecastPoint, RainfallGaugeData } from "@/types";
 import {
   DAILY_HEAVY_MM,
@@ -31,15 +36,52 @@ import { useTooltipDismiss } from "@/lib/useTooltipDismiss";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { formatTimeTick, londonParts } from "@/lib/time";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
+import { SERIES_COLORS } from "@/lib/chartColors";
 
-// Categorical palette, first 3 slots - validated all-pairs CVD-safe in both
-// light and dark mode. Deliberately *not* the theme's primary teal: these
-// identify one gauge from another, and a series colour that matches the
-// interface's accent reads as "this one is selected" rather than "this one is
-// Bewdley".
-const SERIES_COLORS: Record<"light" | "dark", string[]> = {
-  light: ["#2a78d6", "#eb6834", "#1baf7a"],
-  dark: ["#3987e5", "#d95926", "#199e70"],
+// Paddlecheck's chart tooltip, so a reading looks the same in both apps: a
+// plain Paper - which the MuiPaper override gives the raised containerHigh
+// tone, with no border - at a 16px inset, the time in body1 and each value
+// in body2 beneath it. The recharts default this replaces was a bordered
+// box in 13px type. With more than one series on the chart, each row carries
+// its line's colour, since the names alone don't say which line is which.
+const ChartTooltip = ({
+  active,
+  payload,
+  label,
+  unit,
+  nameFor = (name) => String(name),
+}: TooltipContentProps<ValueType, NameType> & {
+  unit: string;
+  nameFor?: (name: NameType | undefined) => string;
+}) => {
+  const rows = (payload ?? []).filter((p) => typeof p.value === "number");
+  if (!active || rows.length === 0 || label == null) return null;
+  return (
+    <Paper sx={{ p: 2, pointerEvents: "none" }}>
+      <Typography variant="body1">{formatTimeTick(Number(label))}</Typography>
+      {rows.map((p) => (
+        <Box
+          key={String(p.dataKey)}
+          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+        >
+          {rows.length > 1 && (
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                bgcolor: p.color,
+                flexShrink: 0,
+              }}
+            />
+          )}
+          <Typography variant="body2">
+            {nameFor(p.name)}: {p.value} {unit}
+          </Typography>
+        </Box>
+      ))}
+    </Paper>
+  );
 };
 
 const BAND_CEILING = 1000; // clipped to the plot area regardless of axis domain
@@ -96,9 +138,11 @@ const buildTimeTicks = (
 interface Props {
   gauges: RainfallGaugeData[];
   forecast: RainfallForecastPoint[];
+  // Age of the newest gauge reading, e.g. "12 min ago".
+  dataAgeLabel: string | null;
 }
 
-const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
+const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
   // Seeded from localStorage on first render rather than in an effect, so the
   // reader's chosen range is what paints - not a frame of "Forecast" that
   // then jumps to "7d".
@@ -273,7 +317,9 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
       tick={{ fill: chrome.axis, fontSize: 12 }}
       axisLine={false}
       tickLine={false}
-      width={28}
+      // Sized to the widest tick rather than a fixed 28px, which clipped
+      // decimal labels like "1.65" and "0.55" to ".65" and ".55".
+      width="auto"
     />
   );
 
@@ -290,23 +336,30 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
     />
   );
 
-  // M3's plain tooltip shape, matched to the one the theme gives MUI's own
-  // Tooltip - recharts renders its own DOM node and never sees that override.
-  const tooltipStyle = {
-    fontSize: 13,
-    borderRadius: 8,
-    border: `1px solid ${theme.palette.divider}`,
-    backgroundColor: theme.palette.surfaces.containerHigh,
-    color: theme.palette.text.primary,
-    boxShadow: "none",
-  };
-
   return (
     <Stack spacing={1}>
       <Stack spacing={1}>
-        <Typography variant="caption" color="text.secondary">
-          {caption}
-        </Typography>
+        {/* Shares a row with the chart's caption rather than stacking a second
+            caption line above the toggle. Same styling as Paddlecheck's "As
+            of" over its river graph: text.disabled, right-aligned. */}
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ justifyContent: "space-between", alignItems: "baseline" }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {caption}
+          </Typography>
+          {dataAgeLabel && (
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{ flexShrink: 0, textAlign: "right" }}
+            >
+              As of {dataAgeLabel}
+            </Typography>
+          )}
+        </Stack>
         <SlidingToggleButtonGroup
           value={range}
           exclusive
@@ -341,9 +394,9 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
               {yAxis()}
               <Tooltip
                 active={tooltipActive}
-                labelFormatter={(value) => formatTimeTick(value as number)}
-                formatter={(value, name) => [`${value} mm`, name]}
-                contentStyle={tooltipStyle}
+                content={(props: TooltipContentProps<ValueType, NameType>) => (
+                  <ChartTooltip {...props} unit="mm" />
+                )}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
               {gauges.map((gauge, i) => (
@@ -390,12 +443,15 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
               {yAxis()}
               <Tooltip
                 active={tooltipActive}
-                labelFormatter={(value) => formatTimeTick(value as number)}
-                formatter={(value, name) => [
-                  `${value} mm/hr`,
-                  name === "observedMm" ? "Observed" : "Forecast",
-                ]}
-                contentStyle={tooltipStyle}
+                content={(props: TooltipContentProps<ValueType, NameType>) => (
+                  <ChartTooltip
+                    {...props}
+                    unit="mm/hr"
+                    nameFor={(name) =>
+                      name === "observedMm" ? "Observed" : "Forecast"
+                    }
+                  />
+                )}
               />
               <Line
                 dataKey="observedMm"
@@ -437,9 +493,9 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
               {yAxis()}
               <Tooltip
                 active={tooltipActive}
-                labelFormatter={(value) => formatTimeTick(value as number)}
-                formatter={(value, name) => [`${value} mm/hr`, name]}
-                contentStyle={tooltipStyle}
+                content={(props: TooltipContentProps<ValueType, NameType>) => (
+                  <ChartTooltip {...props} unit="mm/hr" />
+                )}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: chrome.text }} />
               {gauges.map((gauge, i) => (

@@ -29,8 +29,8 @@ const CsoStatusHero: React.FC<{
     ongoingCount > 0
       ? "Ongoing"
       : recentCount > 0
-      ? "Recent"
-      : "Not discharging";
+        ? "Recent"
+        : "Not discharging";
 
   const ui = CSO_STATE_UI[activeState];
 
@@ -147,15 +147,36 @@ const CsoSpillCard: React.FC = () => {
           Water Quality Status
         </Typography>
 
+        {/* Mirrors the hero and its scale strip, so the card doesn't change
+            height when the data lands. The hero is sized for the
+            single-line states; only "Ongoing plus Recent" adds a subtitle. */}
         {showSkeleton && (
-          <Stack spacing={1}>
+          <Box>
             <Skeleton
               variant="rounded"
-              height={120}
               animation="wave"
-              sx={{ borderRadius: "28px" }}
+              sx={{ height: { xs: 72, sm: 104 }, borderRadius: "28px" }}
             />
-          </Stack>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                height: 10,
+                mt: 1.5,
+              }}
+            >
+              {CSO_STATUS_SCALE.map((state) => (
+                <Skeleton
+                  key={state}
+                  variant="rounded"
+                  height={6}
+                  animation="wave"
+                  sx={{ flex: 1, borderRadius: 9999 }}
+                />
+              ))}
+            </Box>
+          </Box>
         )}
 
         {!showSkeleton && csoError && !cso && (

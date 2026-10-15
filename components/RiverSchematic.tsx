@@ -6,6 +6,7 @@ import {
   ButtonBase,
   Chip,
   Collapse,
+  Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
@@ -56,6 +57,32 @@ const laneColour = (lane: number) =>
 // The fixed-height annotation rows (branch names, confluences) share a
 // layout: text centred against the piece of line drawn beside it.
 const centredRow = { display: "flex", alignItems: "center", px: 1 } as const;
+
+// The M3 state layer and focus ring Paddlecheck's expandable rows carry
+// (PaddlingMatrixCard): an onSurface overlay at 8% on hover and 10% pressed,
+// drawn on a pseudo-element so it composites over whatever fill the row has
+// rather than replacing it. These rows used to swap their background on
+// hover instead, or show nothing at all until focused from the keyboard.
+const stateLayerSx = {
+  position: "relative",
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    inset: 0,
+    borderRadius: "inherit",
+    backgroundColor: "text.primary",
+    opacity: 0,
+    transition: spring("opacity", m3Spring.effectsFast),
+    pointerEvents: "none",
+  },
+  "&:hover::after": { opacity: 0.08 },
+  "&:active::after": { opacity: 0.1 },
+  "&:focus-visible": {
+    outline: "3px solid",
+    outlineColor: "primary.main",
+    outlineOffset: -3,
+  },
+} as const;
 
 const Segment: React.FC<{ segment: SchematicSegment }> = ({ segment }) => {
   const top = segment.from === "top" ? 0 : DOT_CENTRE_Y;
@@ -122,11 +149,25 @@ const StationDot: React.FC<{ row: StationRow }> = ({ row }) => {
         height: DOT_SIZE,
         borderRadius: "50%",
         boxSizing: "border-box",
-        // A ring in the card's own colour lifts the dot off the line behind
-        // it, the way a transit map punches its interchange markers out.
         border: "2px solid",
-        borderColor: "background.paper",
-        backgroundColor: state ? CSO_STATE_UI[state].color : "surfaces.outline",
+        ...(state
+          ? {
+              // A ring in the card's own colour lifts the dot off the line
+              // behind it, the way a transit map punches its interchange
+              // markers out.
+              borderColor: "background.paper",
+              backgroundColor: CSO_STATE_UI[state].color,
+            }
+          : {
+              // A stop with no monitors is a hollow ring, not a grey dot. A
+              // filled outline-grey (#8A9DA4 in dark) was all but identical
+              // to the Offline status grey (#9E9E9E), and the two mean
+              // different things - "nothing to monitor here" against "the
+              // monitors here aren't reporting". Shape tells them apart where
+              // a third shade of grey wouldn't.
+              borderColor: "surfaces.outline",
+              backgroundColor: "background.paper",
+            }),
         ...(isReach && {
           outline: "2px solid",
           outlineColor: "primary.main",
@@ -158,22 +199,14 @@ const ClearMonitorsGroup: React.FC<{
           width: "100%",
           display: "flex",
           alignItems: "center",
-          justify: "space-between",
           px: 1.5,
           py: 1,
           borderRadius: 2,
-          bgcolor: "surfaces.containerLow",
-          border: "1px solid",
-          borderColor: "divider",
+          // Borderless on containerHigh, like the outfall rows beside it
+          // and Paddlecheck's matrix rows.
+          bgcolor: "surfaces.containerHigh",
           textAlign: "left",
-          "&:hover": {
-            bgcolor: "surfaces.container",
-          },
-          "&:focus-visible": {
-            outline: "3px solid",
-            outlineColor: "primary.main",
-            outlineOffset: -3,
-          },
+          ...stateLayerSx,
         }}
       >
         <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
@@ -193,7 +226,7 @@ const ClearMonitorsGroup: React.FC<{
           sx={{
             flexShrink: 0,
             color: "text.secondary",
-            transition: spring("transform", m3Spring.effectsFast),
+            transition: spring("transform", m3Spring.spatialFast),
             transform: expanded ? "rotate(180deg)" : "none",
           }}
         />
@@ -248,7 +281,7 @@ const StationHeader: React.FC<{
           sx={{
             flexShrink: 0,
             color: "text.secondary",
-            transition: spring("transform", m3Spring.effectsFast),
+            transition: spring("transform", m3Spring.spatialFast),
             transform: expanded ? "rotate(180deg)" : "none",
           }}
         />
@@ -278,14 +311,7 @@ const StationHeader: React.FC<{
       aria-label={`${waypoint.label}, ${count} monitor${
         count === 1 ? "" : "s"
       }`}
-      sx={{
-        ...layout,
-        "&:focus-visible": {
-          outline: "3px solid",
-          outlineColor: "primary.main",
-          outlineOffset: -3,
-        },
-      }}
+      sx={{ ...layout, ...stateLayerSx }}
     >
       {body}
     </ButtonBase>
@@ -293,7 +319,9 @@ const StationHeader: React.FC<{
 };
 
 const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(
+    () => new Set()
+  );
   const [expandedClearKeys, setExpandedClearKeys] = useState<Set<string>>(
     () => new Set()
   );
@@ -422,6 +450,68 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
   };
 
   return <Box>{rows.map(renderRow)}</Box>;
+};
+
+// Every catchment waypoint gets a row whether or not it has outfalls (see
+// buildRiverSchematic), so the diagram's shape is fixed by config rather than
+// by the data. The skeleton builds the same rows from an empty list and lays
+// out each at its real height - one generic block per row would have the card
+// grow by several hundred pixels when the data lands.
+export const RiverSchematicSkeleton: React.FC = () => {
+  const rows = useMemo(() => buildRiverSchematic([]), []);
+  return (
+    <Box aria-hidden>
+      {rows.map((row) => {
+        if (row.kind !== "station") {
+          const height =
+            row.kind === "confluence" ? CONFLUENCE_HEIGHT : BRANCH_LABEL_HEIGHT;
+          return (
+            <Box
+              key={row.key}
+              sx={{ height, ...centredRow, pl: `${CONNECTOR_WIDTH + 8}px` }}
+            >
+              <Skeleton variant="text" width={110} animation="wave" />
+            </Box>
+          );
+        }
+        return (
+          <Box
+            key={row.key}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              height: HEADER_MIN_HEIGHT,
+            }}
+          >
+            <Box
+              sx={{
+                position: "relative",
+                width: CONNECTOR_WIDTH,
+                flexShrink: 0,
+              }}
+            >
+              <Skeleton
+                variant="circular"
+                width={DOT_SIZE}
+                height={DOT_SIZE}
+                animation="wave"
+                sx={{ ml: `${LANE_X[row.lane] - DOT_SIZE / 2}px` }}
+              />
+            </Box>
+            <Box sx={{ px: 1, flex: 1, minWidth: 0 }}>
+              <Skeleton variant="text" width="45%" animation="wave" />
+              <Skeleton
+                variant="text"
+                width={72}
+                height={16}
+                animation="wave"
+              />
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
 };
 
 export default RiverSchematic;

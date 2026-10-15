@@ -1,11 +1,16 @@
 import { RainfallForecastPoint, RainfallGaugeData } from "@/types";
 
-// UK Met Office rainfall rate intensity and accumulation thresholds:
+// Rainfall rate intensity and accumulation thresholds:
 // - Hourly intensity: Light rain < 0.5 mm/hr, Moderate rain 0.5–4 mm/hr, Heavy rain > 4 mm/hr (Very Heavy > 8 mm/hr).
+//   Only the 4 mm/hr "heavy" line is the Met Office's own (its radar guidance
+//   calls 4 mm/hr or more heavy); the 0.5 mm/hr "moderate" line is the
+//   commonly used light/moderate boundary, not a Met Office definition, and
+//   other Met Office products use different cut-offs (its spot data calls
+//   anything over 1 mm/hr heavy). The Conditions Key words them to match.
 // - Daily totals: 10 mm/day represents a wet day (moderate threshold) and 25 mm/day represents a very wet day (heavy threshold).
 // These UK Met Office standard thresholds reflect conditions where surface runoff and sewer capacity triggers are increasingly likely.
-export const HOURLY_MODERATE_MM = 0.5; // mm/hr - moderate rain rate (UK Met Office standard: 0.5 - 4 mm/hr)
-export const HOURLY_HEAVY_MM = 4; // mm/hr - heavy rain rate (UK Met Office standard: > 4 mm/hr)
+export const HOURLY_MODERATE_MM = 0.5; // mm/hr - moderate rain rate (0.5 - 4 mm/hr)
+export const HOURLY_HEAVY_MM = 4; // mm/hr - heavy rain rate (Met Office radar guidance: >= 4 mm/hr)
 export const DAILY_MODERATE_MM = 10; // mm/day - wet day threshold (Met Office climate index RR >= 10mm)
 export const DAILY_HEAVY_MM = 25; // mm/day - very wet day threshold (Met Office climate index RR >= 25mm)
 
@@ -208,103 +213,6 @@ export const sumRecentMm = (
   return Math.round(total * 10) / 10;
 };
 
-export interface ForecastRiskWindow {
-  startTimeISO: string;
-  endTimeISO: string;
-  startFormatted: string;
-  endFormatted: string;
-  label: string;
-  riskLevel: "high" | "medium";
-}
-
-export const findForecastRiskWindows = (
-  forecast: RainfallForecastPoint[]
-): ForecastRiskWindow[] => {
-  if (!forecast || forecast.length === 0) return [];
-
-  const now = Date.now();
-  const next24h = now + 24 * HOUR_MS;
-  const relevant = forecast
-    .filter((f) => {
-      const t = new Date(f.dateTime).getTime();
-      return t >= now - 30 * 60 * 1000 && t <= next24h;
-    })
-    .sort(
-      (a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
-    );
-
-  if (relevant.length === 0) return [];
-
-  const formatHHMM = (iso: string) => {
-    return new Date(iso).toLocaleTimeString("en-GB", {
-      timeZone: "Europe/London",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  };
-
-  const buildWindows = (
-    points: RainfallForecastPoint[],
-    riskLevel: "high" | "medium"
-  ): ForecastRiskWindow[] => {
-    const windows: ForecastRiskWindow[] = [];
-    let currentGroup: RainfallForecastPoint[] = [];
-
-    const addWindow = (group: RainfallForecastPoint[]) => {
-      const startISO = group[0].dateTime;
-      const endISO = new Date(
-        new Date(group[group.length - 1].dateTime).getTime() + HOUR_MS
-      ).toISOString();
-      const startFmt = formatHHMM(startISO);
-      const endFmt = formatHHMM(endISO);
-      const riskText =
-        riskLevel === "high" ? "high spill risk" : "moderate spill risk";
-      windows.push({
-        startTimeISO: startISO,
-        endTimeISO: endISO,
-        startFormatted: startFmt,
-        endFormatted: endFmt,
-        label: `${startFmt}–${endFmt}: ${riskText}`,
-        riskLevel,
-      });
-    };
-
-    for (const point of points) {
-      if (currentGroup.length === 0) {
-        currentGroup.push(point);
-        continue;
-      }
-      const previous = currentGroup[currentGroup.length - 1];
-      const gap =
-        new Date(point.dateTime).getTime() -
-        new Date(previous.dateTime).getTime();
-      if (gap <= HOUR_MS + 60000) {
-        currentGroup.push(point);
-      } else {
-        addWindow(currentGroup);
-        currentGroup = [point];
-      }
-    }
-
-    if (currentGroup.length > 0) addWindow(currentGroup);
-    return windows;
-  };
-
-  const highRiskPoints = relevant.filter((f) => f.valueMm >= HOURLY_HEAVY_MM);
-  const moderateRiskPoints = relevant.filter(
-    (f) => f.valueMm >= HOURLY_MODERATE_MM && f.valueMm < HOURLY_HEAVY_MM
-  );
-
-  return [
-    ...buildWindows(moderateRiskPoints, "medium"),
-    ...buildWindows(highRiskPoints, "high"),
-  ].sort(
-    (a, b) =>
-      new Date(a.startTimeISO).getTime() - new Date(b.startTimeISO).getTime()
-  );
-};
-
 export const calculateForecast24hTotal = (
   forecast: RainfallForecastPoint[]
 ): number | null => {
@@ -318,26 +226,4 @@ export const calculateForecast24hTotal = (
   if (relevant.length === 0) return null;
   const total = relevant.reduce((sum, f) => sum + f.valueMm, 0);
   return Math.round(total * 10) / 10;
-};
-
-export type SpillLikelihood = "Low" | "Medium" | "High";
-
-// Worst-case across the catchment's gauges: a burst at any one station, or
-// sustained rain over the full 24h, is enough to raise the likelihood - it
-// doesn't need to be all three gauges at once.
-export const assessRainfallLikelihood = (
-  gauges: RainfallGaugeData[]
-): SpillLikelihood => {
-  let worst: SpillLikelihood = "Low";
-  for (const gauge of gauges) {
-    const lastHourMm = sumRecentMm(gauge, HOUR_MS);
-    if (lastHourMm >= HOURLY_HEAVY_MM || gauge.last24hTotalMm >= DAILY_HEAVY_MM)
-      return "High";
-    if (
-      lastHourMm >= HOURLY_MODERATE_MM ||
-      gauge.last24hTotalMm >= DAILY_MODERATE_MM
-    )
-      worst = "Medium";
-  }
-  return worst;
 };
