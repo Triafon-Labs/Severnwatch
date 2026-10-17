@@ -11,19 +11,17 @@ import ThunderstormIcon from "@mui/icons-material/Thunderstorm";
 import { CsoState } from "@/types";
 import { CSO_STATE_UI, CSO_STATE_ORDER } from "@/lib/csoStatus";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
-import {
-  CATCHMENT_WAYPOINTS,
-  SEWAGE_RECENT_SPILL_BASE_HOURS,
-} from "@/lib/config";
+import { SEWAGE_RECENT_SPILL_BASE_HOURS } from "@/lib/config";
+import { MAX_PLUME_TRAVEL_HOURS } from "@/lib/catchment";
+import { PollutionRiskLevel, RISK_LEVEL_UI } from "@/lib/pollutionRisk";
 import { HOURLY_HEAVY_MM, HOURLY_MODERATE_MM } from "@/lib/rainfallAnalysis";
 import { SERIES_COLORS } from "@/lib/chartColors";
 import { useResolvedColorScheme } from "@/lib/ThemeContext";
 
 // The longest a finished spill stays "Recent": the base window plus the
-// furthest stop's travel time to the reach (see the sewage route).
+// furthest outfall's travel time to the reach (see the sewage route).
 const MAX_RECENT_HOURS =
-  SEWAGE_RECENT_SPILL_BASE_HOURS +
-  Math.max(...CATCHMENT_WAYPOINTS.map((w) => w.plumeTravelHours));
+  SEWAGE_RECENT_SPILL_BASE_HOURS + MAX_PLUME_TRAVEL_HOURS;
 
 const STATE_ICONS: Record<CsoState, React.ElementType> = {
   Ongoing: ReportProblemIcon,
@@ -40,6 +38,15 @@ const STATE_DESCRIPTIONS: Record<CsoState, string> = {
   "Not discharging":
     "No spill now, and none recent enough to still be on its way down to Worcester.",
 };
+
+// What each of the headline card's levels means (see lib/pollutionRisk.ts).
+const RISK_DESCRIPTIONS: Record<PollutionRiskLevel, string> = {
+  high: "Water from a spill is estimated to be passing Worcester.",
+  raised: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, or moderate or heavy rain is falling or due within a few hours.`,
+  lower: "No monitored spills affecting Worcester. Not a water test.",
+};
+
+const RISK_ORDER: PollutionRiskLevel[] = ["high", "raised", "lower"];
 
 const SectionHeading: React.FC<{
   children: React.ReactNode;
@@ -152,7 +159,17 @@ const ConditionsKey: React.FC = () => {
 
   return (
     <>
-      <SectionHeading first>Spill Status</SectionHeading>
+      <SectionHeading first>Pollution Risk</SectionHeading>
+      {RISK_ORDER.map((level) => (
+        <KeyRow
+          key={level}
+          lead={<MapDot color={RISK_LEVEL_UI[level].color} />}
+          label={RISK_LEVEL_UI[level].label}
+          description={RISK_DESCRIPTIONS[level]}
+        />
+      ))}
+
+      <SectionHeading>Spill Status</SectionHeading>
       {CSO_STATE_ORDER.map((state) => {
         const ui = CSO_STATE_UI[state];
         const Icon = STATE_ICONS[state];

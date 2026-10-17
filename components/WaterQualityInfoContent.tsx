@@ -177,12 +177,14 @@ export const WaterQualityDeepDive: React.FC = () => (
       color="text.secondary"
       sx={{ mt: 0.5, mb: 1.5 }}
     >
-      Official bathing water classifications are based on 10-20 weekly samples
-      taken across a bathing season, measuring E. coli and intestinal
-      Enterococci. &quot;Excellent&quot; and &quot;Good&quot; use the 95th
-      percentile of results; &quot;Sufficient&quot; uses the 90th percentile -
-      only the worst 5-10% of samples count, since the aim is to flag the
-      realistic risk of high contamination, not the average.
+      Official bathing water classifications are based on samples from up to
+      four bathing seasons (normally at least 16, and at least four in each
+      season), measuring E. coli and intestinal Enterococci. A newly designated
+      site is classified on the seasons it has so far. &quot;Excellent&quot; and
+      &quot;Good&quot; use the 95th percentile of results;
+      &quot;Sufficient&quot; uses the 90th percentile - only the worst 5-10% of
+      samples count, since the aim is to flag the realistic risk of high
+      contamination, not the average.
     </Typography>
 
     <ClassificationTablesSection />

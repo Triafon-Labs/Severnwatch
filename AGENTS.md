@@ -104,7 +104,7 @@ components/
   TopNavBar.tsx              App bar – share, settings, refresh, freshness, banners
   SettingsModal.tsx          Bottom sheet – theme, links, conditions key, deep dive, version
   ConditionsKey.tsx          Legend for the status colours, map markers and chart bands
-  CsoSpillCard.tsx           Headline spill status for the catchment
+  PollutionRiskCard.tsx      Headline pollution risk, derived from spills + rainfall
   CsoListCard.tsx            Live/recent spills, then the network as a river diagram
   RiverSchematic.tsx         Transit-map view of the catchment, stops in downstream order
   CsoOutfallRow.tsx          One outfall as a labelled row, shared by both of the above
@@ -124,6 +124,7 @@ lib/
   hooks.ts              useSevernData – all fetching, caching, offline state
   SevernDataContext.tsx React Context wrapping the hook
   csoStatus.ts          CSO state → label/colour/severity, in one place
+  pollutionRisk.ts      Derived high/raised/lower risk from spill timing + rainfall
   rainfall.ts           EA rainfall fetching and shaping
   rainfallAnalysis.ts   Intensity/daily buckets, trailing sums, forecast total
   catchment.ts          Nearest-waypoint filtering (which waypoint, and how far)

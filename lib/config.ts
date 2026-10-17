@@ -17,10 +17,18 @@ export const SEWAGE_API_URL =
   "https://services1.arcgis.com/NO7lTIlnxRMMG9Gw/arcgis/rest/services/Severn_Trent_Water_Storm_Overflow_Activity/FeatureServer/0/query";
 
 // How long a spill stays "recent" *after its water has reached the reach* -
-// the tail on top of each waypoint's plumeTravelHours (see below), not the
-// whole window. A spill at Bewdley is therefore surfaced far longer than one
-// at Diglis, because its water arrives far later.
-export const SEWAGE_RECENT_SPILL_BASE_HOURS = 24;
+// the tail on top of each outfall's latest travel time (see
+// plumeTravelRangeFor in lib/catchment.ts), not the whole window. A spill at Bewdley is therefore
+// surfaced far longer than one at Diglis, because its water arrives far
+// later.
+//
+// 48 h rather than the 24 h this used to be. SAS's own Safer Seas alerts
+// flag an overflow for 48 h after it stops, and the field evidence doesn't
+// support anything shorter: on the Seine, E. coli 13-14 h below a CSO had
+// only fallen by about two thirds from a peak two orders of magnitude over
+// baseline, which still leaves it many times the dry-weather level a day
+// later. Bacteria settled into the bed also re-suspend for longer than that.
+export const SEWAGE_RECENT_SPILL_BASE_HOURS = 48;
 
 // Catchment corridor relevant to the Worcester paddling reach: outfalls
 // whose spills could plausibly affect water quality there in a meaningful
@@ -36,6 +44,11 @@ export const SEWAGE_RECENT_SPILL_BASE_HOURS = 24;
 // signal here: it is already 18.6 km of river above the reach, better than a
 // day's travel for the water itself, and accreting tributary flow dilutes it
 // the whole way down.
+// Nominal speed a spill's water moves downriver, used both for the
+// waypoints' plumeTravelHours below and for the allowance added on top of
+// them per outfall. See plumeTravelHours for how far to trust it.
+export const PLUME_SPEED_KMH = 0.7;
+
 export interface CatchmentWaypoint {
   name: string;
   // Short form for the river schematic, where a row is too narrow for the
@@ -60,17 +73,24 @@ export interface CatchmentWaypoint {
   // the reach at Bevere. Zero inside the reach.
   //
   // ESTIMATE, not a measurement. Derived from river distance along the
-  // Severn/Stour/Salwarpe at a nominal 0.7 km/h. That speed is the
-  // conservative (slow) end of what the reach's hydraulics imply: flood
-  // warnings put the *flood peak* Bewdley to Worcester at 12-24 h, but a
-  // spill is a parcel of water moving at mean flow velocity, which is
-  // roughly celerity / 1.3-1.7 - and slower still here because the reach is
-  // impounded by weirs at Lincomb, Holt and Bevere, so at low flow a plume
-  // steps through a chain of slow pools. No published dye-tracing or
-  // time-of-travel study for the middle Severn was found to calibrate
-  // against, so these are deliberately generous: retiring a spill before its
-  // water has arrived is the dangerous error, showing it slightly too long
-  // is not.
+  // Severn/Stour/Salwarpe at a nominal PLUME_SPEED_KMH, measured from the
+  // waypoint itself - plumeTravelRangeFor in lib/catchment.ts widens it for
+  // outfalls sitting out towards the edge of the radius.
+  //
+  // That speed is NOT the slow end of the range, though it used to be
+  // described as one. Flood warnings put the *flood peak* Bewdley to
+  // Worcester at 12-24 h, and a spill moves at mean flow velocity rather
+  // than flood celerity, so at or above roughly half the mean flow
+  // (Bewdley's is ~62 m3/s) 0.7 km/h is a fair-to-generous figure. But
+  // summer low flow at Bewdley sits around 10-20 m3/s, and through the
+  // pools impounded by the Lincomb, Holt and Bevere weirs that works out
+  // to roughly 0.1-0.5 km/h on any plausible cross-section (100-300 m2) - so
+  // in exactly the season people swim, these hours are too short. A
+  // thunderstorm spill onto a low summer river is also the least diluted.
+  // The honest fix is to scale travel with the measured Bewdley flow;
+  // until then, the longer 48 h tail and the per-outfall allowance are what
+  // buy back the margin. No published dye-tracing or time-of-travel study
+  // for the middle Severn was found to calibrate against.
   plumeTravelHours: number;
 }
 
@@ -237,9 +257,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
 // Explicitly excluded even if geographically close to a waypoint above -
 // deliberately left out as too marginal a signal for the Worcester reach
 // (small/unmonitored catchments or too far up a tributary).
-export const CATCHMENT_EXCLUDED_LOCALITIES = [
-  "bromsgrove",
-];
+export const CATCHMENT_EXCLUDED_LOCALITIES = ["bromsgrove"];
 
 // Watercourses that drain away from or outside the Worcester reach corridor
 // (e.g. Bow Brook drains south to the Avon; River Teme joins below Worcester;

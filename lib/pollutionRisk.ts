@@ -1,0 +1,216 @@
+import { CsoOutfall, CsoResponse, RainfallResponse } from "@/types";
+import {
+  CATCHMENT_WAYPOINTS,
+  SEWAGE_RECENT_SPILL_BASE_HOURS,
+} from "@/lib/config";
+import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
+import { plumeTravelRangeFor } from "@/lib/catchment";
+import {
+  HOURLY_HEAVY_MM,
+  HOURLY_MODERATE_MM,
+  HOUR_MS,
+  peakRateMmPerHour,
+  sumRecentMm,
+} from "@/lib/rainfallAnalysis";
+
+// A pollution risk for the reach, derived from two things:
+//
+// - Where each monitored spill's water is relative to it: on its way down,
+//   passing through, or gone by but still inside the 48 h tail
+//   (SEWAGE_RECENT_SPILL_BASE_HOURS).
+// - Rain falling, or about to fall, on the catchment at the rainfall chart's
+//   moderate or heavy intensity. Combined sewers start to overflow within
+//   hours of rain like that, usually before the spill feed shows it.
+//
+// Nothing here measures bacteria, so the bottom of the scale is "lower",
+// never "safe".
+export type PollutionRiskLevel = "high" | "raised" | "lower";
+
+// Labels and colours for each level, shared by the card and the Conditions
+// Key so the two can't drift - the same arrangement as CSO_STATE_UI.
+export const RISK_LEVEL_UI: Record<
+  PollutionRiskLevel,
+  { label: string; color: string; onColor: string }
+> = {
+  high: {
+    label: "High Risk",
+    color: STATUS_COLORS.red,
+    onColor: ON_STATUS_COLORS.red,
+  },
+  raised: {
+    label: "Raised Risk",
+    color: STATUS_COLORS.amber,
+    onColor: ON_STATUS_COLORS.amber,
+  },
+  lower: {
+    label: "Lower Risk",
+    color: STATUS_COLORS.darkGreen,
+    onColor: ON_STATUS_COLORS.darkGreen,
+  },
+};
+
+export type PollutionRiskFactorKey =
+  "passing" | "arriving" | "lingering" | "rain";
+
+export interface PollutionRiskFactor {
+  key: PollutionRiskFactorKey;
+  level: PollutionRiskLevel;
+  label: string;
+}
+
+export interface PollutionRisk {
+  level: PollutionRiskLevel;
+  // Worst first; empty when the level is "lower".
+  factors: PollutionRiskFactor[];
+}
+
+const WAYPOINTS_BY_NAME = new Map(CATCHMENT_WAYPOINTS.map((w) => [w.name, w]));
+
+type PlumePhase = "arriving" | "passing" | "lingering";
+
+// The spill's water starts arriving at the earliest travel time and has
+// gone by at the latest, then lingers for the tail. Past that the spill is
+// dropped, which matches the sewage route's Recent cutoff - and also covers
+// a cached payload being read long after it was fetched, where the route
+// never got the chance to retire it.
+const plumeTiming = (
+  outfall: CsoOutfall,
+  now: number
+): { phase: PlumePhase; hoursUntil: number } | null => {
+  const waypoint = WAYPOINTS_BY_NAME.get(outfall.waypointName);
+  if (!waypoint) return null;
+  const travel = plumeTravelRangeFor(waypoint, outfall.distanceKm);
+
+  // No start time is treated as already arrived - assuming the water is
+  // still upstream is the error that reassures.
+  const startMs = outfall.startISO ? Date.parse(outfall.startISO) : -Infinity;
+  const endMs =
+    outfall.state === "Ongoing" || !outfall.endISO
+      ? now
+      : Date.parse(outfall.endISO);
+
+  const arrivesAt = startMs + travel.earliest * HOUR_MS;
+  const goneBy = endMs + travel.latest * HOUR_MS;
+  if (now < arrivesAt) {
+    return { phase: "arriving", hoursUntil: (arrivesAt - now) / HOUR_MS };
+  }
+  if (now <= goneBy) return { phase: "passing", hoursUntil: 0 };
+  if (now <= goneBy + SEWAGE_RECENT_SPILL_BASE_HOURS * HOUR_MS) {
+    return { phase: "lingering", hoursUntil: 0 };
+  }
+  return null;
+};
+
+// How far ahead the forecast counts as rain "about to fall". Open-Meteo's
+// hourly value is the total for the hour ending at its timestamp.
+const RAIN_LOOKAHEAD_HOURS = 3;
+
+const intensityLabel = (mmPerHour: number) =>
+  mmPerHour >= HOURLY_HEAVY_MM ? "Heavy rain" : "Moderate rain";
+
+// Measured rain at any gauge in the last hour, else forecast rain in the
+// next few hours, read against the chart's mm/hr bands. The EA's gauges
+// report in batches, so the forecast is often the only sight of rain that
+// is falling right now.
+//
+// Heavy goes on the peak 15-minute rate, because a thunderstorm burst that
+// overwhelms a sewer in fifteen minutes is diluted to "moderate" once it's
+// averaged over the hour. Moderate goes on the hour's total: the gauges
+// count in 0.2 mm tips, so a single tip in fifteen minutes is already
+// 0.8 mm/hr and the 15-minute rate would call any drizzle moderate.
+const rainFactor = (
+  rainfall: RainfallResponse,
+  now: number
+): PollutionRiskFactor | null => {
+  for (const gauge of rainfall.gauges) {
+    if (peakRateMmPerHour(gauge, HOUR_MS, now) >= HOURLY_HEAVY_MM) {
+      return {
+        key: "rain",
+        level: "raised",
+        label: `Heavy rain at ${gauge.label}`,
+      };
+    }
+  }
+  for (const gauge of rainfall.gauges) {
+    if (sumRecentMm(gauge, HOUR_MS, 0, now) >= HOURLY_MODERATE_MM) {
+      return {
+        key: "rain",
+        level: "raised",
+        label: `Moderate rain at ${gauge.label}`,
+      };
+    }
+  }
+
+  const upcoming = rainfall.forecast
+    .map((f) => ({ endsAt: Date.parse(f.dateTime), mm: f.valueMm }))
+    .filter(
+      (f) =>
+        f.endsAt > now &&
+        f.endsAt <= now + RAIN_LOOKAHEAD_HOURS * HOUR_MS &&
+        f.mm >= HOURLY_MODERATE_MM
+    );
+  if (upcoming.length === 0) return null;
+  const peak = Math.max(...upcoming.map((f) => f.mm));
+  const startsIn = (upcoming[0].endsAt - HOUR_MS - now) / HOUR_MS;
+  return {
+    key: "rain",
+    level: "raised",
+    label:
+      startsIn < 0.5
+        ? `${intensityLabel(peak)} forecast now`
+        : `${intensityLabel(peak)} due in ~${Math.round(startsIn)}h`,
+  };
+};
+
+const spills = (n: number) => (n === 1 ? "Spill" : `${n} spills`);
+
+export const derivePollutionRisk = (
+  cso: CsoResponse,
+  rainfall: RainfallResponse | null,
+  now: number = Date.now()
+): PollutionRisk => {
+  let passing = 0;
+  let lingering = 0;
+  let arriving = 0;
+  let soonest = Infinity;
+
+  for (const outfall of cso.outfalls) {
+    if (outfall.state !== "Ongoing" && outfall.state !== "Recent") continue;
+    const timing = plumeTiming(outfall, now);
+    if (!timing) continue;
+    if (timing.phase === "passing") passing++;
+    else if (timing.phase === "lingering") lingering++;
+    else {
+      arriving++;
+      soonest = Math.min(soonest, timing.hoursUntil);
+    }
+  }
+
+  const factors: PollutionRiskFactor[] = [];
+  if (passing > 0) {
+    factors.push({
+      key: "passing",
+      level: "high",
+      label: `${spills(passing)} passing Worcester`,
+    });
+  }
+  if (arriving > 0) {
+    factors.push({
+      key: "arriving",
+      level: "raised",
+      label: `${spills(arriving)} due in ~${Math.max(1, Math.round(soonest))}h`,
+    });
+  }
+  if (lingering > 0) {
+    factors.push({
+      key: "lingering",
+      level: "raised",
+      label: `${spills(lingering)} passed in last ${SEWAGE_RECENT_SPILL_BASE_HOURS}h`,
+    });
+  }
+
+  const rain = rainfall ? rainFactor(rainfall, now) : null;
+  if (rain) factors.push(rain);
+
+  return { level: factors[0]?.level ?? "lower", factors };
+};
