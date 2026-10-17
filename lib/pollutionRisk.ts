@@ -1,19 +1,24 @@
-import { CsoOutfall, CsoResponse } from "@/types";
+import { CsoOutfall, CsoResponse, RainfallResponse } from "@/types";
 import {
   CATCHMENT_WAYPOINTS,
   SEWAGE_RECENT_SPILL_BASE_HOURS,
 } from "@/lib/config";
 import { plumeTravelHoursFor } from "@/lib/catchment";
-import { HOUR_MS } from "@/lib/rainfallAnalysis";
+import {
+  HOURLY_HEAVY_MM,
+  HOURLY_MODERATE_MM,
+  HOUR_MS,
+  sumRecentMm,
+} from "@/lib/rainfallAnalysis";
 
-// A pollution risk for the reach, derived from where each monitored spill's
-// water is relative to it: on its way down, passing through, or gone by but
-// still inside the 48 h tail (SEWAGE_RECENT_SPILL_BASE_HOURS).
+// A pollution risk for the reach, derived from two things:
 //
-// Built only from the spill feed and the travel times in lib/config.ts.
-// Rainfall is deliberately left out: there is no published UK threshold for
-// how much rain fouls a river (the EA's pollution risk forecasts are
-// calibrated per bathing water), so any cut-off here would be invented.
+// - Where each monitored spill's water is relative to it: on its way down,
+//   passing through, or gone by but still inside the 48 h tail
+//   (SEWAGE_RECENT_SPILL_BASE_HOURS).
+// - Rain falling, or about to fall, on the catchment at the rainfall chart's
+//   moderate or heavy intensity. Combined sewers start to overflow within
+//   hours of rain like that, usually before the spill feed shows it.
 //
 // Nothing here measures bacteria, so the bottom of the scale is "lower",
 // never "safe".
@@ -61,10 +66,61 @@ const plumeTiming = (
   return { phase: "lingering", hoursUntil: 0 };
 };
 
+// How far ahead the forecast counts as rain "about to fall". Open-Meteo's
+// hourly value is the total for the hour ending at its timestamp.
+const RAIN_LOOKAHEAD_HOURS = 3;
+
+const intensityLabel = (mmPerHour: number) =>
+  mmPerHour >= HOURLY_HEAVY_MM ? "Heavy rain" : "Moderate rain";
+
+// Measured rain in the last hour at any gauge, else forecast rain in the
+// next few hours - both read against the chart's mm/hr bands. The EA's
+// gauges report in batches, so the forecast is often the only sight of rain
+// that is falling right now.
+const rainFactor = (
+  rainfall: RainfallResponse,
+  now: number
+): PollutionRiskFactor | null => {
+  const measured = rainfall.gauges
+    .map((gauge) => ({ gauge, mm: sumRecentMm(gauge, HOUR_MS, 0, now) }))
+    .reduce<{ gauge: { label: string }; mm: number } | null>(
+      (a, b) => (a === null || b.mm > a.mm ? b : a),
+      null
+    );
+  if (measured && measured.mm >= HOURLY_MODERATE_MM) {
+    return {
+      key: "rain",
+      level: "raised",
+      label: `${intensityLabel(measured.mm)} at ${measured.gauge.label}`,
+    };
+  }
+
+  const upcoming = rainfall.forecast
+    .map((f) => ({ endsAt: Date.parse(f.dateTime), mm: f.valueMm }))
+    .filter(
+      (f) =>
+        f.endsAt > now &&
+        f.endsAt <= now + RAIN_LOOKAHEAD_HOURS * HOUR_MS &&
+        f.mm >= HOURLY_MODERATE_MM
+    );
+  if (upcoming.length === 0) return null;
+  const peak = Math.max(...upcoming.map((f) => f.mm));
+  const startsIn = (upcoming[0].endsAt - HOUR_MS - now) / HOUR_MS;
+  return {
+    key: "rain",
+    level: "raised",
+    label:
+      startsIn < 0.5
+        ? `${intensityLabel(peak)} forecast now`
+        : `${intensityLabel(peak)} due in ~${Math.round(startsIn)}h`,
+  };
+};
+
 const spills = (n: number) => (n === 1 ? "Spill" : `${n} spills`);
 
 export const derivePollutionRisk = (
   cso: CsoResponse,
+  rainfall: RainfallResponse | null,
   now: number = Date.now()
 ): PollutionRisk => {
   let passing = 0;
@@ -106,6 +162,9 @@ export const derivePollutionRisk = (
       label: `${spills(lingering)} passed in last ${SEWAGE_RECENT_SPILL_BASE_HOURS}h`,
     });
   }
+
+  const rain = rainfall ? rainFactor(rainfall, now) : null;
+  if (rain) factors.push(rain);
 
   return { level: factors[0]?.level ?? "lower", factors };
 };

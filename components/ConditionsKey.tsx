@@ -48,7 +48,7 @@ const RISK_KEY = [
   {
     label: "Raised Risk",
     color: STATUS_COLORS.amber,
-    description: `A spill is on its way down, or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours.`,
+    description: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, or moderate or heavy rain is falling or due within a few hours.`,
   },
   {
     label: "Lower Risk",
