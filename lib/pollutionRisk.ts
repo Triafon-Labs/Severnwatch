@@ -45,8 +45,11 @@ const LEVEL_ORDER: PollutionRiskLevel[] = ["high", "raised", "lower"];
 // Rain over this in the trailing window lifts the risk on its own, spills or
 // no spills: runoff off fields and roads carries faecal bacteria too, and
 // not every overflow in the corridor is monitored. The 48 h window matches
-// the spill tail and the usual "48 hours after heavy rain" swimming advice;
-// the threshold is the Met Office's wet-day line.
+// the spill tail and SAS's 48 h overflow alerts. The 10 mm is a judgement
+// call borrowed from the R10mm heavy-precipitation-day index, not a
+// published trigger: the EA's own bathing water pollution risk forecasts
+// use rainfall models calibrated per site, and there is no national
+// figure for "enough rain to foul a river".
 export const RISK_RAIN_WINDOW_HOURS = 48;
 export const RISK_RAIN_THRESHOLD_MM = DAILY_MODERATE_MM;
 

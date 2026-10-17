@@ -7,12 +7,18 @@ import { RainfallForecastPoint, RainfallGaugeData } from "@/types";
 //   commonly used light/moderate boundary, not a Met Office definition, and
 //   other Met Office products use different cut-offs (its spot data calls
 //   anything over 1 mm/hr heavy). The Conditions Key words them to match.
-// - Daily totals: 10 mm/day represents a wet day (moderate threshold) and 25 mm/day represents a very wet day (heavy threshold).
-// These UK Met Office standard thresholds reflect conditions where surface runoff and sewer capacity triggers are increasingly likely.
+// - Daily totals: 10 mm and 20 mm, the two fixed-threshold indices of the
+//   WMO's ETCCDI climate-extremes set (R10mm "heavy precipitation days",
+//   R20mm "very heavy precipitation days"), which the Met Office's own
+//   HadEX datasets carry and whose 10 mm count it maps for the UK. The
+//   heavier line used to be 25 mm, described as a Met Office index - there
+//   is no such index; 20 mm is the standard one. Neither is a sewer-specific
+//   trigger: when a CSO spills depends on the catchment and how wet it
+//   already is, not on a national rainfall figure.
 export const HOURLY_MODERATE_MM = 0.5; // mm/hr - moderate rain rate (0.5 - 4 mm/hr)
 export const HOURLY_HEAVY_MM = 4; // mm/hr - heavy rain rate (Met Office radar guidance: >= 4 mm/hr)
-export const DAILY_MODERATE_MM = 10; // mm/day - wet day threshold (Met Office climate index RR >= 10mm)
-export const DAILY_HEAVY_MM = 25; // mm/day - very wet day threshold (Met Office climate index RR >= 25mm)
+export const DAILY_MODERATE_MM = 10; // mm/day - ETCCDI R10mm, heavy precipitation day
+export const DAILY_HEAVY_MM = 20; // mm/day - ETCCDI R20mm, very heavy precipitation day
 
 export const HOUR_MS = 60 * 60 * 1000;
 export const DAY_MS = 24 * HOUR_MS;
