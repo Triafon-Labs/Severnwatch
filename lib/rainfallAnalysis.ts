@@ -205,9 +205,9 @@ export const buildForecastSeries = (
 export const sumRecentMm = (
   gauge: RainfallGaugeData,
   windowMs: number,
-  offsetMs = 0,
-  now = Date.now()
+  offsetMs = 0
 ): number => {
+  const now = Date.now();
   const to = now - offsetMs;
   const from = to - windowMs;
   const total = gauge.readings
@@ -217,6 +217,24 @@ export const sumRecentMm = (
     })
     .reduce((sum, r) => sum + r.valueMm, 0);
   return Math.round(total * 10) / 10;
+};
+
+// The highest rate a gauge recorded in a past window, in mm/hr - the same
+// mm/15min x 4 conversion the intensity chart draws, so a short burst reads
+// as the rate it fell at rather than being averaged into its hour.
+export const peakRateMmPerHour = (
+  gauge: RainfallGaugeData,
+  windowMs: number,
+  now = Date.now()
+): number => {
+  const from = now - windowMs;
+  const peak = gauge.readings
+    .filter((r) => {
+      const t = new Date(r.dateTime).getTime();
+      return t > from && t <= now;
+    })
+    .reduce((max, r) => Math.max(max, r.valueMm), 0);
+  return Math.round(peak * 4 * 10) / 10;
 };
 
 export const calculateForecast24hTotal = (

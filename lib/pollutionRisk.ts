@@ -8,7 +8,7 @@ import {
   HOURLY_HEAVY_MM,
   HOURLY_MODERATE_MM,
   HOUR_MS,
-  sumRecentMm,
+  peakRateMmPerHour,
 } from "@/lib/rainfallAnalysis";
 
 // A pollution risk for the reach, derived from two things:
@@ -73,8 +73,11 @@ const RAIN_LOOKAHEAD_HOURS = 3;
 const intensityLabel = (mmPerHour: number) =>
   mmPerHour >= HOURLY_HEAVY_MM ? "Heavy rain" : "Moderate rain";
 
-// Measured rain in the last hour at any gauge, else forecast rain in the
-// next few hours - both read against the chart's mm/hr bands. The EA's
+// The peak 15-minute rate any gauge measured in the last hour, else forecast
+// rain in the next few hours - both read against the chart's mm/hr bands.
+// The peak rather than the hour's total, because a thunderstorm burst that
+// overwhelms a sewer in fifteen minutes is diluted to "moderate" or less
+// once it's averaged over the hour. The EA's
 // gauges report in batches, so the forecast is often the only sight of rain
 // that is falling right now.
 const rainFactor = (
@@ -82,7 +85,7 @@ const rainFactor = (
   now: number
 ): PollutionRiskFactor | null => {
   const measured = rainfall.gauges
-    .map((gauge) => ({ gauge, mm: sumRecentMm(gauge, HOUR_MS, 0, now) }))
+    .map((gauge) => ({ gauge, mm: peakRateMmPerHour(gauge, HOUR_MS, now) }))
     .reduce<{ gauge: { label: string }; mm: number } | null>(
       (a, b) => (a === null || b.mm > a.mm ? b : a),
       null
