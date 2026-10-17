@@ -102,29 +102,35 @@ export const isExcludedLocality = (locationName: string | null): boolean => {
   );
 };
 
-// Rough hours for an outfall's spill to reach the top of the reach.
+// Rough hours for an outfall's spill to reach the top of the reach, as a
+// range rather than one figure.
 //
 // A waypoint's plumeTravelHours is measured from the waypoint itself, but an
 // outfall can sit anywhere within its radius - up to 6 km away, which at the
-// nominal speed is the best part of nine hours of river. Applying the
-// waypoint's figure as-is therefore shortchanged everything near the
-// upstream edge of a circle: a Droitwich outfall at the far end of the
-// Salwarpe circle got the same 6 h as one beside the confluence. Adding the
-// straight-line distance back on, without knowing whether the outfall is
-// upstream or downstream of its waypoint, errs long - which is the safe way
-// to be wrong here (see plumeTravelHours). Inside the reach it stays zero:
-// the water is already where people are.
-export const plumeTravelHoursFor = (
+// nominal speed is the best part of nine hours of river - and we don't know
+// whether it is upstream or downstream of its waypoint. So the distance
+// widens the window both ways: `earliest` (it could be that much closer) is
+// when the water may start arriving, and `latest` (it could be that much
+// further) is when it has certainly gone by. Using only the long end, as
+// this first did, was safe for how long a spill stays Recent but delayed
+// the moment it was called "passing" - by up to ten hours for an outfall
+// just above Bevere. Inside the reach both are zero: the water is already
+// where people are.
+export const plumeTravelRangeFor = (
   waypoint: CatchmentWaypoint,
   distanceKm: number
-): number =>
-  waypoint.isReach
-    ? 0
-    : waypoint.plumeTravelHours + Math.ceil(distanceKm / PLUME_SPEED_KMH);
+): { earliest: number; latest: number } => {
+  if (waypoint.isReach) return { earliest: 0, latest: 0 };
+  const spread = distanceKm / PLUME_SPEED_KMH;
+  return {
+    earliest: Math.max(0, Math.floor(waypoint.plumeTravelHours - spread)),
+    latest: Math.ceil(waypoint.plumeTravelHours + spread),
+  };
+};
 
 // The longest travel time any in-scope outfall can be given - the furthest
 // waypoint plus its whole radius. Used where the app has to quote an upper
 // bound without a specific outfall in hand (the Conditions Key).
 export const MAX_PLUME_TRAVEL_HOURS = Math.max(
-  ...CATCHMENT_WAYPOINTS.map((w) => plumeTravelHoursFor(w, w.radiusKm))
+  ...CATCHMENT_WAYPOINTS.map((w) => plumeTravelRangeFor(w, w.radiusKm).latest)
 );

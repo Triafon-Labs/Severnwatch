@@ -17,8 +17,8 @@ export const SEWAGE_API_URL =
   "https://services1.arcgis.com/NO7lTIlnxRMMG9Gw/arcgis/rest/services/Severn_Trent_Water_Storm_Overflow_Activity/FeatureServer/0/query";
 
 // How long a spill stays "recent" *after its water has reached the reach* -
-// the tail on top of each outfall's travel time (see plumeTravelHoursFor in
-// lib/catchment.ts), not the whole window. A spill at Bewdley is therefore
+// the tail on top of each outfall's latest travel time (see
+// plumeTravelRangeFor in lib/catchment.ts), not the whole window. A spill at Bewdley is therefore
 // surfaced far longer than one at Diglis, because its water arrives far
 // later.
 //
@@ -74,8 +74,8 @@ export interface CatchmentWaypoint {
   //
   // ESTIMATE, not a measurement. Derived from river distance along the
   // Severn/Stour/Salwarpe at a nominal PLUME_SPEED_KMH, measured from the
-  // waypoint itself - plumeTravelHoursFor in lib/catchment.ts adds an
-  // allowance for outfalls sitting out towards the edge of the radius.
+  // waypoint itself - plumeTravelRangeFor in lib/catchment.ts widens it for
+  // outfalls sitting out towards the edge of the radius.
   //
   // That speed is NOT the slow end of the range, though it used to be
   // described as one. Flood warnings put the *flood peak* Bewdley to

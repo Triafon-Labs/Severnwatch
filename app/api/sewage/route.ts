@@ -9,7 +9,7 @@ import {
 import {
   nearestWaypoint,
   isExcludedLocality,
-  plumeTravelHoursFor,
+  plumeTravelRangeFor,
   NearestWaypoint,
 } from "@/lib/catchment";
 import { formatWatercourse } from "@/lib/format";
@@ -108,7 +108,7 @@ export async function GET() {
     // from the app *before* the water got here, which is precisely backwards.
     const recentCutoffMsFor = (nearest: NearestWaypoint) =>
       (SEWAGE_RECENT_SPILL_BASE_HOURS +
-        plumeTravelHoursFor(nearest.waypoint, nearest.distanceKm)) *
+        plumeTravelRangeFor(nearest.waypoint, nearest.distanceKm).latest) *
       60 *
       60 *
       1000;

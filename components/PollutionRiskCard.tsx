@@ -22,10 +22,11 @@ import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
   PollutionRiskFactor,
+  PollutionRiskFactorKey,
   PollutionRiskLevel,
+  RISK_LEVEL_UI,
   derivePollutionRisk,
 } from "@/lib/pollutionRisk";
-import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
 import {
   collapseMotion,
   m3Spring,
@@ -38,33 +39,13 @@ import InfoPanel from "@/components/InfoPanel";
 // The scale strip, best to worst, the way it reads left to right.
 const RISK_SCALE: PollutionRiskLevel[] = ["lower", "raised", "high"];
 
-// Same hues the spill states use (lib/csoStatus.ts), so "High" here is the
-// red a discharging overflow is everywhere else on the page.
-const RISK_UI: Record<
-  PollutionRiskLevel,
-  { label: string; color: string; onColor: string; Icon: React.ElementType }
-> = {
-  high: {
-    label: "High Risk",
-    color: STATUS_COLORS.red,
-    onColor: ON_STATUS_COLORS.red,
-    Icon: ReportProblemIcon,
-  },
-  raised: {
-    label: "Raised Risk",
-    color: STATUS_COLORS.amber,
-    onColor: ON_STATUS_COLORS.amber,
-    Icon: WarningAmberIcon,
-  },
-  lower: {
-    label: "Lower Risk",
-    color: STATUS_COLORS.darkGreen,
-    onColor: ON_STATUS_COLORS.darkGreen,
-    Icon: CheckCircleOutlineIcon,
-  },
+const RISK_ICONS: Record<PollutionRiskLevel, React.ElementType> = {
+  high: ReportProblemIcon,
+  raised: WarningAmberIcon,
+  lower: CheckCircleOutlineIcon,
 };
 
-const FACTOR_ICONS: Record<string, React.ElementType> = {
+const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
   passing: WavesIcon,
   arriving: ScheduleIcon,
   lingering: HistoryIcon,
@@ -74,7 +55,8 @@ const FACTOR_ICONS: Record<string, React.ElementType> = {
 // Matches Paddlecheck's PaddlingStatusHero: the label alone in the status
 // colour, with the scale as a strip underneath.
 const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
-  const ui = RISK_UI[level];
+  const ui = RISK_LEVEL_UI[level];
+  const Icon = RISK_ICONS[level];
 
   return (
     <Box>
@@ -88,7 +70,7 @@ const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
           transition: spring("background-color", m3Spring.effectsDefault),
         }}
       >
-        <ui.Icon sx={{ fontSize: { xs: 40, sm: 56 }, flexShrink: 0 }} />
+        <Icon sx={{ fontSize: { xs: 40, sm: 56 }, flexShrink: 0 }} />
         <Typography
           variant="h3"
           component="p"
@@ -115,12 +97,12 @@ const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
           return (
             <Box
               key={l}
-              title={RISK_UI[l].label}
+              title={RISK_LEVEL_UI[l].label}
               sx={{
                 flex: isActive ? 2.2 : 1,
                 height: isActive ? 10 : 6,
                 borderRadius: 9999,
-                backgroundColor: RISK_UI[l].color,
+                backgroundColor: RISK_LEVEL_UI[l].color,
                 opacity: isActive ? 1 : 0.32,
                 transition: [
                   spring("flex-grow, height", m3Spring.spatialDefault),

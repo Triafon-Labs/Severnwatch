@@ -13,6 +13,7 @@ import { CSO_STATE_UI, CSO_STATE_ORDER } from "@/lib/csoStatus";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
 import { SEWAGE_RECENT_SPILL_BASE_HOURS } from "@/lib/config";
 import { MAX_PLUME_TRAVEL_HOURS } from "@/lib/catchment";
+import { PollutionRiskLevel, RISK_LEVEL_UI } from "@/lib/pollutionRisk";
 import { HOURLY_HEAVY_MM, HOURLY_MODERATE_MM } from "@/lib/rainfallAnalysis";
 import { SERIES_COLORS } from "@/lib/chartColors";
 import { useResolvedColorScheme } from "@/lib/ThemeContext";
@@ -38,28 +39,14 @@ const STATE_DESCRIPTIONS: Record<CsoState, string> = {
     "No spill now, and none recent enough to still be on its way down to Worcester.",
 };
 
-// The headline card's three levels (see lib/pollutionRisk.ts).
-const RISK_KEY = [
-  {
-    label: "High Risk",
-    color: STATUS_COLORS.red,
-    description: "Water from a spill is estimated to be passing Worcester.",
-  },
-  {
-    label: "Raised Risk",
-    color: STATUS_COLORS.amber,
-    description: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, or moderate or heavy rain is falling or due within a few hours.`,
-  },
-  {
-    label: "Lower Risk",
-    color: STATUS_COLORS.darkGreen,
-    description: "No monitored spills affecting Worcester. Not a water test.",
-  },
-];
+// What each of the headline card's levels means (see lib/pollutionRisk.ts).
+const RISK_DESCRIPTIONS: Record<PollutionRiskLevel, string> = {
+  high: "Water from a spill is estimated to be passing Worcester.",
+  raised: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, or moderate or heavy rain is falling or due within a few hours.`,
+  lower: "No monitored spills affecting Worcester. Not a water test.",
+};
 
-const StatusDisc: React.FC<{ color: string }> = ({ color }) => (
-  <Box sx={{ width: 16, height: 16, borderRadius: "50%", bgcolor: color }} />
-);
+const RISK_ORDER: PollutionRiskLevel[] = ["high", "raised", "lower"];
 
 const SectionHeading: React.FC<{
   children: React.ReactNode;
@@ -173,12 +160,12 @@ const ConditionsKey: React.FC = () => {
   return (
     <>
       <SectionHeading first>Pollution Risk</SectionHeading>
-      {RISK_KEY.map((row) => (
+      {RISK_ORDER.map((level) => (
         <KeyRow
-          key={row.label}
-          lead={<StatusDisc color={row.color} />}
-          label={row.label}
-          description={row.description}
+          key={level}
+          lead={<MapDot color={RISK_LEVEL_UI[level].color} />}
+          label={RISK_LEVEL_UI[level].label}
+          description={RISK_DESCRIPTIONS[level]}
         />
       ))}
 
