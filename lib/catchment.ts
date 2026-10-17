@@ -3,6 +3,7 @@ import {
   CATCHMENT_EXCLUDED_LOCALITIES,
   CATCHMENT_EXCLUDED_WATERCOURSES,
   CatchmentWaypoint,
+  PLUME_SPEED_KMH,
   RiverBranchId,
 } from "@/lib/config";
 
@@ -37,9 +38,7 @@ export interface NearestWaypoint {
 // schematic place the outfall as a stop on the right branch, in the right
 // order, without needing river-network topology we don't have.
 // Check if a watercourse drains away from or outside the catchment corridor
-export const isExcludedWatercourse = (
-  watercourse?: string | null
-): boolean => {
+export const isExcludedWatercourse = (watercourse?: string | null): boolean => {
   if (!watercourse) return false;
   const upper = watercourse.toUpperCase();
   return CATCHMENT_EXCLUDED_WATERCOURSES.some((excluded) =>
@@ -102,3 +101,30 @@ export const isExcludedLocality = (locationName: string | null): boolean => {
     lower.includes(excluded)
   );
 };
+
+// Rough hours for an outfall's spill to reach the top of the reach.
+//
+// A waypoint's plumeTravelHours is measured from the waypoint itself, but an
+// outfall can sit anywhere within its radius - up to 6 km away, which at the
+// nominal speed is the best part of nine hours of river. Applying the
+// waypoint's figure as-is therefore shortchanged everything near the
+// upstream edge of a circle: a Droitwich outfall at the far end of the
+// Salwarpe circle got the same 6 h as one beside the confluence. Adding the
+// straight-line distance back on, without knowing whether the outfall is
+// upstream or downstream of its waypoint, errs long - which is the safe way
+// to be wrong here (see plumeTravelHours). Inside the reach it stays zero:
+// the water is already where people are.
+export const plumeTravelHoursFor = (
+  waypoint: CatchmentWaypoint,
+  distanceKm: number
+): number =>
+  waypoint.isReach
+    ? 0
+    : waypoint.plumeTravelHours + Math.ceil(distanceKm / PLUME_SPEED_KMH);
+
+// The longest travel time any in-scope outfall can be given - the furthest
+// waypoint plus its whole radius. Used where the app has to quote an upper
+// bound without a specific outfall in hand (the Conditions Key).
+export const MAX_PLUME_TRAVEL_HOURS = Math.max(
+  ...CATCHMENT_WAYPOINTS.map((w) => plumeTravelHoursFor(w, w.radiusKm))
+);

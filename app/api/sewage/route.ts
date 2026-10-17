@@ -6,7 +6,12 @@ import {
   SEWAGE_MAX_RESULTS,
   CSO_SITE_OVERRIDES,
 } from "@/lib/config";
-import { nearestWaypoint, isExcludedLocality } from "@/lib/catchment";
+import {
+  nearestWaypoint,
+  isExcludedLocality,
+  plumeTravelHoursFor,
+  NearestWaypoint,
+} from "@/lib/catchment";
 import { formatWatercourse } from "@/lib/format";
 
 // Cache the completed response, including reverse-geocoded place names. The
@@ -101,8 +106,9 @@ export async function GET() {
     // whether its water has arrived yet - and since a plume from Bewdley can
     // take better than a day to reach the reach, a 24 h window dropped it
     // from the app *before* the water got here, which is precisely backwards.
-    const recentCutoffMsFor = (waypoint: { plumeTravelHours: number }) =>
-      (SEWAGE_RECENT_SPILL_BASE_HOURS + waypoint.plumeTravelHours) *
+    const recentCutoffMsFor = (nearest: NearestWaypoint) =>
+      (SEWAGE_RECENT_SPILL_BASE_HOURS +
+        plumeTravelHoursFor(nearest.waypoint, nearest.distanceKm)) *
       60 *
       60 *
       1000;
@@ -122,8 +128,7 @@ export async function GET() {
         } else if (attributes.Status === 0) {
           state =
             attributes.LatestEventEnd !== null &&
-            now - attributes.LatestEventEnd <=
-              recentCutoffMsFor(nearest.waypoint)
+            now - attributes.LatestEventEnd <= recentCutoffMsFor(nearest)
               ? "Recent"
               : "Not discharging";
         } else {

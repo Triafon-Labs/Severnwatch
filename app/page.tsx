@@ -1,5 +1,5 @@
 import { Container, Stack } from "@mui/material";
-import CsoSpillCard from "@/components/CsoSpillCard";
+import PollutionRiskCard from "@/components/PollutionRiskCard";
 import CsoListCard from "@/components/CsoListCard";
 import RainfallCard from "@/components/RainfallCard";
 import WaterQualityMap from "@/components/WaterQualityMap";
@@ -12,7 +12,7 @@ export default function HomePage() {
     // panels rather than one dashboard.
     <Container maxWidth="md" sx={{ px: 2 }}>
       <Stack spacing={2}>
-        <CsoSpillCard />
+        <PollutionRiskCard />
         <CsoListCard />
         <RainfallCard />
         <WaterQualityMap />

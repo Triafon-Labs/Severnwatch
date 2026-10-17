@@ -199,9 +199,9 @@ export const buildForecastSeries = (
 export const sumRecentMm = (
   gauge: RainfallGaugeData,
   windowMs: number,
-  offsetMs = 0
+  offsetMs = 0,
+  now = Date.now()
 ): number => {
-  const now = Date.now();
   const to = now - offsetMs;
   const from = to - windowMs;
   const total = gauge.readings
