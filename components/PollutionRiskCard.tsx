@@ -5,6 +5,7 @@ import {
   Box,
   Card,
   CardContent,
+  Collapse,
   Grow,
   Skeleton,
   Stack,
@@ -14,15 +15,22 @@ import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import WavesIcon from "@mui/icons-material/Waves";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import HistoryIcon from "@mui/icons-material/History";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
-  PollutionRisk,
+  PollutionRiskFactor,
   PollutionRiskLevel,
   derivePollutionRisk,
 } from "@/lib/pollutionRisk";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
-import { m3Spring, spring, springTransition } from "@/lib/m3-palette";
+import {
+  collapseMotion,
+  m3Spring,
+  spring,
+  springTransition,
+} from "@/lib/m3-palette";
 import { useNowTicking } from "@/lib/time";
 import InfoPanel from "@/components/InfoPanel";
 
@@ -55,14 +63,16 @@ const RISK_UI: Record<
   },
 };
 
-const RiskHero: React.FC<{ risk: PollutionRisk }> = ({ risk }) => {
-  const ui = RISK_UI[risk.level];
-  const otherLevels = RISK_SCALE.filter((l) => l !== risk.level)
-    .map((l) => RISK_UI[l].label)
-    .join(" and ");
-  const fullAriaLabel = `Pollution risk scale: ${ui.label}, step ${
-    RISK_SCALE.indexOf(risk.level) + 1
-  } of ${RISK_SCALE.length}. Other levels are ${otherLevels}.`;
+const FACTOR_ICONS: Record<string, React.ElementType> = {
+  passing: WavesIcon,
+  arriving: ScheduleIcon,
+  lingering: HistoryIcon,
+};
+
+// Matches Paddlecheck's PaddlingStatusHero: the label alone in the status
+// colour, with the scale as a strip underneath.
+const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
+  const ui = RISK_UI[level];
 
   return (
     <Box>
@@ -77,47 +87,38 @@ const RiskHero: React.FC<{ risk: PollutionRisk }> = ({ risk }) => {
         }}
       >
         <ui.Icon sx={{ fontSize: { xs: 40, sm: 56 }, flexShrink: 0 }} />
-        <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
-          <Typography
-            variant="h3"
-            component="p"
-            sx={{
-              fontWeight: 500,
-              lineHeight: 1.1,
-              fontSize: { xs: "1.625rem", sm: "2rem" },
-            }}
-          >
-            {ui.label}
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              fontWeight: 500,
-              opacity: 0.9,
-              fontSize: { xs: "0.95rem", sm: "1.1rem" },
-            }}
-          >
-            From spills and rainfall
-          </Typography>
-        </Stack>
+        <Typography
+          variant="h3"
+          component="p"
+          sx={{
+            minWidth: 0,
+            fontWeight: 500,
+            lineHeight: 1.1,
+            fontSize: { xs: "1.625rem", sm: "2rem" },
+          }}
+        >
+          {ui.label}
+        </Typography>
       </InfoPanel>
 
       <Box
         role="img"
-        aria-label={fullAriaLabel}
+        aria-label={`Pollution risk scale: ${ui.label}, step ${
+          RISK_SCALE.indexOf(level) + 1
+        } of ${RISK_SCALE.length}`}
         sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 1.5 }}
       >
-        {RISK_SCALE.map((level) => {
-          const isActive = level === risk.level;
+        {RISK_SCALE.map((l) => {
+          const isActive = l === level;
           return (
             <Box
-              key={level}
-              title={RISK_UI[level].label}
+              key={l}
+              title={RISK_UI[l].label}
               sx={{
                 flex: isActive ? 2.2 : 1,
                 height: isActive ? 10 : 6,
                 borderRadius: 9999,
-                backgroundColor: RISK_UI[level].color,
+                backgroundColor: RISK_UI[l].color,
                 opacity: isActive ? 1 : 0.32,
                 transition: [
                   spring("flex-grow, height", m3Spring.spatialDefault),
@@ -132,58 +133,48 @@ const RiskHero: React.FC<{ risk: PollutionRisk }> = ({ risk }) => {
   );
 };
 
-// Why the level is what it is, then what would change how far to trust it.
-// The closing line is not optional: without it a green panel reads as a
-// water test that came back clean.
-const RiskDetail: React.FC<{ risk: PollutionRisk }> = ({ risk }) => (
-  <Stack spacing={1} sx={{ mt: 2 }}>
-    {risk.reasons.map((reason) => {
-      const ui = RISK_UI[reason.level];
-      return (
-        <Box
-          key={reason.text}
-          sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}
-        >
-          <ui.Icon
-            fontSize="small"
-            sx={{ color: ui.color, flexShrink: 0, mt: "1px" }}
-          />
-          <Typography variant="body2">{reason.text}</Typography>
-        </Box>
-      );
-    })}
-    {risk.caveats.map((caveat) => (
-      <Box
-        key={caveat}
-        sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}
-      >
-        <InfoOutlinedIcon
-          fontSize="small"
-          sx={{ color: "text.secondary", flexShrink: 0, mt: "1px" }}
-        />
-        <Typography variant="body2" color="text.secondary">
-          {caveat}
-        </Typography>
-      </Box>
-    ))}
-    <Typography variant="caption" color="text.secondary" sx={{ pt: 0.5 }}>
-      Not a water test. Nothing here measures bacteria, and the river can be
-      polluted on a lower-risk day - see the citizen science results below.
+// Paddlecheck's Contributing Factors grid: short tonal panels, two across,
+// with an odd last one spanning the row.
+const ContributingFactors: React.FC<{ factors: PollutionRiskFactor[] }> = ({
+  factors,
+}) => (
+  <Box sx={{ mt: 2 }}>
+    <Typography variant="subtitle2" color="text.secondary">
+      Contributing Factors
     </Typography>
-  </Stack>
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, 1fr)",
+        gap: 1,
+        mt: 1,
+        "& > *:last-of-type:nth-of-type(odd)": { gridColumn: "1 / -1" },
+      }}
+    >
+      {factors.map(({ key, label }) => {
+        const Icon = FACTOR_ICONS[key];
+        return (
+          <InfoPanel key={key}>
+            <Icon fontSize="small" sx={{ color: "primary.main" }} />
+            <Typography variant="body2">{label}</Typography>
+          </InfoPanel>
+        );
+      })}
+    </Box>
+  </Box>
 );
 
 const PollutionRiskCard: React.FC = () => {
-  const { cso, rainfall, csoError, loading, isRefreshing, isOffline } =
+  const { cso, csoError, loading, isRefreshing, isOffline } =
     useSevernContext();
   const showSkeleton = loading || (isRefreshing && !isOffline);
-  // Ticks so a plume's "due in about N hours" counts down, and moves from
-  // arriving to passing, between fetches.
+  // Ticks so "due in ~N h" counts down, and a spill moves from due to
+  // passing, between fetches.
   const now = useNowTicking();
 
   const risk = useMemo(
-    () => (cso ? derivePollutionRisk(cso, rainfall, now.getTime()) : null),
-    [cso, rainfall, now]
+    () => (cso ? derivePollutionRisk(cso, now.getTime()) : null),
+    [cso, now]
   );
 
   return (
@@ -193,15 +184,14 @@ const PollutionRiskCard: React.FC = () => {
           Water Quality Status
         </Typography>
 
-        {/* Mirrors the hero and its scale strip, so the card doesn't jump
-            when the data lands. The reasons below it vary in length, so
-            only their first line is reserved. */}
+        {/* Mirrors the hero and its scale strip, so the card doesn't change
+            height when the data lands. */}
         {showSkeleton && (
           <Box>
             <Skeleton
               variant="rounded"
               animation="wave"
-              sx={{ height: { xs: 92, sm: 128 }, borderRadius: "28px" }}
+              sx={{ height: { xs: 72, sm: 104 }, borderRadius: "28px" }}
             />
             <Box
               sx={{
@@ -222,7 +212,6 @@ const PollutionRiskCard: React.FC = () => {
                 />
               ))}
             </Box>
-            <Skeleton animation="wave" sx={{ mt: 2 }} />
           </Box>
         )}
 
@@ -233,19 +222,24 @@ const PollutionRiskCard: React.FC = () => {
               sx={{ flexShrink: 0, fontSize: 32 }}
             />
             <Typography variant="body2" color="text.secondary">
-              Couldn&apos;t load sewage spill data right now, and the risk
-              can&apos;t be estimated without it. It&apos;ll retry on the next
-              refresh.
+              Couldn&apos;t load sewage spill data right now. It&apos;ll retry
+              on the next refresh.
             </Typography>
           </InfoPanel>
         )}
 
         {!showSkeleton && risk && (
           <Grow in appear {...springTransition()}>
-            <Box>
-              <RiskHero risk={risk} />
-              <RiskDetail risk={risk} />
-            </Box>
+            <Stack>
+              <RiskHero level={risk.level} />
+              <Collapse
+                in={risk.factors.length > 0}
+                unmountOnExit
+                {...collapseMotion}
+              >
+                <ContributingFactors factors={risk.factors} />
+              </Collapse>
+            </Stack>
           </Grow>
         )}
       </CardContent>

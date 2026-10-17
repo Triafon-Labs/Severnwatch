@@ -14,10 +14,6 @@ import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
 import { SEWAGE_RECENT_SPILL_BASE_HOURS } from "@/lib/config";
 import { MAX_PLUME_TRAVEL_HOURS } from "@/lib/catchment";
 import { HOURLY_HEAVY_MM, HOURLY_MODERATE_MM } from "@/lib/rainfallAnalysis";
-import {
-  RISK_RAIN_THRESHOLD_MM,
-  RISK_RAIN_WINDOW_HOURS,
-} from "@/lib/pollutionRisk";
 import { SERIES_COLORS } from "@/lib/chartColors";
 import { useResolvedColorScheme } from "@/lib/ThemeContext";
 
@@ -42,26 +38,22 @@ const STATE_DESCRIPTIONS: Record<CsoState, string> = {
     "No spill now, and none recent enough to still be on its way down to Worcester.",
 };
 
-// The headline card's three levels (see lib/pollutionRisk.ts). An estimate
-// from spills and rainfall, so every line says what it is built from rather
-// than what the water is like.
+// The headline card's three levels (see lib/pollutionRisk.ts).
 const RISK_KEY = [
   {
     label: "High Risk",
     color: STATUS_COLORS.red,
-    description:
-      "Water from a spill is estimated to be passing Worcester right now.",
+    description: "Water from a spill is estimated to be passing Worcester.",
   },
   {
     label: "Raised Risk",
     color: STATUS_COLORS.amber,
-    description: `A spill is on its way down or went past within the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, or ${RISK_RAIN_THRESHOLD_MM} mm or more of rain fell at a gauge in the last ${RISK_RAIN_WINDOW_HOURS} hours.`,
+    description: `A spill is on its way down, or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours.`,
   },
   {
     label: "Lower Risk",
     color: STATUS_COLORS.darkGreen,
-    description:
-      "None of the above. Not the same as safe - nothing here tests the water.",
+    description: "No monitored spills affecting Worcester. Not a water test.",
   },
 ];
 
