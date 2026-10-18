@@ -242,15 +242,11 @@ const TopNavBar: React.FC = () => {
               minWidth: 0,
             }}
           >
-            {/* Not /favicon.svg: despite the name, that file is a 1024px PNG
-                wrapped in an SVG (914KB), and next/image serves SVGs
-                unoptimised - so a 40px logo was the heaviest download on the
-                page. This PNG is the same artwork, and the only icon both
-                transparent and big enough (favicon.ico is 48px; the 180px
-                and up have white corners). next/image only ever requests it
-                at 48 and 96px (1x/2x) for a fixed 40px image. */}
+            {/* A real vector (~38KB), so it's sharp at any pixel density.
+                next/image serves .svg sources unoptimised automatically, which
+                is what we want here - there's nothing to resize. */}
             <Image
-              src="/favicon-96x96.png"
+              src="/favicon.svg"
               alt="Severnwatch Logo"
               width={40}
               height={40}
