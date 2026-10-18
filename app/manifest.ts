@@ -22,12 +22,10 @@ export default function manifest(): MetadataRoute.Manifest {
     // A plain ("any") and a maskable icon at each of 192 and 512px, as
     // separate entries. Chrome won't offer to install the app without an
     // "any" icon of at least 144px - with only the maskable pair listed, its
-    // installability check failed with manifest-missing-suitable-icon. The
-    // "any" icons are the transparent artwork from favicon.svg, resized;
-    // the maskable ones have the white full-bleed background launchers crop.
-    //
-    // favicon.svg itself is deliberately not listed (Paddlecheck used to list
-    // its own): it is a 1024px PNG wrapped in an SVG, 914KB here, not a vector.
+    // installability check failed with manifest-missing-suitable-icon. All
+    // of them are rendered from favicon.svg: the "any" pair transparent, the
+    // maskable pair on the white full-bleed background launchers crop, with
+    // the logo inside the central 80% safe zone.
     icons: [
       {
         src: "/icon-192.png",

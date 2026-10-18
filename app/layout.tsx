@@ -29,6 +29,8 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
+      // Preferred where supported: a real vector, sharp at any density.
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
       {
         url: "/web-app-manifest-512x512.png",
