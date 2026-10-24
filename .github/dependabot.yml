@@ -11,8 +11,8 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
-    # Counts version-update PRs only. With majors grouped too, the two groups
-    # below always fit, so a pending major can't hold back the monthly batch.
+    # Counts version-update PRs only. Majors open one PR each, so leaving two
+    # of them unmerged holds back the monthly minor/patch batch.
     open-pull-requests-limit: 2
     groups:
       minor-and-patch-dependencies:
@@ -20,10 +20,6 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      major-dependencies:
-        patterns: ["*"]
-        update-types:
-          - "major"
       # Security updates ignore open-pull-requests-limit and the groups above,
       # and open one PR per package (mostly transitive deps) unless grouped.
       security-updates:
@@ -46,7 +42,3 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      major-actions:
-        patterns: ["*"]
-        update-types:
-          - "major"
