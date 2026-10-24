@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import WavesIcon from "@mui/icons-material/Waves";
 import ScheduleIcon from "@mui/icons-material/Schedule";

@@ -14,7 +14,18 @@ updates:
     # Counts version-update PRs only. Majors open one PR each, so leaving three
     # of them unmerged holds back the monthly minor/patch batch.
     open-pull-requests-limit: 3
+    ignore:
+      # typescript-eslint (via eslint-config-next) doesn't support TypeScript 7
+      # yet, so lint crashes on it. Remove once it does.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
+      # MUI packages peer-depend on the same major, so one bumped alone fails
+      # to install. Listed first so its majors land here, not as separate PRs.
+      mui-major:
+        patterns: ["@mui/*"]
+        update-types:
+          - "major"
       minor-and-patch-dependencies:
         patterns: ["*"]
         update-types:

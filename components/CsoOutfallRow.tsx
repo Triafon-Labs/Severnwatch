@@ -65,7 +65,7 @@ const MetaLine: React.FC<{
   icon: React.ReactNode;
   children: React.ReactNode;
 }> = ({ icon, children }) => (
-  <Stack direction="row" spacing={0.5} alignItems="center">
+  <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
     <span
       style={{
         display: "inline-flex",
