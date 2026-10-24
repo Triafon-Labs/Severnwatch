@@ -4,19 +4,38 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-    open-pull-requests-limit: 2
+    # Skip releases younger than a week, so a broken or yanked publish is
+    # usually fixed before it reaches a PR. Security updates ignore this.
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Counts version-update PRs only. Majors open one PR each, so leaving three
+    # of them unmerged holds back the monthly minor/patch batch.
+    open-pull-requests-limit: 3
     groups:
       minor-and-patch-dependencies:
         patterns: ["*"]
         update-types:
           - "minor"
           - "patch"
+      # Security updates ignore open-pull-requests-limit and the groups above,
+      # and open one PR per package (mostly transitive deps) unless grouped.
+      security-updates:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
-    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    open-pull-requests-limit: 3
     groups:
       minor-and-patch-actions:
         patterns: ["*"]
