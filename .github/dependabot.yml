@@ -11,9 +11,9 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
-    # Counts version-update PRs only. Majors open one PR each, so leaving two
+    # Counts version-update PRs only. Majors open one PR each, so leaving three
     # of them unmerged holds back the monthly minor/patch batch.
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 3
     groups:
       minor-and-patch-dependencies:
         patterns: ["*"]
@@ -35,7 +35,7 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 3
     groups:
       minor-and-patch-actions:
         patterns: ["*"]
