@@ -5,7 +5,7 @@ import { Box, Chip, Typography } from "@mui/material";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import HistoryIcon from "@mui/icons-material/History";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import ThunderstormIcon from "@mui/icons-material/Thunderstorm";
 import { CsoState } from "@/types";
@@ -89,7 +89,11 @@ const KeyRow: React.FC<{
           sits on the line boxes of the 16px body text it inherits from the
           Box around it, which spread a wrapped description out well past
           the caption's own line height. */}
-      <Typography variant="caption" color="text.secondary" display="block">
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "block" }}
+      >
         {description}
       </Typography>
     </Box>

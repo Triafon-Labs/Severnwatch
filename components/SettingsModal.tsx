@@ -262,8 +262,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
           <Typography
             variant="caption"
             color="text.secondary"
-            display="block"
-            sx={{ mt: 1 }}
+            sx={{ display: "block", mt: 1 }}
           >
             System follows your device&apos;s light/dark setting.
           </Typography>
