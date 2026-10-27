@@ -35,6 +35,7 @@ import {
 } from "@/lib/m3-palette";
 import { useNowTicking } from "@/lib/time";
 import InfoPanel from "@/components/InfoPanel";
+import StatTile, { tileGridSx } from "@/components/StatTile";
 
 // The scale strip, best to worst, the way it reads left to right.
 const RISK_SCALE: PollutionRiskLevel[] = ["lower", "raised", "high"];
@@ -117,8 +118,8 @@ const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
   );
 };
 
-// Paddlecheck's Contributing Factors grid: short tonal panels, two across,
-// with an odd last one spanning the row.
+// Paddlecheck's Contributing Factors: the shared tile, two across, with an
+// odd last one spanning the row.
 const ContributingFactors: React.FC<{ factors: PollutionRiskFactor[] }> = ({
   factors,
 }) => (
@@ -126,22 +127,17 @@ const ContributingFactors: React.FC<{ factors: PollutionRiskFactor[] }> = ({
     <Typography variant="subtitle2" color="text.secondary">
       Contributing Factors
     </Typography>
-    <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: "repeat(2, 1fr)",
-        gap: 1,
-        mt: 1,
-        "& > *:last-of-type:nth-of-type(odd)": { gridColumn: "1 / -1" },
-      }}
-    >
-      {factors.map(({ key, label }) => {
+    <Box sx={{ ...tileGridSx, mt: 1 }}>
+      {factors.map(({ key, label, value, detail }) => {
         const Icon = FACTOR_ICONS[key];
         return (
-          <InfoPanel key={key}>
-            <Icon fontSize="small" sx={{ color: "primary.main" }} />
-            <Typography variant="body2">{label}</Typography>
-          </InfoPanel>
+          <StatTile
+            key={key}
+            icon={<Icon />}
+            label={label}
+            value={value}
+            detail={detail}
+          />
         );
       })}
     </Box>

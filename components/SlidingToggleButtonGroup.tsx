@@ -33,12 +33,17 @@ const SlidingToggleButtonGroup = React.forwardRef<
     );
   };
 
-  // Re-measure whenever the selection or the set of buttons changes. Wrapped
-  // in queueMicrotask, which still runs before paint, to satisfy the lint rule
-  // against calling setState synchronously in an effect body.
+  // Re-measure whenever the selection or the number of buttons changes. Keyed
+  // on the count rather than `children` itself, which is a new object on
+  // every parent render: that re-measured - forcing a layout of the whole
+  // page - each time the rainfall chart re-rendered for anything. Size
+  // changes are the ResizeObserver's below. queueMicrotask still runs before
+  // paint, it just satisfies the lint rule against calling setState
+  // synchronously in an effect body.
+  const buttonCount = React.Children.count(children);
   useLayoutEffect(() => {
     queueMicrotask(measure);
-  }, [value, children]);
+  }, [value, buttonCount]);
 
   // Buttons are usually fullWidth, so their positions shift on container
   // resize (window resize, orientation change) without `value` changing.

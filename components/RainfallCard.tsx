@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   Divider,
-  Grid,
   Grow,
   Skeleton,
   Stack,
@@ -15,6 +14,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import UpdateIcon from "@mui/icons-material/Update";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
+import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import { RainfallGaugeData } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
@@ -23,6 +23,7 @@ import {
   sumRecentMm,
 } from "@/lib/rainfallAnalysis";
 import InfoPanel from "@/components/InfoPanel";
+import StatTile, { tileGridSx } from "@/components/StatTile";
 import dynamic from "next/dynamic";
 import { springTransition } from "@/lib/m3-palette";
 import { RAINFALL_GAUGES } from "@/lib/config";
@@ -37,44 +38,45 @@ const latestReadingMs = (gauge: RainfallGaugeData): number | null =>
     ? new Date(gauge.readings[gauge.readings.length - 1].dateTime).getTime()
     : null;
 
+// Each tile's rendered height, for the skeletons that stand in for them: the
+// heading and value, and the same with a detail line beneath.
+const TILE_HEIGHT = 75;
+const DETAIL_TILE_HEIGHT = 96;
+
+// The wettest gauge's total over each period - labels as short as
+// Paddlecheck's ("1h Change") and the chart's own range toggle, since a
+// longer one wraps in a half-width tile on a phone.
+const PERIODS: { label: string; ms: number; icon: React.ReactNode }[] = [
+  { label: "Past 1h", ms: HOUR_MS, icon: <HistoryIcon /> },
+  { label: "Past 8h", ms: 8 * HOUR_MS, icon: <HistoryIcon /> },
+  { label: "Past 24h", ms: 24 * HOUR_MS, icon: <HistoryIcon /> },
+  { label: "Past 7d", ms: 7 * 24 * HOUR_MS, icon: <CalendarTodayIcon /> },
+];
+
+// The gauges stack one to a row rather than sharing tileGridSx's two
+// columns: at half width the reading's age wraps onto a line of its own.
+const gaugeListSx = { display: "grid", gap: 1 } as const;
+
+// A gauge's own day of rain, with its newest reading beneath. The reading's
+// own age rather than a fixed "in the last 15 min", which this used to claim
+// for whatever the newest reading was - including one from a gauge that had
+// stopped reporting hours ago.
 const GaugeStat: React.FC<{
   label: string;
   latestMm: number | null;
   latestAgeLabel: string | null;
   last24hTotalMm: number;
 }> = ({ label, latestMm, latestAgeLabel, last24hTotalMm }) => (
-  <InfoPanel
-    align="center"
-    sx={{
-      flexDirection: "column",
-      gap: 0.5,
-      height: "100%",
-      textAlign: "center",
-    }}
-  >
-    <Typography variant="caption" color="text.secondary">
-      {label}
-    </Typography>
-    <Typography variant="h6" component="p">
-      {last24hTotalMm} mm
-      <Typography
-        component="span"
-        variant="caption"
-        color="text.secondary"
-        sx={{ ml: 0.5 }}
-      >
-        last 24h
-      </Typography>
-    </Typography>
-    <Typography variant="caption" color="text.secondary">
-      {/* The reading's own age rather than a fixed "in the last 15 min",
-          which this used to claim for whatever the newest reading was -
-          including one from a gauge that had stopped reporting hours ago. */}
-      {latestMm !== null && latestAgeLabel
-        ? `Latest ${latestMm} mm (${latestAgeLabel})`
-        : "no recent reading"}
-    </Typography>
-  </InfoPanel>
+  <StatTile
+    icon={<WaterDropIcon />}
+    label={label}
+    value={`${last24hTotalMm} mm in 24h`}
+    detail={
+      latestMm !== null && latestAgeLabel
+        ? `Latest ${latestMm} mm · ${latestAgeLabel}`
+        : "No recent reading"
+    }
+  />
 );
 
 // Worst (highest) reading across the catchment's gauges - the number that
@@ -84,46 +86,6 @@ const maxAcrossGauges = (
   gauges: RainfallGaugeData[],
   value: (g: RainfallGaugeData) => number
 ): number => Math.max(...gauges.map(value));
-
-// Same anatomy as Paddlecheck's change tiles (ChangeIndicator in its
-// RiverLevelGraph): 16px inset, a 24px primary icon beside a subtitle2
-// label, then the value in h6 a step below. These used to run a size down on
-// every count - 12px inset, 20px icon, caption label - so the two apps'
-// equivalent tiles didn't read as the same component. Labels are kept as
-// short as Paddlecheck's ("1h Change") and the chart's own range toggle:
-// at this size "Past 24 Hours" wraps in a half-width tile on a phone.
-const PeriodTile: React.FC<{
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}> = ({ label, value, icon = <HistoryIcon /> }) => (
-  <InfoPanel
-    align="center"
-    sx={{
-      flexDirection: "column",
-      justifyContent: "center",
-      gap: 1,
-      p: 2,
-      height: "100%",
-      // Grid items default to min-width: auto, so a long label would hold
-      // the column wider than its share on a narrow phone. Zero lets it wrap.
-      minWidth: 0,
-      textAlign: "center",
-    }}
-  >
-    <Box sx={{ display: "flex", alignItems: "center", color: "primary.main" }}>
-      {icon}
-      <Typography variant="subtitle2" color="text.secondary" sx={{ ml: 0.5 }}>
-        {label}
-      </Typography>
-    </Box>
-    {/* A wet week's "134.4 mm" otherwise splits number from unit in a
-        half-width tile on a 360px phone. */}
-    <Typography variant="h6" component="p" sx={{ whiteSpace: "nowrap" }}>
-      {value}
-    </Typography>
-  </InfoPanel>
-);
 
 // The chart's caption row, range toggle and plot, at their rendered heights.
 // Shared by the card's own skeleton and the placeholder that holds the
@@ -159,25 +121,36 @@ const RainfallChart = dynamic(() => import("@/components/RainfallChart"), {
 // be two blocks totalling under 300px for a card that loads at 800-1000.
 const RainfallCardSkeleton: React.FC = () => (
   <Stack spacing={2} aria-hidden>
-    <Grid container spacing={2}>
+    <Box sx={gaugeListSx}>
       {Array.from({ length: RAINFALL_GAUGES.length }).map((_, i) => (
-        <Grid key={i} size={{ xs: 12, sm: 4 }}>
-          <Skeleton variant="rounded" height={96} animation="wave" />
-        </Grid>
+        <Skeleton
+          key={i}
+          variant="rounded"
+          height={DETAIL_TILE_HEIGHT}
+          animation="wave"
+        />
       ))}
-    </Grid>
+    </Box>
 
     <ChartSkeleton />
 
     <Divider />
 
-    <Grid container spacing={2}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Grid key={i} size={i === 4 ? 12 : 6}>
-          <Skeleton variant="rounded" height={95} animation="wave" />
-        </Grid>
+    <Box sx={tileGridSx}>
+      {PERIODS.map(({ label }) => (
+        <Skeleton
+          key={label}
+          variant="rounded"
+          height={TILE_HEIGHT}
+          animation="wave"
+        />
       ))}
-    </Grid>
+      <Skeleton
+        variant="rounded"
+        height={DETAIL_TILE_HEIGHT}
+        animation="wave"
+      />
+    </Box>
   </Stack>
 );
 
@@ -223,18 +196,17 @@ const RainfallCard: React.FC = () => {
         {!showSkeleton && rainfall && gauges.length > 0 && (
           <Grow in appear {...springTransition()}>
             <Stack spacing={2}>
-              <Grid container spacing={2}>
+              <Box sx={gaugeListSx}>
                 {gauges.map((gauge) => (
-                  <Grid key={gauge.id} size={{ xs: 12, sm: 4 }}>
-                    <GaugeStat
-                      label={gauge.label}
-                      latestMm={gauge.latestMm}
-                      latestAgeLabel={ageLabel(latestReadingMs(gauge))}
-                      last24hTotalMm={gauge.last24hTotalMm}
-                    />
-                  </Grid>
+                  <GaugeStat
+                    key={gauge.id}
+                    label={gauge.label}
+                    latestMm={gauge.latestMm}
+                    latestAgeLabel={ageLabel(latestReadingMs(gauge))}
+                    last24hTotalMm={gauge.last24hTotalMm}
+                  />
                 ))}
-              </Grid>
+              </Box>
 
               <RainfallChart
                 gauges={gauges}
@@ -244,48 +216,24 @@ const RainfallCard: React.FC = () => {
 
               <Divider />
 
-              <Grid container spacing={2}>
-                <Grid size={6}>
-                  <PeriodTile
-                    label="Past 1h"
+              <Box sx={tileGridSx}>
+                {PERIODS.map(({ label, ms, icon }) => (
+                  <StatTile
+                    key={label}
+                    icon={icon}
+                    label={label}
                     value={`${maxAcrossGauges(gauges, (g) =>
-                      sumRecentMm(g, HOUR_MS)
+                      sumRecentMm(g, ms)
                     )} mm`}
                   />
-                </Grid>
-                <Grid size={6}>
-                  <PeriodTile
-                    label="Past 8h"
-                    value={`${maxAcrossGauges(gauges, (g) =>
-                      sumRecentMm(g, 8 * HOUR_MS)
-                    )} mm`}
-                  />
-                </Grid>
-                <Grid size={6}>
-                  <PeriodTile
-                    label="Past 24h"
-                    value={`${maxAcrossGauges(gauges, (g) =>
-                      sumRecentMm(g, 24 * HOUR_MS)
-                    )} mm`}
-                  />
-                </Grid>
-                <Grid size={6}>
-                  <PeriodTile
-                    label="Past 7d"
-                    value={`${maxAcrossGauges(gauges, (g) =>
-                      sumRecentMm(g, 7 * 24 * HOUR_MS)
-                    )} mm`}
-                    icon={<CalendarTodayIcon />}
-                  />
-                </Grid>
-                <Grid size={12}>
-                  <PeriodTile
-                    label="24h Forecast (Worcester only)"
-                    value={forecast24hMm !== null ? `${forecast24hMm} mm` : "—"}
-                    icon={<UpdateIcon />}
-                  />
-                </Grid>
-              </Grid>
+                ))}
+                <StatTile
+                  icon={<UpdateIcon />}
+                  label="24h Forecast"
+                  value={forecast24hMm !== null ? `${forecast24hMm} mm` : "—"}
+                  detail="Worcester only"
+                />
+              </Box>
             </Stack>
           </Grow>
         )}

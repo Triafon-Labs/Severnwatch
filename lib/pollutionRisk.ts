@@ -52,10 +52,15 @@ export const RISK_LEVEL_UI: Record<
 export type PollutionRiskFactorKey =
   "passing" | "arriving" | "lingering" | "rain";
 
+// Split the way the card's tile reads, as Paddlecheck splits its reasons:
+// what it's about, the reading, and a line on when or where - "Arriving",
+// "1 spill", "Due in ~3h".
 export interface PollutionRiskFactor {
   key: PollutionRiskFactorKey;
   level: PollutionRiskLevel;
   label: string;
+  value: string;
+  detail?: string;
 }
 
 export interface PollutionRisk {
@@ -106,7 +111,7 @@ const plumeTiming = (
 const RAIN_LOOKAHEAD_HOURS = 3;
 
 const intensityLabel = (mmPerHour: number) =>
-  mmPerHour >= HOURLY_HEAVY_MM ? "Heavy rain" : "Moderate rain";
+  mmPerHour >= HOURLY_HEAVY_MM ? "Heavy" : "Moderate";
 
 // Measured rain at any gauge in the last hour, else forecast rain in the
 // next few hours, read against the chart's mm/hr bands. The EA's gauges
@@ -127,7 +132,9 @@ const rainFactor = (
       return {
         key: "rain",
         level: "raised",
-        label: `Heavy rain at ${gauge.label}`,
+        label: "Rain",
+        value: "Heavy",
+        detail: `At ${gauge.label}`,
       };
     }
   }
@@ -136,7 +143,9 @@ const rainFactor = (
       return {
         key: "rain",
         level: "raised",
-        label: `Moderate rain at ${gauge.label}`,
+        label: "Rain",
+        value: "Moderate",
+        detail: `At ${gauge.label}`,
       };
     }
   }
@@ -155,14 +164,14 @@ const rainFactor = (
   return {
     key: "rain",
     level: "raised",
-    label:
-      startsIn < 0.5
-        ? `${intensityLabel(peak)} forecast now`
-        : `${intensityLabel(peak)} due in ~${Math.round(startsIn)}h`,
+    label: "Rain",
+    value: intensityLabel(peak),
+    detail:
+      startsIn < 0.5 ? "Forecast now" : `Forecast in ~${Math.round(startsIn)}h`,
   };
 };
 
-const spills = (n: number) => (n === 1 ? "Spill" : `${n} spills`);
+const spills = (n: number) => (n === 1 ? "1 spill" : `${n} spills`);
 
 export const derivePollutionRisk = (
   cso: CsoResponse,
@@ -191,21 +200,26 @@ export const derivePollutionRisk = (
     factors.push({
       key: "passing",
       level: "high",
-      label: `${spills(passing)} passing Worcester`,
+      label: "Passing Worcester",
+      value: spills(passing),
     });
   }
   if (arriving > 0) {
     factors.push({
       key: "arriving",
       level: "raised",
-      label: `${spills(arriving)} due in ~${Math.max(1, Math.round(soonest))}h`,
+      label: "Arriving",
+      value: spills(arriving),
+      detail: `Due in ~${Math.max(1, Math.round(soonest))}h`,
     });
   }
   if (lingering > 0) {
     factors.push({
       key: "lingering",
       level: "raised",
-      label: `${spills(lingering)} passed in last ${SEWAGE_RECENT_SPILL_BASE_HOURS}h`,
+      label: "Passed by",
+      value: spills(lingering),
+      detail: `In the last ${SEWAGE_RECENT_SPILL_BASE_HOURS}h`,
     });
   }
 

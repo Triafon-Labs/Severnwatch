@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@mui/material/styles";
 import { Box, Paper, Stack, ToggleButton, Typography } from "@mui/material";
 import {
@@ -37,6 +37,7 @@ import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { formatTimeTick, londonParts } from "@/lib/time";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 import { SERIES_COLORS } from "@/lib/chartColors";
+import { revealSx } from "@/lib/chartMotion";
 
 // Paddlecheck's chart tooltip, so a reading looks the same in both apps: a
 // plain Paper - which the MuiPaper override gives the raised containerHigh
@@ -83,6 +84,11 @@ const ChartTooltip = ({
     </Paper>
   );
 };
+
+// The lines draw in left to right, in CSS rather than through recharts
+// (lib/chartMotion.ts) - recharts' default duration and easing, the same as
+// Paddlecheck's river graph.
+const chartRevealSx = revealSx(".recharts-line", 1500, "ease");
 
 const BAND_CEILING = 1000; // clipped to the plot area regardless of axis domain
 const FORECAST_HISTORY_HOURS = 24; // how far back the "Forecast" view shows observed data
@@ -146,20 +152,25 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
   // Seeded from localStorage on first render rather than in an effect, so the
   // reader's chosen range is what paints - not a frame of "Forecast" that
   // then jumps to "7d".
-  const [range, setRange] = useState<Range>(() => {
+  const [selectedRange, setRange] = useState<Range>(() => {
     if (typeof window === "undefined") return "forecast";
     const saved = window.localStorage.getItem(STORAGE_KEYS.RAINFALL_RANGE);
     return isRange(saved) ? saved : "forecast";
   });
 
+  // The toggle follows a tap at once; the chart follows at low priority, so
+  // building the new range's chart happens behind the pill's slide rather
+  // than before it.
+  const range = useDeferredValue(selectedRange);
+
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEYS.RAINFALL_RANGE, range);
+      window.localStorage.setItem(STORAGE_KEYS.RAINFALL_RANGE, selectedRange);
     } catch {
       // Storage disabled or full - the chart still works, the choice just
       // doesn't survive a reload.
     }
-  }, [range]);
+  }, [selectedRange]);
 
   const theme = useTheme();
   const resolvedMode = useResolvedColorScheme();
@@ -361,7 +372,7 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
           )}
         </Stack>
         <SlidingToggleButtonGroup
-          value={range}
+          value={selectedRange}
           exclusive
           fullWidth
           size="small"
@@ -376,8 +387,9 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
         </SlidingToggleButtonGroup>
       </Stack>
 
-      <Box ref={chartRef} sx={{ width: "100%", height: 220 }}>
-        <ResponsiveContainer width="100%" height="100%">
+      <Box ref={chartRef} sx={{ width: "100%", height: 220, ...chartRevealSx }}>
+        {/* Keyed on the range so each one draws in afresh (chartMotion). */}
+        <ResponsiveContainer key={range} width="100%" height="100%">
           {isDaily ? (
             <ComposedChart
               data={cumulative7dData}

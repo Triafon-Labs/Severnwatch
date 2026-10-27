@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { ThemeProvider, useColorScheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { theme } from "./themes";
@@ -36,11 +37,31 @@ export const AppThemeProvider = ({ children }: { children: ReactNode }) => (
 // API. `mode` is undefined until hydration finishes; treating that as "system"
 // matches the pre-hydration default rather than flipping the toggle group to a
 // wrong value for a frame.
+//
+// A change of theme cross-fades through a view transition: the browser
+// snapshots the page, applies the new scheme, and blends the two on the
+// compositor (timing in app/globals.css). Without it every colour on the page
+// switches in one frame, after the forceThemeRerender above re-renders the
+// whole app - which the old snapshot now covers. The update is flushed inside
+// the transition so the new snapshot has the new colours; MUI applies the
+// scheme in a layout effect, which flushSync runs. Browsers without view
+// transitions, or a reader who asks for reduced motion, get the instant
+// switch.
 export const useAppTheme = () => {
   const { mode, setMode } = useColorScheme();
+  const setThemeMode = (nextMode: ThemeMode) => {
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    if (!document.startViewTransition || reduceMotion) {
+      setMode(nextMode);
+      return;
+    }
+    document.startViewTransition(() => flushSync(() => setMode(nextMode)));
+  };
   return {
     themeMode: (mode ?? "system") as ThemeMode,
-    setThemeMode: (nextMode: ThemeMode) => setMode(nextMode),
+    setThemeMode,
   };
 };
 

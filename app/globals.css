@@ -28,3 +28,12 @@ a {
 /* color-scheme is set per colour scheme by MUI's CSS theme variables (see
    lib/themes.ts). Declaring it here from the OS preference too would fight
    an explicitly chosen theme that disagrees with the OS. */
+
+/* The theme cross-fade (useAppTheme in lib/ThemeContext.tsx): M3's medium
+   duration on the standard curve, rather than the browser's default 250ms
+   ease. Only opacity animates, on the compositor. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
