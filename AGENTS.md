@@ -114,6 +114,7 @@ components/
   WaterQualityExplainer.tsx  Classification bands disclosure
   WaterQualityInfoContent.tsx  Threshold tables + deep dive copy (shared)
   InfoPanel.tsx              Shared tonal panel, optionally a button
+  StatTile.tsx               Labelled-figure tile (icon + label, value, detail) – gauges, periods, risk factors
   SlidingToggleButtonGroup.tsx  Segmented control with a sliding pill
   SevernwatchLogo.tsx        Wave glyph, matching the installed app icons
   ThemeRegistry.tsx          Emotion cache + AppThemeProvider for SSR
@@ -131,6 +132,7 @@ lib/
   riverSchematic.ts     Outfalls -> the river diagram's rows, lanes and confluences
   statusColors.ts       The status colour vocabulary
   chartColors.ts        Chart series colours (kept out of the recharts chunk)
+  chartMotion.ts        Chart entrances in CSS (lines wipe in) instead of recharts' JS animation
   m3-palette.ts         M3 tonal tokens + motion tokens
   themes.ts             The MUI theme
   ThemeContext.tsx      Colour-scheme provider/hooks (light/dark/system)

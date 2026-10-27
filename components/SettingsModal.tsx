@@ -137,17 +137,38 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
     overflow: isActive ? "visible" : "hidden",
     opacity: isActive ? 1 : 0,
     pointerEvents: isActive ? ("auto" as const) : ("none" as const),
-    visibility: isActive ? ("visible" as const) : ("hidden" as const),
+    // "inherit" rather than "visible": the sheet is kept mounted while
+    // closed (see `prebuilt` below), and an explicit "visible" would override
+    // the closed drawer's own hidden - leaving this panel's controls in the
+    // tab order, and painted wherever the off-screen sheet comes into view.
+    visibility: isActive ? ("inherit" as const) : ("hidden" as const),
     transition: isActive
       ? `opacity ${m3Duration.short4}ms ${m3Easing.standard}`
       : `opacity ${m3Duration.short4}ms ${m3Easing.standard}, visibility 0s linear ${m3Duration.short4}ms`,
   });
+
+  // Built ahead of time once the page is idle, then kept, so opening is only
+  // the slide. Built on the tap, the whole sheet - and every style Emotion
+  // has to insert for it - holds the first frame for a few hundred
+  // milliseconds on a phone-speed CPU.
+  const [prebuilt, setPrebuilt] = useState(false);
+  useEffect(() => {
+    const build = () => setPrebuilt(true);
+    // Safari has no requestIdleCallback; a few seconds after load stands in.
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(build, { timeout: 5000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(build, 3000);
+    return () => window.clearTimeout(id);
+  }, []);
 
   return (
     <Drawer
       anchor="bottom"
       open={open}
       onClose={onClose}
+      ModalProps={{ keepMounted: prebuilt }}
       slotProps={{
         paper: {
           ref: paperRef,

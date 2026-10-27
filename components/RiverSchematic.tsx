@@ -40,7 +40,13 @@ import CsoOutfallRow from "@/components/CsoOutfallRow";
 // never stretched.
 
 const CONNECTOR_WIDTH = 44;
-const LANE_X: Record<number, number> = { 0: 13, 1: 31 };
+// Lane centres sit on the half pixel so that a line of odd width - and the
+// odd-sized dots on it - start and end on whole pixels. On a whole-pixel
+// centre the boxes start at x.5, which the browser rounds to the next pixel
+// while the SVG confluence curve is drawn where it is asked, so the two came
+// out half a pixel apart: a shoulder where the curve leaves a tributary and a
+// sliver beside the trunk where it joins.
+const LANE_X: Record<number, number> = { 0: 13.5, 1: 31.5 };
 const LINE_WIDTH = 3;
 const DOT_SIZE = 13;
 // The station dot sits a fixed distance below the row's top edge, level with
@@ -84,19 +90,27 @@ const stateLayerSx = {
   },
 } as const;
 
+// How far a segment runs past its row's edge into the next. Rows can land on
+// fractional pixel heights, and two pieces that only meet edge to edge leave
+// a hairline seam where the rounding falls between them; overlapping the
+// same opaque colour by a pixel hides it.
+const SEAM_OVERLAP = 1;
+
+// Square-ended, like Paddlecheck's landmark track: each row draws its own
+// piece of line, and rounded ends pinched in at every join, so the river read
+// as a string of dashes. Where a segment ends at a stop, the dot covers it.
 const Segment: React.FC<{ segment: SchematicSegment }> = ({ segment }) => {
-  const top = segment.from === "top" ? 0 : DOT_CENTRE_Y;
+  const top = segment.from === "top" ? -SEAM_OVERLAP : DOT_CENTRE_Y;
   return (
     <Box
       sx={{
         position: "absolute",
         left: LANE_X[segment.lane] - LINE_WIDTH / 2,
         width: LINE_WIDTH,
-        borderRadius: LINE_WIDTH,
         backgroundColor: laneColour(segment.lane),
         top,
         ...(segment.to === "bottom"
-          ? { bottom: 0 }
+          ? { bottom: -SEAM_OVERLAP }
           : { height: DOT_CENTRE_Y - top }),
       }}
     />
@@ -106,7 +120,9 @@ const Segment: React.FC<{ segment: SchematicSegment }> = ({ segment }) => {
 // The elbow where a tributary merges into the trunk, as a single smooth
 // curve that arrives vertical so it reads as a confluence rather than a
 // T-junction. Drawn in the tributary's colour - it is the tributary's water
-// joining the Severn, not the other way round.
+// joining the Severn, not the other way round. Butt-capped and painted
+// beneath the trunk (see renderRow), so its end slips under the main line
+// rather than a round cap of the tributary's colour sitting on top of it.
 const MergeCurve: React.FC<{ row: ConfluenceRow }> = ({ row }) => {
   const fromX = LANE_X[row.fromLane];
   const toX = LANE_X[row.toLane];
@@ -130,7 +146,7 @@ const MergeCurve: React.FC<{ row: ConfluenceRow }> = ({ row }) => {
         fill="none"
         stroke="currentColor"
         strokeWidth={LINE_WIDTH}
-        strokeLinecap="round"
+        strokeLinecap="butt"
       />
     </Box>
   );
@@ -373,10 +389,12 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
             flexShrink: 0,
           }}
         >
+          {/* Before the segments, so the trunk running through the row
+              paints over the end of the merging curve. */}
+          {row.kind === "confluence" && <MergeCurve row={row} />}
           {row.segments.map((segment) => (
             <Segment key={segment.lane} segment={segment} />
           ))}
-          {row.kind === "confluence" && <MergeCurve row={row} />}
           {row.kind === "station" && <StationDot row={row} />}
         </Box>
 

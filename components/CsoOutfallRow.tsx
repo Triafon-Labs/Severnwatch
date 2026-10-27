@@ -28,7 +28,7 @@ const getTimingDetails = (
       if (o.startISO) {
         const relative = getRelativeTimeString(o.startISO);
         const dateTimeStr = format(new Date(o.startISO), "dd/MM/yyyy HH:mm");
-        primaryTiming = `Started ${relative} (${dateTimeStr})`;
+        primaryTiming = `Started ${relative} · ${dateTimeStr}`;
       } else {
         primaryTiming = null;
       }
@@ -38,7 +38,7 @@ const getTimingDetails = (
       if (o.endISO) {
         const relative = getRelativeTimeString(o.endISO);
         const dateTimeStr = format(new Date(o.endISO), "dd/MM/yyyy HH:mm");
-        primaryTiming = `Ended ${relative} (${dateTimeStr})`;
+        primaryTiming = `Ended ${relative} · ${dateTimeStr}`;
       } else {
         primaryTiming = null;
       }

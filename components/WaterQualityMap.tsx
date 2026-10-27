@@ -21,6 +21,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ScreenRotationOutlinedIcon from "@mui/icons-material/ScreenRotationOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import { SAS_MAP_EMBED_URL } from "@/lib/config";
+import { collapseMotion } from "@/lib/m3-palette";
 import WaterQualityExplainer from "@/components/WaterQualityExplainer";
 import { ClassificationTablesSection } from "@/components/WaterQualityInfoContent";
 
@@ -136,8 +137,7 @@ const WaterQualityMap: React.FC = () => {
             borderColor: "divider",
             bgcolor: "background.paper",
             display: isFullscreen ? "flex" : "block",
-            flexDirection:
-              isFullscreen && isLandscape ? "row" : "column",
+            flexDirection: isFullscreen && isLandscape ? "row" : "column",
           }}
         >
           {/* Map wrapper area (takes remaining space in flex container) */}
@@ -146,11 +146,7 @@ const WaterQualityMap: React.FC = () => {
               position: "relative",
               flex: 1,
               width: "100%",
-              height: isFullscreen
-                ? isLandscape
-                  ? "100%"
-                  : "auto"
-                : "100%",
+              height: isFullscreen ? (isLandscape ? "100%" : "auto") : "100%",
               minHeight: 0,
               minWidth: 0,
             }}
@@ -188,7 +184,12 @@ const WaterQualityMap: React.FC = () => {
               title="SAS Water Quality Map"
               loading="lazy"
               allow="geolocation"
-              sx={{ width: "100%", height: "100%", border: 0, display: "block" }}
+              sx={{
+                width: "100%",
+                height: "100%",
+                border: 0,
+                display: "block",
+              }}
             />
 
             {/* Fullscreen Toast notification recommending landscape orientation */}
@@ -377,14 +378,10 @@ const WaterQualityMap: React.FC = () => {
                       isLegendExpanded ? "Minimize legend" : "Expand legend"
                     }
                   >
-                    {isLegendExpanded ? (
-                      <ExpandMoreIcon />
-                    ) : (
-                      <ExpandLessIcon />
-                    )}
+                    {isLegendExpanded ? <ExpandMoreIcon /> : <ExpandLessIcon />}
                   </IconButton>
                 </Box>
-                <Collapse in={isLegendExpanded}>
+                <Collapse in={isLegendExpanded} {...collapseMotion}>
                   <Box sx={{ p: 2, maxHeight: "45vh", overflowY: "auto" }}>
                     <ClassificationTablesSection />
                   </Box>

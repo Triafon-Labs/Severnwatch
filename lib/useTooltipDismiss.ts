@@ -19,7 +19,11 @@ import { RefObject, useCallback, useEffect, useState } from "react";
 export const useTooltipDismiss = (
   containerRef: RefObject<HTMLElement | null>
 ) => {
-  const [dismissed, setDismissed] = useState(false);
+  // Starts dismissed, which shows nothing until the chart is first touched
+  // - the same as no tooltip at all - so the first press elsewhere on the
+  // page isn't a state change. When it was, that press re-rendered the whole
+  // river graph, recomputing every point, on the first tap of every visit.
+  const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {

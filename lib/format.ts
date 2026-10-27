@@ -29,13 +29,16 @@ export const formatAsOf = (iso: string): string => {
   return `Data as of ${get("hour")}:${get("minute")}, ${get("day")} ${get("month")}`;
 };
 
-// Formats an outfall's subtitle, preventing double bracketing when waypointName contains parentheses
+// Formats an outfall's subtitle: the watercourse and the waypoint beside it,
+// separated by a dot rather than bracketed on, as Paddlecheck sets its
+// secondary text. A waypoint's own bracketed qualifier is flattened the same
+// way.
 export const formatOutfallSubtitle = (
   watercourse: string,
   waypointName: string
 ): string => {
   const cleanWaypoint = waypointName.replace(/\s*\(([^)]+)\)/g, " - $1");
-  return `${watercourse} (${cleanWaypoint})`;
+  return `${watercourse} · ${cleanWaypoint}`;
 };
 
 // Formats raw ALL-CAPS or unformatted watercourse names into clean Title Case UK English.
