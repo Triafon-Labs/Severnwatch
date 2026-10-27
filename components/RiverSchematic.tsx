@@ -40,7 +40,13 @@ import CsoOutfallRow from "@/components/CsoOutfallRow";
 // never stretched.
 
 const CONNECTOR_WIDTH = 44;
-const LANE_X: Record<number, number> = { 0: 13, 1: 31 };
+// Lane centres sit on the half pixel so that a line of odd width - and the
+// odd-sized dots on it - start and end on whole pixels. On a whole-pixel
+// centre the boxes start at x.5, which the browser rounds to the next pixel
+// while the SVG confluence curve is drawn where it is asked, so the two came
+// out half a pixel apart: a shoulder where the curve leaves a tributary and a
+// sliver beside the trunk where it joins.
+const LANE_X: Record<number, number> = { 0: 13.5, 1: 31.5 };
 const LINE_WIDTH = 3;
 const DOT_SIZE = 13;
 // The station dot sits a fixed distance below the row's top edge, level with
