@@ -39,6 +39,16 @@ interface SettingsModalProps {
 const DISMISS_DISTANCE_RATIO = 0.3;
 const DISMISS_VELOCITY_PX_PER_MS = 0.5;
 
+// An inline link in the About text, opened in a new tab - Paddlecheck's.
+const SourceLink: React.FC<{ href: string; children: React.ReactNode }> = ({
+  href,
+  children,
+}) => (
+  <Link href={href} target="_blank" rel="noopener noreferrer" color="inherit">
+    {children}
+  </Link>
+);
+
 const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const [activeTab, setActiveTab] = useState<"settings" | "info">("settings");
   // Both tab panels stay mounted (see the grid below), so the deep-dive
@@ -386,6 +396,43 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
             This is a hobby project, so there might be mistakes. Always check
             conditions yourself and use your own judgement before entering the
             water.
+          </Typography>
+          {/* Required by the sources' licences, as in Paddlecheck. The
+              Environment Agency's Open Government Licence asks for this exact
+              statement (it's the one the EA gives for the whole real-time
+              API, rainfall included); Open-Meteo and Severn Trent's storm
+              overflow feed are CC BY 4.0, which needs a credit; Nominatim's
+              place names are OpenStreetMap data under the ODbL, which needs
+              the "© OpenStreetMap contributors" line. SAS's samples carry no
+              stated licence, so they get a plain credit. */}
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mt: 1, display: "block" }}
+          >
+            This uses Environment Agency flood and river level data from the
+            real-time data API (Beta), under the{" "}
+            <SourceLink href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">
+              Open Government Licence
+            </SourceLink>
+            . Storm overflow data © Severn Trent Water (
+            <SourceLink href="https://creativecommons.org/licenses/by/4.0/">
+              CC BY 4.0
+            </SourceLink>
+            ). Rainfall forecast by{" "}
+            <SourceLink href="https://open-meteo.com/">Open-Meteo</SourceLink> (
+            <SourceLink href="https://creativecommons.org/licenses/by/4.0/">
+              CC BY 4.0
+            </SourceLink>
+            ). Outfall place names ©{" "}
+            <SourceLink href="https://www.openstreetmap.org/copyright">
+              OpenStreetMap contributors
+            </SourceLink>
+            , via Nominatim. Water quality samples from{" "}
+            <SourceLink href="https://www.sas.org.uk/">
+              Surfers Against Sewage
+            </SourceLink>
+            &apos;s citizen science programme.
           </Typography>
         </Box>
       </Box>
