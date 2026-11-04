@@ -24,7 +24,7 @@ import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 import { WaterQualityDeepDive } from "@/components/WaterQualityInfoContent";
 import ConditionsKey from "@/components/ConditionsKey";
 import { useAppTheme, ThemeMode } from "@/lib/ThemeContext";
-import { USEFUL_LINKS } from "@/lib/config";
+import { APP_NAME, USEFUL_LINKS } from "@/lib/config";
 import { m3Duration, m3Easing, m3Spring, spring } from "@/lib/m3-palette";
 
 interface SettingsModalProps {
@@ -294,7 +294,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
           sx={panelSx(activeTab === "info")}
         >
           <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-            About Severnwatch
+            About {APP_NAME}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             River Severn conditions at Worcester - sewage spill status, upstream
@@ -373,7 +373,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               alignItems: "center",
             }}
           >
-            <Typography>Severnwatch Version</Typography>
+            <Typography>{APP_NAME} Version</Typography>
             <Typography>
               {process.env.NEXT_PUBLIC_APP_VERSION || "N/A"}
             </Typography>

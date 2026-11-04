@@ -5,6 +5,16 @@
 // Severnwatch. It is currently set up for the River Severn at Worcester, UK.
 // ============================================================================
 
+// --- App identity ---
+// The name and one-line description, in one place - the page title, the
+// installed app's name, the app bar, the share text, the settings sheet and
+// the User-Agent sent to Nominatim all read these, as Paddlecheck reads its
+// APP_NAME. The service worker's cache names (public/sw.js) are a static
+// file and can't import this, so they spell it out.
+export const APP_NAME = "Severnwatch";
+export const APP_DESCRIPTION =
+  "River Severn water quality and rainfall conditions at Worcester";
+
 export const LOCATION_NAME = "Worcester";
 export const LATITUDE = 52.2;
 export const LONGITUDE = -2.2;

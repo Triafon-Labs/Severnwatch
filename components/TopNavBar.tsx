@@ -21,6 +21,7 @@ import { DATA_STALE_THRESHOLD_MS, OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
 import { getLondonHHMM, getRelativeTimeString } from "@/lib/time";
 import { formatOutfallSubtitle } from "@/lib/format";
 import { collapseMotion } from "@/lib/m3-palette";
+import { APP_NAME } from "@/lib/config";
 import { CsoResponse, RainfallResponse } from "@/types";
 
 // Filled with the saturated accent rather than the tonal container pair.
@@ -54,7 +55,7 @@ const buildShareText = (
   rainfall: RainfallResponse | null
 ): string => {
   if (!cso && !rainfall) {
-    return "Check current River Severn conditions at Worcester on Severnwatch.";
+    return `Check current River Severn conditions at Worcester on ${APP_NAME}.`;
   }
 
   const lines: string[] = [];
@@ -167,7 +168,7 @@ const TopNavBar: React.FC = () => {
     const message = `${text}\n\n${url}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Severnwatch", text: message });
+        await navigator.share({ title: APP_NAME, text: message });
       } else {
         await navigator.clipboard.writeText(message);
         setSnackbarOpen(true);
@@ -250,7 +251,7 @@ const TopNavBar: React.FC = () => {
                 is what we want here - there's nothing to resize. */}
             <Image
               src="/favicon.svg"
-              alt="Severnwatch Logo"
+              alt={`${APP_NAME} logo`}
               width={40}
               height={40}
               style={{ flexShrink: 0 }}
@@ -262,7 +263,7 @@ const TopNavBar: React.FC = () => {
                 sx={{ fontWeight: 600, lineHeight: 1.2 }}
                 color="text.primary"
               >
-                Severnwatch
+                {APP_NAME}
               </Typography>
               {(isRefreshing || freshnessText) && (
                 <Typography
