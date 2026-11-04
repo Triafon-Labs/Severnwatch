@@ -59,10 +59,10 @@ const CountTile: React.FC<{
   const previous = previousCount(samples, indicatorKey);
 
   const limitLine =
-    band === "high"
+    band === "poor"
       ? `Over the Good limit (${numberFormat.format(indicator.limits.good)})`
-      : band === "elevated"
-        ? `Over the Excellent limit (${numberFormat.format(indicator.limits.excellent)})`
+      : band === "good"
+        ? `Under the Good limit (${numberFormat.format(indicator.limits.good)})`
         : `Under the Excellent limit (${numberFormat.format(indicator.limits.excellent)})`;
 
   return (
@@ -316,9 +316,11 @@ const LatestSampleCard: React.FC = () => {
 
               <Typography variant="caption" color="text.secondary">
                 Counts are colony-forming units {COUNT_UNIT}, compared with the
-                inland bathing water limits. One sample is a snapshot, not a
-                bathing water classification - and results arrive a day or more
-                after the water is collected.
+                inland bathing water limits and named after the tier whose limit
+                they&apos;re under. One sample is a snapshot, not a bathing
+                water classification: Sufficient only exists across a season of
+                samples, so a single one is Excellent, Good or Poor. Results
+                arrive a day or more after the water is collected.
               </Typography>
             </Stack>
           </Grow>

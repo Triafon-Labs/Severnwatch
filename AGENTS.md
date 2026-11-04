@@ -117,7 +117,7 @@ components/
   LatestSampleCard.tsx       Newest Grandstand Road sample – counts, notable findings, tester's note
   SampleHistoryCard.tsx      Every sample – indicator toggle, stats, full table, classification limits
   SampleHistoryChart.tsx     Recharts history of one indicator, against the limits
-  SampleBandChip.tsx         A sample's low/elevated/high band as a status chip
+  SampleBandChip.tsx         A sample's Excellent/Good/Poor band as a status chip
   WaterQualityInfoContent.tsx  Threshold tables + deep dive copy (shared)
   InfoPanel.tsx              Shared tonal panel, optionally a button
   StatTile.tsx               Labelled-figure tile (icon + label, value, detail) – gauges, periods, risk factors

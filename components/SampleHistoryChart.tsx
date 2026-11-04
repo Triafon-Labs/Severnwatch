@@ -113,8 +113,13 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
     text: theme.palette.text.secondary,
     surface: theme.palette.background.paper,
   };
-  const elevatedColor = theme.palette.warning.main;
-  const highColor = theme.palette.error.main;
+  // The tier hues, as on the dots and the classification tables: the Good
+  // range is light green and over Good is red. These used to be the theme's
+  // warning and error colours, which put the Good range in amber - the
+  // Sufficient tier's colour - beside a table that calls it Good.
+  const excellentColor = SAMPLE_BAND_UI.excellent.color;
+  const goodColor = SAMPLE_BAND_UI.good.color;
+  const poorColor = SAMPLE_BAND_UI.poor.color;
 
   const chartRef = useRef<HTMLDivElement>(null);
   const { tooltipActive, chartMoveProps } = useTooltipDismiss(chartRef);
@@ -213,21 +218,24 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
   //
   // A flat array, not a fragment: recharts walks its children's types and
   // silently drops a Fragment's contents (as in RainfallChart).
+  // The Excellent range is left unshaded: a dark-green wash under a
+  // light-green one was too close to tell apart, and the dark-green line and
+  // dots already mark it.
   const limitMarks = [
     <ReferenceArea
-      key="band-elevated"
+      key="band-good"
       y1={indicator.limits.excellent}
       y2={indicator.limits.good}
-      fill={elevatedColor}
-      fillOpacity={0.08}
+      fill={goodColor}
+      fillOpacity={0.1}
       strokeWidth={0}
       ifOverflow="hidden"
     />,
     <ReferenceArea
-      key="band-high"
+      key="band-poor"
       y1={indicator.limits.good}
       y2={yMax}
-      fill={highColor}
+      fill={poorColor}
       fillOpacity={0.08}
       strokeWidth={0}
       ifOverflow="hidden"
@@ -235,7 +243,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
     <ReferenceLine
       key="line-excellent"
       y={indicator.limits.excellent}
-      stroke={elevatedColor}
+      stroke={excellentColor}
       strokeDasharray="4 4"
       label={{
         value: "Excellent Limit",
@@ -247,7 +255,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
     <ReferenceLine
       key="line-good"
       y={indicator.limits.good}
-      stroke={highColor}
+      stroke={goodColor}
       strokeDasharray="4 4"
       label={{
         value: "Good Limit",

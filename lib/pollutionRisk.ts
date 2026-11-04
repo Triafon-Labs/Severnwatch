@@ -192,10 +192,11 @@ const rainFactor = (
 };
 
 // The newest sample, while it's recent enough to say something about the
-// river now. High counts as High Risk for WATER_QUALITY_RECENT_DAYS, then as
-// Raised until WATER_QUALITY_RELEVANT_DAYS; elevated counts as Raised for
-// the recent window only. Days are London calendar days, so a sample "a
-// week ago" drops out on the same day for everyone.
+// river now. A Poor sample (over the Good limit) counts as High Risk for
+// WATER_QUALITY_RECENT_DAYS, then as Raised until WATER_QUALITY_RELEVANT_DAYS.
+// Excellent and Good samples add nothing: a sample within the Good limit
+// raising the risk would contradict its own chip. Days are London calendar
+// days, so a sample "a week ago" drops out on the same day for everyone.
 const sampleFactor = (
   waterQuality: WaterQualityResponse,
   now: number
@@ -204,25 +205,23 @@ const sampleFactor = (
   if (!latest) return null;
   const band = bandForSample(latest);
   const days = londonDaysAgo(sampleTimeMs(latest), now);
-  if (!band || band === "low" || days < 0) return null;
+  if (band !== "poor" || days < 0) return null;
 
-  let level: PollutionRiskLevel | null = null;
-  if (band === "high") {
-    if (days <= WATER_QUALITY_RECENT_DAYS) level = "high";
-    else if (days <= WATER_QUALITY_RELEVANT_DAYS) level = "raised";
-  } else if (days <= WATER_QUALITY_RECENT_DAYS) {
-    level = "raised";
-  }
+  const level: PollutionRiskLevel | null =
+    days <= WATER_QUALITY_RECENT_DAYS
+      ? "high"
+      : days <= WATER_QUALITY_RELEVANT_DAYS
+        ? "raised"
+        : null;
   if (!level) return null;
 
-  // Every classified indicator over its Excellent limit, worst first - a
-  // sample with both E. coli and Enterococci up says so, rather than naming
+  // Every classified indicator over its Good limit, worst first - a sample
+  // with both E. coli and Enterococci over says so, rather than naming
   // whichever one happened to be further over.
   const worst = worstIndicator(latest);
-  const over = CLASSIFIED_INDICATORS.filter((k) => {
-    const b = bandForCount(latest[k], INDICATORS[k]);
-    return b === "elevated" || b === "high";
-  }).sort((a, b) => (a === worst ? -1 : b === worst ? 1 : 0));
+  const over = CLASSIFIED_INDICATORS.filter(
+    (k) => bandForCount(latest[k], INDICATORS[k]) === "poor"
+  ).sort((a, b) => (a === worst ? -1 : b === worst ? 1 : 0));
   return {
     key: "sample",
     level,

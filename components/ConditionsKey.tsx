@@ -45,10 +45,10 @@ const STATE_DESCRIPTIONS: Record<CsoState, string> = {
 
 // What each of the headline card's levels means (see lib/pollutionRisk.ts).
 const RISK_DESCRIPTIONS: Record<PollutionRiskLevel, string> = {
-  high: `Water from a spill is estimated to be passing Worcester, or a sample in the last ${WATER_QUALITY_RECENT_DAYS} days was over the Good limit.`,
-  raised: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, moderate or heavy rain is falling or due within a few hours, or a sample came back over the Excellent limit in the last ${WATER_QUALITY_RECENT_DAYS} days or over the Good limit in the last ${WATER_QUALITY_RELEVANT_DAYS}.`,
+  high: `Water from a spill is estimated to be passing Worcester, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RECENT_DAYS} days.`,
+  raised: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, moderate or heavy rain is falling or due within a few hours, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RELEVANT_DAYS} days.`,
   lower:
-    "No monitored spills affecting Worcester and no recent high sample. Not a guarantee the water is clean.",
+    "No monitored spills affecting Worcester and no recent Poor sample. Not a guarantee the water is clean.",
 };
 
 const RISK_ORDER: PollutionRiskLevel[] = ["high", "raised", "lower"];

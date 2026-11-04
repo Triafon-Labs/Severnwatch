@@ -5,13 +5,22 @@ import { formatLondonDate } from "@/lib/time";
 // How the citizen science counts are read, in one place for the sample card,
 // the history chart and the headline pollution risk.
 //
-// A bathing water classification is a statistic over years of samples (see
-// WaterQualityInfoContent), so no single sample "is" Excellent or Poor. What
-// a single count can honestly be compared against is the same limits: below
-// the Excellent limit, between Excellent and Good, or over the Good limit.
-// The Sufficient limits are left out on purpose - they sit *below* Good's
-// (900 vs 1000 E. coli) because they're judged on a different percentile, so
-// on a single number the ladder would run backwards.
+// A bathing water classification is a statistic over a season of samples
+// (see WaterQualityInfoContent), so no single sample "is" a classification.
+// What one count can be placed against is the same limits, and it's named and
+// coloured after the classification tier whose limit it's under, so a sample
+// chip reads the same as the tier chips in the classification tables beside
+// it:
+//
+// - under the Excellent limit: Excellent (dark green);
+// - under the Good limit: Good (light green);
+// - at or over the Good limit: Poor (red). That's over every limit there is -
+//   Sufficient's included, which sits *below* Good's (900 vs 1000 E. coli)
+//   because it's judged on the 90th percentile rather than the 95th.
+//
+// Sufficient (amber) has no single-sample equivalent for the same reason: on
+// one number its limit would sit inside Good's, so the ladder would run
+// backwards. It only exists as a season statistic.
 
 // Only the two the bathing water classification is judged on. The export
 // also carries total thermotolerant coliforms, which the parser still reads
@@ -48,7 +57,7 @@ export const INDICATORS: Record<IndicatorKey, Indicator> = {
 // The two that the classification is judged on, in display order.
 export const CLASSIFIED_INDICATORS: IndicatorKey[] = ["eColi", "enterococci"];
 
-export type SampleBand = "low" | "elevated" | "high";
+export type SampleBand = "excellent" | "good" | "poor";
 
 export const SAMPLE_BAND_UI: Record<
   SampleBand,
@@ -60,46 +69,51 @@ export const SAMPLE_BAND_UI: Record<
     description: string;
   }
 > = {
-  low: {
-    label: "Low",
-    headline: "Low Bacteria",
+  // The same hues as TIER_COLOR in WaterQualityInfoContent.
+  excellent: {
+    label: "Excellent",
+    headline: "Excellent Sample",
     color: STATUS_COLORS.darkGreen,
     onColor: ON_STATUS_COLORS.darkGreen,
-    description: "Below the Excellent limit",
+    description: "Under the Excellent limit",
   },
-  elevated: {
-    label: "Elevated",
-    headline: "Elevated Bacteria",
-    color: STATUS_COLORS.amber,
-    onColor: ON_STATUS_COLORS.amber,
-    description: "Over the Excellent limit, within Good",
+  good: {
+    label: "Good",
+    headline: "Good Sample",
+    color: STATUS_COLORS.lightGreen,
+    onColor: ON_STATUS_COLORS.lightGreen,
+    description: "Under the Good limit",
   },
-  high: {
-    label: "High",
-    headline: "High Bacteria",
+  poor: {
+    label: "Poor",
+    headline: "Poor Sample",
     color: STATUS_COLORS.red,
     onColor: ON_STATUS_COLORS.red,
     description: "Over the Good limit",
   },
 };
 
-const BAND_RANK: Record<SampleBand, number> = { low: 0, elevated: 1, high: 2 };
+const BAND_RANK: Record<SampleBand, number> = {
+  excellent: 0,
+  good: 1,
+  poor: 2,
+};
 
 export const worseBand = (a: SampleBand, b: SampleBand): SampleBand =>
   BAND_RANK[a] >= BAND_RANK[b] ? a : b;
 
 // Where one count sits against an indicator's limits. A censored count is
-// placed by its limit: "<10" is below 10, so it's low; ">1000" is at least
-// 1000, so it's at least that band - the true count can only be worse.
+// placed by its limit: "<10" is below 10, so it's Excellent; ">1000" is at
+// least 1000, so it's at least that band - the true count can only be worse.
 export const bandForCount = (
   count: BacteriaCount | null,
   indicator: Indicator
 ): SampleBand | null => {
   if (!count) return null;
   const { excellent, good } = indicator.limits;
-  if (count.value >= good) return "high";
-  if (count.value >= excellent) return "elevated";
-  return "low";
+  if (count.value >= good) return "poor";
+  if (count.value >= excellent) return "good";
+  return "excellent";
 };
 
 // The worse of the two classified indicators - the same "whichever comes
@@ -176,8 +190,8 @@ export const indicatorStats = (
   for (const s of withCount) {
     const count = s[key]!;
     const band = bandForCount(count, indicator);
-    if (band === "high") overGood++;
-    if (band === "high" || band === "elevated") overExcellent++;
+    if (band === "poor") overGood++;
+    if (band === "poor" || band === "good") overExcellent++;
     if (!highest || countRank(count) > countRank(highest.count)) {
       highest = { count, sampledAt: s.sampledAt };
     }
@@ -239,7 +253,7 @@ export const notableFindings = (samples: WaterQualitySample[]): string[] => {
   }
 
   const band = bandForSample(latest);
-  if (band === "low") {
+  if (band === "excellent") {
     findings.push(
       "Both E. coli and Enterococci were below the Excellent limits."
     );

@@ -355,11 +355,11 @@ export const WATER_QUALITY_SITE_NAME = "Grandstand Road";
 // so a sample is never "live" - these keep an old result from outweighing
 // what the spill feed says now.
 //
-// - A high result counts as High Risk for this many London calendar days
-//   after sampling, then as Raised Risk until WATER_QUALITY_RELEVANT_DAYS.
-// - An elevated result counts as Raised Risk for this many days only.
-// - A low result never lowers the risk: one clean sample says nothing about
-//   a spill that started after it was taken.
+// - A Poor sample (over the Good limit) counts as High Risk for this many
+//   London calendar days after sampling, then as Raised Risk until
+//   WATER_QUALITY_RELEVANT_DAYS.
+// - Excellent and Good samples never change the risk: one clean sample says
+//   nothing about a spill that started after it was taken.
 export const WATER_QUALITY_RECENT_DAYS = 2;
 export const WATER_QUALITY_RELEVANT_DAYS = 7;
 
