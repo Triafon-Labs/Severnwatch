@@ -142,7 +142,7 @@ const conditionTiles = (sample: WaterQualitySample) => {
     tiles.push({
       key: "air",
       icon: <ThermostatIcon />,
-      label: "Air",
+      label: "Air Temperature",
       value: `${sample.airTemperatureC}°C`,
     });
   }
@@ -155,7 +155,7 @@ const conditionTiles = (sample: WaterQualitySample) => {
     tiles.push({
       key: "users",
       icon: <PoolIcon />,
-      label: "In the water",
+      label: "In the Water",
       value: parts.join(" · "),
     });
   }
@@ -246,7 +246,7 @@ const LatestSampleCard: React.FC = () => {
                     component="p"
                     sx={{ fontWeight: 500, lineHeight: 1.2 }}
                   >
-                    {ui?.headline ?? "Sample recorded"}
+                    {ui?.headline ?? "Sample Recorded"}
                   </Typography>
                   <Typography variant="body2" sx={{ opacity: 0.9 }}>
                     {formatLondonDate(sampleTimeMs(latest), { withTime: true })}{" "}
@@ -294,7 +294,7 @@ const LatestSampleCard: React.FC = () => {
                   <FormatQuoteIcon color="primary" sx={{ flexShrink: 0 }} />
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="subtitle2" color="text.secondary">
-                      Tester&apos;s note
+                      Tester&apos;s Note
                     </Typography>
                     {/* Free text from the export - rendered as text, never
                         as markup. */}
@@ -308,7 +308,7 @@ const LatestSampleCard: React.FC = () => {
               {conditions.length > 0 && (
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary">
-                    On the day
+                    On the Day
                   </Typography>
                   <Box sx={{ ...tileGridSx, mt: 1 }}>
                     {conditions.map(({ key, ...tile }) => (

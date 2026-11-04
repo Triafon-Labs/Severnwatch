@@ -291,7 +291,7 @@ export const derivePollutionRisk = (
     factors.push({
       key: "lingering",
       level: "raised",
-      label: "Passed by",
+      label: "Passed By",
       value: spills(lingering),
       detail: `In the last ${SEWAGE_RECENT_SPILL_BASE_HOURS}h`,
     });

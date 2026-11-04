@@ -64,21 +64,21 @@ export const SAMPLE_BAND_UI: Record<
 > = {
   low: {
     label: "Low",
-    headline: "Low bacteria",
+    headline: "Low Bacteria",
     color: STATUS_COLORS.darkGreen,
     onColor: ON_STATUS_COLORS.darkGreen,
     description: "Below the Excellent limit",
   },
   elevated: {
     label: "Elevated",
-    headline: "Elevated bacteria",
+    headline: "Elevated Bacteria",
     color: STATUS_COLORS.amber,
     onColor: ON_STATUS_COLORS.amber,
     description: "Over the Excellent limit, within Good",
   },
   high: {
     label: "High",
-    headline: "High bacteria",
+    headline: "High Bacteria",
     color: STATUS_COLORS.red,
     onColor: ON_STATUS_COLORS.red,
     description: "Over the Good limit",

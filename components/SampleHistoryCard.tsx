@@ -175,7 +175,7 @@ const SampleHistoryCard: React.FC = () => {
                   <>
                     <StatTile
                       icon={<WarningAmberIcon />}
-                      label="Over Good limit"
+                      label="Over Good"
                       value={`${stats.overGood} of ${stats.total}`}
                       detail={`${indicator.limits.good.toLocaleString("en-GB")} or more`}
                     />
@@ -213,7 +213,7 @@ const SampleHistoryCard: React.FC = () => {
                   aria-expanded={tableOpen}
                   size="small"
                 >
-                  {tableOpen ? "Hide all samples" : "Show all samples"}
+                  {tableOpen ? "Hide All Samples" : "Show All Samples"}
                 </Button>
                 <Collapse in={tableOpen} unmountOnExit {...collapseMotion}>
                   <TableContainer sx={{ mt: 1 }}>

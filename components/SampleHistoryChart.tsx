@@ -251,7 +251,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
           stroke={elevatedColor}
           strokeDasharray="4 4"
           label={{
-            value: "Excellent limit",
+            value: "Excellent Limit",
             position: "insideTopLeft",
             fill: chrome.text,
             fontSize: 11,
@@ -263,7 +263,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
           stroke={highColor}
           strokeDasharray="4 4"
           label={{
-            value: "Good limit",
+            value: "Good Limit",
             position: "insideBottomLeft",
             fill: chrome.text,
             fontSize: 11,
