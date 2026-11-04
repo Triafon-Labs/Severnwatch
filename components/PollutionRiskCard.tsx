@@ -19,6 +19,7 @@ import WavesIcon from "@mui/icons-material/Waves";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import HistoryIcon from "@mui/icons-material/History";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
   PollutionRiskFactor,
@@ -51,6 +52,7 @@ const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
   arriving: ScheduleIcon,
   lingering: HistoryIcon,
   rain: WaterDropIcon,
+  sample: ScienceOutlinedIcon,
 };
 
 // Matches Paddlecheck's PaddlingStatusHero: the label alone in the status
@@ -145,16 +147,26 @@ const ContributingFactors: React.FC<{ factors: PollutionRiskFactor[] }> = ({
 );
 
 const PollutionRiskCard: React.FC = () => {
-  const { cso, rainfall, csoError, loading, isRefreshing, isOffline } =
-    useSevernContext();
+  const {
+    cso,
+    rainfall,
+    waterQuality,
+    csoError,
+    loading,
+    isRefreshing,
+    isOffline,
+  } = useSevernContext();
   const showSkeleton = loading || (isRefreshing && !isOffline);
   // Ticks so "due in ~N h" counts down, and a spill moves from due to
   // passing, between fetches.
   const now = useNowTicking();
 
   const risk = useMemo(
-    () => (cso ? derivePollutionRisk(cso, rainfall, now.getTime()) : null),
-    [cso, rainfall, now]
+    () =>
+      cso
+        ? derivePollutionRisk(cso, rainfall, waterQuality, now.getTime())
+        : null,
+    [cso, rainfall, waterQuality, now]
   );
 
   return (

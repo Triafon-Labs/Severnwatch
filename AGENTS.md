@@ -19,8 +19,11 @@ Before any Next.js work, find and read the relevant doc in `node_modules/next/di
 Severnwatch is a Progressive Web App showing River Severn water quality
 conditions at Worcester, UK: combined sewer overflow (CSO) spill status,
 upstream rainfall with a short forecast, and citizen science water quality
-sampling. There is no database and no persistence — every reading is fetched
-live from a public API through a Next.js route and displayed.
+sampling. There is no database and no persistence. Spill and rainfall
+readings are fetched live from public APIs through Next.js routes. The
+Grandstand Road sample results are the exception: SAS has no API for them, so
+their CSV export is committed to `data/water-quality/` and parsed at build
+time (see that folder's README).
 
 Sibling project to [Paddlecheck](https://github.com/dylanr97/Paddlecheck) (the
 Worcester Canoe Club kayaking conditions app). The two share a tech stack, a
@@ -95,8 +98,9 @@ app/
   api/
     sewage/             Severn Trent storm overflow feed, filtered to the catchment
     rainfall/           EA rainfall gauges + Open-Meteo forecast
+    water-quality/      SAS sample CSVs from data/water-quality/, prerendered at build
   layout.tsx            Root layout – ThemeRegistry, data provider, safe-area frame
-  page.tsx              Home page – the four cards
+  page.tsx              Home page – the cards
   globals.css           Global resets only; type and colour come from the theme
   manifest.ts           PWA web manifest
 
@@ -110,6 +114,10 @@ components/
   CsoOutfallRow.tsx          One outfall as a labelled row, shared by both of the above
   RainfallCard.tsx           Gauge stats, chart, change tiles
   RainfallChart.tsx          Recharts intensity/daily/forecast views
+  LatestSampleCard.tsx       Newest Grandstand Road sample – counts, notable findings, tester's note
+  SampleHistoryCard.tsx      Every sample – indicator toggle, stats, full table
+  SampleHistoryChart.tsx     Recharts log-scale history of one indicator, against the limits
+  SampleBandChip.tsx         A sample's low/elevated/high band as a status chip
   WaterQualityMap.tsx        SAS citizen science map embed + explainer
   WaterQualityExplainer.tsx  Classification bands disclosure
   WaterQualityInfoContent.tsx  Threshold tables + deep dive copy (shared)
@@ -125,7 +133,9 @@ lib/
   hooks.ts              useSevernData – all fetching, caching, offline state
   SevernDataContext.tsx React Context wrapping the hook
   csoStatus.ts          CSO state → label/colour/severity, in one place
-  pollutionRisk.ts      Derived high/raised/lower risk from spill timing + rainfall
+  pollutionRisk.ts      Derived high/raised/lower risk from spill timing, rainfall + latest sample
+  waterQuality.ts       Sample bands against the bathing water limits, formatting, findings, stats
+  waterQualityCsv.ts    Server-only: reads + validates the SAS CSV export(s), merges by Feature ID
   rainfall.ts           EA rainfall fetching and shaping
   rainfallAnalysis.ts   Intensity/daily buckets, trailing sums, forecast total
   catchment.ts          Nearest-waypoint filtering (which waypoint, and how far)
@@ -138,11 +148,15 @@ lib/
   ThemeContext.tsx      Colour-scheme provider/hooks (light/dark/system)
   storageKeys.ts        Canonical localStorage key names
   time.ts               Europe/London formatting helpers
+  londonDate.ts         London calendar-day helpers (React-free, so the server route can use them)
   format.ts             Duration and "data as of" formatting
   useTooltipDismiss.ts  Closes a recharts tooltip on an outside press
 
 types/
   index.ts              All shared TypeScript types
+
+data/
+  water-quality/        Hand-downloaded SAS CSV exports + README on adding them
 
 public/                 Static assets – icons, favicon, sw.js (offline shell)
 docs/                   Reference documents
@@ -171,6 +185,7 @@ docs/                   Reference documents
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) | 15-min readings, three gauges                           |
 | Rainfall forecast             | Open-Meteo `api.open-meteo.com/v1/forecast`                                                | Single point for Worcester, not per-gauge               |
 | Citizen science water quality | Surfers Against Sewage Water Quality map (Cartographer embed)                              | UK-wide, embedded as-is                                 |
+| Grandstand Road samples       | SAS CSV export, committed to `data/water-quality/`                                         | No API; updated by hand. Static route, built at deploy  |
 
 ---
 
@@ -184,19 +199,21 @@ one fetch rather than three.
 {
   cso: CsoResponse | null
   rainfall: RainfallResponse | null
+  waterQuality: WaterQualityResponse | null
   csoError: boolean          // that source failed AND had no cache to fall back on
   rainfallError: boolean
+  waterQualityError: boolean
   loading: boolean           // true only when there is genuinely nothing to render
   isRefreshing: boolean      // any fetch in flight
   isOffline: boolean
   usingCachedData: boolean
-  lastUpdated: string | null // newest asOf across whichever sources returned
+  lastUpdated: string | null // newest asOf across the live sources (not water quality)
   error: string | null       // set only when offline with no cache at all
   refetch: () => void
 }
 ```
 
-The two sources are fetched independently, each falling back to its own
+The three sources are fetched independently, each falling back to its own
 `localStorage` copy on failure, so one feed blipping doesn't discard data that
 arrived fine from the other.
 
@@ -222,12 +239,14 @@ fetch actually fell back to the cache; data that is merely past
 
 Canonical names live in `lib/storageKeys.ts`.
 
-| Key                        | Value                                                     |
-| -------------------------- | --------------------------------------------------------- |
-| `themeMode`                | `"light"` \| `"dark"` \| `"system"` (read/written by MUI) |
-| `rainfallRange`            | `"forecast"` \| `"1h"` \| `"8h"` \| `"24h"` \| `"7d"`     |
-| `severnwatch_csoData`      | Last successful `/api/sewage` response                    |
-| `severnwatch_rainfallData` | Last successful `/api/rainfall` response                  |
+| Key                            | Value                                                     |
+| ------------------------------ | --------------------------------------------------------- |
+| `themeMode`                    | `"light"` \| `"dark"` \| `"system"` (read/written by MUI) |
+| `rainfallRange`                | `"forecast"` \| `"1h"` \| `"8h"` \| `"24h"` \| `"7d"`     |
+| `severnwatch_csoData`          | Last successful `/api/sewage` response                    |
+| `severnwatch_rainfallData`     | Last successful `/api/rainfall` response                  |
+| `severnwatch_waterQualityData` | Last successful `/api/water-quality` response             |
+| `sampleHistoryIndicator`       | `"eColi"` \| `"enterococci"` \| `"coliforms"`             |
 
 ---
 
@@ -336,7 +355,8 @@ If Git hooks are not firing:
 
 ## What This Project Does Not Have
 
-- No database and no historical ingestion — everything is live-fetched
+- No database and no historical ingestion — everything is live-fetched, apart
+  from the hand-committed sample CSVs in `data/water-quality/`
 - No authentication
 - No automated tests (Jest/Vitest/Playwright)
 - No environment variables required

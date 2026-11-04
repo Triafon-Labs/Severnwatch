@@ -8,4 +8,6 @@ export const STORAGE_KEYS = {
   RAINFALL_RANGE: "rainfallRange",
   CSO_DATA: "severnwatch_csoData",
   RAINFALL_DATA: "severnwatch_rainfallData",
+  WATER_QUALITY_DATA: "severnwatch_waterQualityData",
+  SAMPLE_INDICATOR: "sampleHistoryIndicator",
 } as const;

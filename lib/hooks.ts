@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CsoResponse, RainfallResponse } from "@/types";
+import { CsoResponse, RainfallResponse, WaterQualityResponse } from "@/types";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 
 // There is no background poll. Like Paddlecheck, data is fetched on load, on
@@ -25,8 +25,10 @@ export const DATA_STALE_THRESHOLD_MS = 45 * 60 * 1000;
 export interface SevernData {
   cso: CsoResponse | null;
   rainfall: RainfallResponse | null;
+  waterQuality: WaterQualityResponse | null;
   csoError: boolean;
   rainfallError: boolean;
+  waterQualityError: boolean;
   // True until the first fetch (or the cache seeded ahead of it) has given the
   // cards something to render. The cards also show their skeletons while
   // isRefreshing - every fetch, as in Paddlecheck, so the skeletons clearing
@@ -35,8 +37,11 @@ export interface SevernData {
   isRefreshing: boolean;
   isOffline: boolean;
   usingCachedData: boolean;
-  // Newest `asOf` across whichever sources came back, which is what the nav
-  // bar's freshness line reports. Null until something loads.
+  // Newest `asOf` across the live sources (spills and rainfall), which is
+  // what the nav bar's freshness line reports. Null until something loads.
+  // The water quality samples are left out: their `asOf` is when the
+  // response was built, not when anything was sampled, and letting it into
+  // "Updated" would make a week-old sample look current.
   lastUpdated: string | null;
   error: string | null;
   refetch: () => void;
@@ -77,6 +82,10 @@ export const useSevernData = (): SevernData => {
   const [rainfall, setRainfall] = useState<RainfallResponse | null>(null);
   const [csoError, setCsoError] = useState(false);
   const [rainfallError, setRainfallError] = useState(false);
+  const [waterQuality, setWaterQuality] = useState<WaterQualityResponse | null>(
+    null
+  );
+  const [waterQualityError, setWaterQualityError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -122,9 +131,24 @@ export const useSevernData = (): SevernData => {
         fromCache: true,
       }));
 
-    const [csoResult, rainfallResult] = await Promise.all([
+    const waterQualityPromise = fetch("/api/water-quality")
+      .then((res) => {
+        if (!res.ok) throw new Error(`water quality: ${res.status}`);
+        return res.json() as Promise<WaterQualityResponse>;
+      })
+      .then((body) => {
+        writeCache(STORAGE_KEYS.WATER_QUALITY_DATA, body);
+        return { body, fromCache: false };
+      })
+      .catch(() => ({
+        body: readCache<WaterQualityResponse>(STORAGE_KEYS.WATER_QUALITY_DATA),
+        fromCache: true,
+      }));
+
+    const [csoResult, rainfallResult, waterQualityResult] = await Promise.all([
       csoPromise,
       rainfallPromise,
+      waterQualityPromise,
     ]);
 
     if (csoResult.body) setCso(csoResult.body);
@@ -132,6 +156,11 @@ export const useSevernData = (): SevernData => {
 
     if (rainfallResult.body) setRainfall(rainfallResult.body);
     setRainfallError(rainfallResult.fromCache && !rainfallResult.body);
+
+    if (waterQualityResult.body) setWaterQuality(waterQualityResult.body);
+    setWaterQualityError(
+      waterQualityResult.fromCache && !waterQualityResult.body
+    );
 
     const newestResultTime = newest(
       csoResult.body?.asOf,
@@ -141,11 +170,16 @@ export const useSevernData = (): SevernData => {
       newestDataAt.current = new Date(newestResultTime).getTime();
     }
 
-    const servedFromCache = csoResult.fromCache || rainfallResult.fromCache;
+    const servedFromCache =
+      csoResult.fromCache ||
+      rainfallResult.fromCache ||
+      waterQualityResult.fromCache;
     setUsingCachedData(servedFromCache);
 
     const gotSomething =
-      Boolean(csoResult.body) || Boolean(rainfallResult.body);
+      Boolean(csoResult.body) ||
+      Boolean(rainfallResult.body) ||
+      Boolean(waterQualityResult.body);
     setError(
       !gotSomething && !navigator.onLine ? OFFLINE_NO_CACHE_ERROR : null
     );
@@ -188,13 +222,17 @@ export const useSevernData = (): SevernData => {
       const cachedRainfall = readCache<RainfallResponse>(
         STORAGE_KEYS.RAINFALL_DATA
       );
+      const cachedWaterQuality = readCache<WaterQualityResponse>(
+        STORAGE_KEYS.WATER_QUALITY_DATA
+      );
       if (cachedCso) setCso(cachedCso);
       if (cachedRainfall) setRainfall(cachedRainfall);
+      if (cachedWaterQuality) setWaterQuality(cachedWaterQuality);
       const cachedDataTime = newest(cachedCso?.asOf, cachedRainfall?.asOf);
       if (cachedDataTime) {
         newestDataAt.current = new Date(cachedDataTime).getTime();
       }
-      if (cachedCso || cachedRainfall) {
+      if (cachedCso || cachedRainfall || cachedWaterQuality) {
         setUsingCachedData(true);
         setLoading(false);
       }
@@ -252,8 +290,10 @@ export const useSevernData = (): SevernData => {
   return {
     cso,
     rainfall,
+    waterQuality,
     csoError,
     rainfallError,
+    waterQualityError,
     loading,
     isRefreshing,
     isOffline,

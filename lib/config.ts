@@ -325,6 +325,34 @@ export const SEVERN_TRENT_MAP_URL =
 export const SAS_MAP_EMBED_URL =
   "https://app.cartographer.io/embed/map?map=SasWaterQuality&workspace=sas&project=wq";
 
+// --- SAS citizen science samples (manual export) ---
+// SAS's map has no public API, so its "Download data" export is saved into
+// data/water-quality/ by hand (see the README there). Every CSV in it is
+// read and merged by Feature ID, so a new export can sit alongside the old
+// ones and a partial export can't wipe out earlier samples. The folder path
+// itself is written out in lib/waterQualityCsv.ts, where the bundler needs
+// it as a literal.
+
+// The one site the cards follow. An export that also covers other sites is
+// filtered down to this name.
+export const WATER_QUALITY_SITE_NAME = "Grandstand Road";
+
+// How a sample feeds the headline pollution risk. Testing is roughly
+// weekly, and a result is only known a day or so after the sample is taken,
+// so a sample is never "live" - these keep an old result from outweighing
+// what the spill feed says now.
+//
+// - A high result counts as High Risk for this many London calendar days
+//   after sampling, then as Raised Risk until WATER_QUALITY_RELEVANT_DAYS.
+// - An elevated result counts as Raised Risk for this many days only.
+// - A low result never lowers the risk: one clean sample says nothing about
+//   a spill that started after it was taken.
+export const WATER_QUALITY_RECENT_DAYS = 2;
+export const WATER_QUALITY_RELEVANT_DAYS = 7;
+
+// Past this, the sample card says plainly that testing has gone quiet.
+export const WATER_QUALITY_STALE_DAYS = 14;
+
 // --- Environment Agency rainfall API documentation ---
 export const EA_RAINFALL_DOCS_URL =
   "https://environment.data.gov.uk/flood-monitoring/doc/rainfall";
