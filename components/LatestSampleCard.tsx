@@ -315,12 +315,11 @@ const LatestSampleCard: React.FC = () => {
               )}
 
               <Typography variant="caption" color="text.secondary">
-                Counts are colony-forming units {COUNT_UNIT}, compared with the
-                inland bathing water limits and named after the tier whose limit
-                they&apos;re under. One sample is a snapshot, not a bathing
-                water classification: Sufficient only exists across a season of
-                samples, so a single one is Excellent, Good or Poor. Results
-                arrive a day or more after the water is collected.
+                Counts are colony-forming units {COUNT_UNIT}. This is a snapshot
+                of the river that week, graded against the inland bathing water
+                limits - not an official classification. See How Limits Work
+                under Sample History. Results arrive a day or more after the
+                water is collected.
               </Typography>
             </Stack>
           </Grow>

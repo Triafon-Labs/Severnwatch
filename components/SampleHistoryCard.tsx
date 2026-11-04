@@ -45,7 +45,7 @@ import { collapseMotion, springTransition } from "@/lib/m3-palette";
 import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
-import { ClassificationTablesSection } from "@/components/WaterQualityInfoContent";
+import { SampleLimitsSection } from "@/components/WaterQualityInfoContent";
 
 const INDICATOR_ORDER = CLASSIFIED_INDICATORS;
 
@@ -338,9 +338,9 @@ const SampleHistoryCard: React.FC = () => {
                 </Collapse>
               </Box>
 
-              {/* The full classification tables, next to the chart that
-                  draws their limits. These used to sit under the SAS map
-                  embed, which this card and Latest Sample replaced. */}
+              {/* How the limits on the chart are used here - one sample at a
+                  time - against what they mean officially, a season-long
+                  classification. Next to the chart that draws them. */}
               <Box sx={{ mt: -1 }}>
                 <Button
                   onClick={() => setLimitsOpen((o) => !o)}
@@ -348,13 +348,11 @@ const SampleHistoryCard: React.FC = () => {
                   aria-expanded={limitsOpen}
                   size="small"
                 >
-                  {limitsOpen
-                    ? "Hide Classification Limits"
-                    : "Show Classification Limits"}
+                  {limitsOpen ? "Hide How Limits Work" : "Show How Limits Work"}
                 </Button>
                 <Collapse in={limitsOpen} unmountOnExit {...collapseMotion}>
                   <Box sx={{ mt: 1 }}>
-                    <ClassificationTablesSection />
+                    <SampleLimitsSection />
                   </Box>
                 </Collapse>
               </Box>

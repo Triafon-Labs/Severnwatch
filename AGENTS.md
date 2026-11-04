@@ -115,7 +115,7 @@ components/
   RainfallCard.tsx           Gauge stats, chart, change tiles
   RainfallChart.tsx          Recharts intensity/daily/forecast views
   LatestSampleCard.tsx       Newest Grandstand Road sample – counts, notable findings, tester's note
-  SampleHistoryCard.tsx      Every sample – indicator toggle, stats, full table, classification limits
+  SampleHistoryCard.tsx      Every sample – indicator toggle, stats, full table, how the limits work
   SampleHistoryChart.tsx     Recharts history of one indicator, against the limits
   SampleBandChip.tsx         A sample's Excellent/Good/Poor band as a status chip
   WaterQualityInfoContent.tsx  Threshold tables + deep dive copy (shared)

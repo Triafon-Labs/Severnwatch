@@ -1,4 +1,5 @@
 import {
+  Box,
   Chip,
   Table,
   TableBody,
@@ -129,6 +130,63 @@ export const ThresholdTable: React.FC<{ rows: ThresholdRow[] }> = ({
   </TableContainer>
 );
 
+// How the app grades one sample: against the same limits, named after the
+// tier whose limit it's under. Three rows rather than four, because
+// Sufficient's limits sit inside Good's (they're a 90th percentile, not a
+// 95th), so on one number there's no range that's Sufficient.
+const SAMPLE_LIMITS: ThresholdRow[] = [
+  { tier: "Excellent", basis: null, eColi: "< 500", enterococci: "< 200" },
+  { tier: "Good", basis: null, eColi: "< 1000", enterococci: "< 400" },
+  {
+    tier: "Poor",
+    basis: null,
+    eColi: "≥ 1000",
+    enterococci: "≥ 400",
+  },
+];
+
+// What the limits mean in this app, then what they mean officially - the
+// app reads a week at a time, and the official tables are a season-long
+// statistic, so the two need telling apart wherever the limits are shown.
+// Shared by the Sample History card and the Info tab's deep dive.
+export const SampleLimitsSection: React.FC = () => (
+  <>
+    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+      How a sample is graded here
+    </Typography>
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={{ mt: 0.5, mb: 1.5 }}
+    >
+      Each weekly sample is checked on its own against the inland bathing water
+      limits, and named after the tier whose limit it&apos;s under. It&apos;s a
+      snapshot of the river that week, not a classification of the site. A
+      sample is graded on whichever of E. coli or Enterococci is worse.
+    </Typography>
+    <ThresholdTable rows={SAMPLE_LIMITS} />
+
+    <Typography variant="subtitle2" sx={{ fontWeight: "bold", mt: 2.5 }}>
+      The official classification
+    </Typography>
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={{ mt: 0.5, mb: 1.5 }}
+    >
+      Regulators classify a designated bathing site once a year, from up to four
+      bathing seasons of samples (normally at least 16). Excellent and Good are
+      judged on the 95th percentile of the results and Sufficient on the 90th,
+      so a classification reflects the worst few samples across the seasons
+      rather than any one week. That&apos;s why Sufficient&apos;s limits sit
+      below Good&apos;s, and why a single sample is never graded Sufficient.
+      Grandstand Road isn&apos;t a designated bathing water, so it has no
+      official classification.
+    </Typography>
+    <ClassificationTablesSection />
+  </>
+);
+
 export const ClassificationTablesSection: React.FC = () => (
   <>
     <ThresholdTable rows={INLAND_THRESHOLDS} />
@@ -169,25 +227,9 @@ export const WaterQualityDeepDive: React.FC = () => (
       every outfall is monitored.
     </Typography>
 
-    <Typography variant="subtitle2" sx={{ fontWeight: "bold", mt: 2 }}>
-      What the citizen science bacteria counts mean
-    </Typography>
-    <Typography
-      variant="body2"
-      color="text.secondary"
-      sx={{ mt: 0.5, mb: 1.5 }}
-    >
-      Official bathing water classifications are based on samples from up to
-      four bathing seasons (normally at least 16, and at least four in each
-      season), measuring E. coli and intestinal Enterococci. A newly designated
-      site is classified on the seasons it has so far. &quot;Excellent&quot; and
-      &quot;Good&quot; use the 95th percentile of results;
-      &quot;Sufficient&quot; uses the 90th percentile - only the worst 5-10% of
-      samples count, since the aim is to flag the realistic risk of high
-      contamination, not the average.
-    </Typography>
-
-    <ClassificationTablesSection />
+    <Box sx={{ mt: 2 }}>
+      <SampleLimitsSection />
+    </Box>
 
     <Typography
       variant="caption"
