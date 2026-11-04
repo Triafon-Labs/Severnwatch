@@ -115,11 +115,9 @@ components/
   RainfallCard.tsx           Gauge stats, chart, change tiles
   RainfallChart.tsx          Recharts intensity/daily/forecast views
   LatestSampleCard.tsx       Newest Grandstand Road sample – counts, notable findings, tester's note
-  SampleHistoryCard.tsx      Every sample – indicator toggle, stats, full table
+  SampleHistoryCard.tsx      Every sample – indicator toggle, stats, full table, classification limits
   SampleHistoryChart.tsx     Recharts history of one indicator, against the limits
   SampleBandChip.tsx         A sample's low/elevated/high band as a status chip
-  WaterQualityMap.tsx        SAS citizen science map embed + explainer
-  WaterQualityExplainer.tsx  Classification bands disclosure
   WaterQualityInfoContent.tsx  Threshold tables + deep dive copy (shared)
   InfoPanel.tsx              Shared tonal panel, optionally a button
   StatTile.tsx               Labelled-figure tile (icon + label, value, detail) – gauges, periods, risk factors
@@ -184,8 +182,7 @@ docs/                   Reference documents
 | Outfall place names           | Nominatim reverse geocoding                                                                | Only for Ongoing/Recent, capped by `SEWAGE_MAX_RESULTS` |
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) | 15-min readings, three gauges                           |
 | Rainfall forecast             | Open-Meteo `api.open-meteo.com/v1/forecast`                                                | Single point for Worcester, not per-gauge               |
-| Citizen science water quality | Surfers Against Sewage Water Quality map (Cartographer embed)                              | UK-wide, embedded as-is                                 |
-| Grandstand Road samples       | SAS CSV export, committed to `data/water-quality/`                                         | No API; updated by hand. Static route, built at deploy  |
+| Citizen science water quality | SAS CSV export, committed to `data/water-quality/`                                         | No API; updated by hand. Static route, built at deploy  |
 
 ---
 

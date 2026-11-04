@@ -322,7 +322,10 @@ export const SEVERN_TRENT_MAP_URL =
   "https://www.stwater.co.uk/in-my-area/storm-overflow-map/";
 
 // --- SAS (Surfers Against Sewage) citizen science water quality map ---
-export const SAS_MAP_EMBED_URL =
+// Linked from the Info tab only. It used to be embedded as a card, until the
+// Grandstand Road samples were read into the app directly (see below): the
+// embed was UK-wide, heavy, and loaded SAS's own analytics into the page.
+export const SAS_MAP_URL =
   "https://app.cartographer.io/embed/map?map=SasWaterQuality&workspace=sas&project=wq";
 
 // --- SAS citizen science samples (manual export) ---
@@ -367,6 +370,6 @@ export interface UsefulLink {
 
 export const USEFUL_LINKS: UsefulLink[] = [
   { name: "Severn Trent Storm Overflow Map", url: SEVERN_TRENT_MAP_URL },
-  { name: "Surfers Against Sewage Water Quality Map", url: SAS_MAP_EMBED_URL },
+  { name: "Surfers Against Sewage Water Quality Map", url: SAS_MAP_URL },
   { name: "Environment Agency Rainfall Data", url: EA_RAINFALL_DOCS_URL },
 ];

@@ -9,9 +9,9 @@ import {
 } from "@mui/material";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
 
-// Shared between the classification tables under the water quality map
-// (WaterQualityExplainer) and the fuller write-up in the Info tab of the
-// settings sheet - kept in one place so the two stay in sync.
+// Shared between the classification tables at the foot of the Sample
+// History card and the fuller write-up in the Info tab of the settings
+// sheet - kept in one place so the two stay in sync.
 
 type Tier = "Excellent" | "Good" | "Sufficient" | "Poor";
 

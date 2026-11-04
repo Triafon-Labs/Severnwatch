@@ -45,6 +45,7 @@ import { collapseMotion, springTransition } from "@/lib/m3-palette";
 import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
+import { ClassificationTablesSection } from "@/components/WaterQualityInfoContent";
 
 const INDICATOR_ORDER = CLASSIFIED_INDICATORS;
 
@@ -92,6 +93,7 @@ const SampleHistoryCard: React.FC = () => {
   }, [indicatorKey]);
 
   const [tableOpen, setTableOpen] = useState(false);
+  const [limitsOpen, setLimitsOpen] = useState(false);
 
   const indicator = INDICATORS[indicatorKey];
   const stats = indicatorStats(samples, indicatorKey);
@@ -290,6 +292,27 @@ const SampleHistoryCard: React.FC = () => {
                       </TableBody>
                     </Table>
                   </TableContainer>
+                </Collapse>
+              </Box>
+
+              {/* The full classification tables, next to the chart that
+                  draws their limits. These used to sit under the SAS map
+                  embed, which this card and Latest Sample replaced. */}
+              <Box sx={{ mt: -1 }}>
+                <Button
+                  onClick={() => setLimitsOpen((o) => !o)}
+                  endIcon={limitsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  aria-expanded={limitsOpen}
+                  size="small"
+                >
+                  {limitsOpen
+                    ? "Hide Classification Limits"
+                    : "Show Classification Limits"}
+                </Button>
+                <Collapse in={limitsOpen} unmountOnExit {...collapseMotion}>
+                  <Box sx={{ mt: 1 }}>
+                    <ClassificationTablesSection />
+                  </Box>
                 </Collapse>
               </Box>
             </Stack>

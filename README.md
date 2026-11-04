@@ -29,8 +29,7 @@ Node 22 or newer is required (`engines.node` in `package.json`, and what both CI
 | CSO spill status              | Severn Trent Water Storm Overflow Activity feed (public ArcGIS FeatureServer)              |
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) |
 | Rainfall forecast             | Open-Meteo (single point for Worcester)                                                    |
-| Citizen science water quality | Surfers Against Sewage (SAS) Water Quality map (Cartographer embed)                        |
-| Grandstand Road samples       | SAS CSV export, downloaded by hand into `data/water-quality/`                              |
+| Citizen science water quality | Surfers Against Sewage (SAS) CSV export, downloaded by hand into `data/water-quality/`     |
 
 There's no database. Spills and rainfall are fetched live server-side and displayed, and responses are mirrored into `localStorage` purely as an offline fallback.
 
