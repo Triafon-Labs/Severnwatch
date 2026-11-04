@@ -12,15 +12,21 @@ export default function HomePage() {
     // boundary. The page used to sit at 32, which read as four unrelated
     // panels rather than one dashboard.
     //
-    // The live feeds first, then the citizen science testing: the newest
-    // sample, and the site's full history last, as the deepest read on the
-    // page.
+    // Effect first, then its causes: the headline risk, what the water
+    // actually measured, the spills that are the main live cause, then the
+    // rain that drives them - so each card explains the one above it, and the
+    // risk card's spill and rain factors point at two cards that sit
+    // together. The sample history is the deepest read, so it goes last.
+    //
+    // Kept fixed rather than reordered by the data (e.g. dropping a stale
+    // sample down the page): cards that move around are harder to find than
+    // any one order is to read. A stale sample says so on its own card.
     <Container maxWidth="md" sx={{ px: 2 }}>
       <Stack spacing={2}>
         <PollutionRiskCard />
+        <LatestSampleCard />
         <CsoListCard />
         <RainfallCard />
-        <LatestSampleCard />
         <SampleHistoryCard />
       </Stack>
     </Container>
