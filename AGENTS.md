@@ -116,7 +116,7 @@ components/
   RainfallChart.tsx          Recharts intensity/daily/forecast views
   LatestSampleCard.tsx       Newest Grandstand Road sample – counts, notable findings, tester's note
   SampleHistoryCard.tsx      Every sample – indicator toggle, stats, full table
-  SampleHistoryChart.tsx     Recharts log-scale history of one indicator, against the limits
+  SampleHistoryChart.tsx     Recharts history of one indicator, against the limits
   SampleBandChip.tsx         A sample's low/elevated/high band as a status chip
   WaterQualityMap.tsx        SAS citizen science map embed + explainer
   WaterQualityExplainer.tsx  Classification bands disclosure

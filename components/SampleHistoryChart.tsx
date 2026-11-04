@@ -36,18 +36,28 @@ import { useTooltipDismiss } from "@/lib/useTooltipDismiss";
 import { SERIES_COLORS } from "@/lib/chartColors";
 import { revealSx } from "@/lib/chartMotion";
 
-// Every sample for one indicator over time, on a log scale: the counts run
-// from "<10" to ">1000" and the interesting differences are factors of ten,
-// which a linear axis would flatten into a line along the floor with the odd
-// spike. Each dot carries its band colour, so the chart reads the same way
-// as the sample card's chips.
+// Every sample for one indicator over time, on a linear scale. A log axis
+// was tried first, but SAS's test tops out at ">1000", so the counts only
+// span 10 to 1000 - not enough range to need one - and a log axis makes a
+// jump from 100 to 1000 look the same size as one from 10 to 100, which
+// undersells exactly the results that matter. The cost is that the low
+// counts (<10, 20, 80) bunch along the floor; they're all well under the
+// limits, and the tooltip and table give the exact figures. If the lab ever
+// reports far higher counts, clip the axis and mark the off-scale points
+// rather than going back to log. Each dot carries its band colour, so the
+// chart reads the same way as the sample card's chips.
 
 const chartRevealSx = revealSx(".recharts-line", 1200, "ease");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Log scale has no zero, and a "0" count is as legitimate as "<10" - both
-// are drawn on the floor.
-const FLOOR = 5;
+// A round axis step giving about five gridlines up to `max`: 100, 250,
+// 500, 1000 and so on.
+const niceStep = (max: number): number => {
+  const rough = max / 5;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 2.5, 5, 10].find((m) => m * magnitude >= rough) ?? 10;
+  return step * magnitude;
+};
 
 interface Point {
   sortKey: number;
@@ -128,7 +138,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
           const count = s[indicatorKey]!;
           return {
             sortKey: sampleTimeMs(s),
-            plotted: Math.max(count.value, FLOOR),
+            plotted: count.value,
             count,
             band: bandForCount(count, indicator),
             hasNote: Boolean(s.notes),
@@ -144,9 +154,14 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
   const xDomain: [number, number] = [first - 4 * DAY_MS, last + 4 * DAY_MS];
   const ticks = useMemo(() => londonMonthStarts(first, last), [first, last]);
 
-  const maxPlotted = Math.max(...data.map((d) => d.plotted), 1000);
-  const yMax = 10 ** Math.ceil(Math.log10(maxPlotted * 1.5));
-  const yTicks = [10, 100, 1000, 10000, 100000].filter((t) => t <= yMax);
+  // Always tall enough to show the Good limit, so a run of clean samples
+  // still reads against it, with headroom so a ">1000" triangle at the top
+  // isn't clipped.
+  const yTop =
+    Math.max(...data.map((d) => d.plotted), indicator.limits?.good ?? 0) * 1.1;
+  const yStep = niceStep(yTop);
+  const yMax = Math.ceil(yTop / yStep) * yStep;
+  const yTicks = Array.from({ length: yMax / yStep + 1 }, (_, i) => i * yStep);
 
   // The dot is the reading: filled in its band colour, hollow where the
   // count was under the test's detection limit, and an upward triangle where
@@ -202,9 +217,9 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
     );
   };
 
-  // On a log axis 500 and 1000 sit close together, so the labels go on the
-  // outside of the pair - Good's above its line, Excellent's below its own -
-  // rather than both in the gap, where they overprint. (recharts' "inside"
+  // The labels go on the outside of the pair - Good's above its line,
+  // Excellent's below its own - so they can't overprint in the gap between
+  // them on a short chart. (recharts' "inside"
   // positions are measured from the line's own zero-height box, so
   // insideBottom is above the line and insideTop below it.)
   //
@@ -260,7 +275,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
   return (
     <Stack spacing={1}>
       <Typography variant="caption" color="text.secondary">
-        {indicator.label} ({COUNT_UNIT}, log scale)
+        {indicator.label} ({COUNT_UNIT})
       </Typography>
       <Box ref={chartRef} sx={{ width: "100%", height: 240, ...chartRevealSx }}>
         {/* Keyed on the indicator so each one draws in afresh. */}
@@ -287,10 +302,8 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
               tickLine={false}
             />
             <YAxis
-              scale="log"
-              domain={[FLOOR, yMax]}
+              domain={[0, yMax]}
               ticks={yTicks}
-              allowDataOverflow
               tickFormatter={(v: number) => v.toLocaleString("en-GB")}
               tick={{ fill: chrome.axis, fontSize: 12 }}
               axisLine={false}
