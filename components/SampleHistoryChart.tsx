@@ -64,7 +64,6 @@ interface Point {
   plotted: number;
   count: BacteriaCount;
   band: SampleBand | null;
-  note: string | null;
 }
 
 const monthTick = (ms: number) =>
@@ -73,40 +72,24 @@ const monthTick = (ms: number) =>
     month: "short",
   });
 
+// Paddlecheck's river graph tooltip: the time and the headline figure, and
+// nothing else. The band is already the dot's colour, and a tester's note
+// is shown in full in the sample table below, where it doesn't depend on a
+// tap landing on the right point.
 const SampleTooltip = ({
   active,
   payload,
-  indicatorKey,
-}: TooltipContentProps<ValueType, NameType> & {
-  indicatorKey: IndicatorKey;
-}) => {
+}: TooltipContentProps<ValueType, NameType>) => {
   const point = payload?.[0]?.payload as Point | undefined;
   if (!active || !point) return null;
   return (
-    // Capped so a long tester's note wraps rather than stretching the
-    // tooltip across, and off, a phone screen.
-    <Paper sx={{ p: 2, pointerEvents: "none", maxWidth: 260 }}>
+    <Paper sx={{ p: 2, pointerEvents: "none" }}>
       <Typography variant="body1">
         {formatLondonDate(point.sortKey, { withTime: true })}
       </Typography>
       <Typography variant="body2">
-        {INDICATORS[indicatorKey].shortLabel}: {formatCount(point.count)}{" "}
-        {COUNT_UNIT}
+        {formatCount(point.count)} {COUNT_UNIT}
       </Typography>
-      {point.band && (
-        <Typography variant="body2" color="text.secondary">
-          {SAMPLE_BAND_UI[point.band].description}
-        </Typography>
-      )}
-      {point.note && (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ mt: 1, whiteSpace: "pre-line" }}
-        >
-          Tester&apos;s note: {point.note}
-        </Typography>
-      )}
     </Paper>
   );
 };
@@ -147,7 +130,6 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
             plotted: count.value,
             count,
             band: bandForCount(count, indicator),
-            note: s.notes,
           };
         }),
     [samples, indicatorKey, indicator]
@@ -314,12 +296,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
               tickLine={false}
               width="auto"
             />
-            <Tooltip
-              active={tooltipActive}
-              content={(props: TooltipContentProps<ValueType, NameType>) => (
-                <SampleTooltip {...props} indicatorKey={indicatorKey} />
-              )}
-            />
+            <Tooltip active={tooltipActive} content={SampleTooltip} />
             <Line
               dataKey="plotted"
               name={indicator.shortLabel}
@@ -328,7 +305,11 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
               strokeWidth={2}
               type="linear"
               dot={renderDot}
-              activeDot={{ r: 6 }}
+              // No active dot, as in Paddlecheck's forecast graph: recharts
+              // would draw a plain series-colour dot over the tapped sample,
+              // hiding its band colour and its ">" triangle while the
+              // tooltip is open.
+              activeDot={false}
               isAnimationActive={false}
             />
           </ComposedChart>
