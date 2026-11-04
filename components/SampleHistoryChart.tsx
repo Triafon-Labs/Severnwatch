@@ -158,7 +158,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
   // still reads against it, with headroom so a ">1000" triangle at the top
   // isn't clipped.
   const yTop =
-    Math.max(...data.map((d) => d.plotted), indicator.limits?.good ?? 0) * 1.1;
+    Math.max(...data.map((d) => d.plotted), indicator.limits.good) * 1.1;
   const yStep = niceStep(yTop);
   const yMax = Math.ceil(yTop / yStep) * yStep;
   const yTicks = Array.from({ length: yMax / yStep + 1 }, (_, i) => i * yStep);
@@ -225,52 +225,50 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
   //
   // A flat array, not a fragment: recharts walks its children's types and
   // silently drops a Fragment's contents (as in RainfallChart).
-  const limitMarks = indicator.limits
-    ? [
-        <ReferenceArea
-          key="band-elevated"
-          y1={indicator.limits.excellent}
-          y2={indicator.limits.good}
-          fill={elevatedColor}
-          fillOpacity={0.08}
-          strokeWidth={0}
-          ifOverflow="hidden"
-        />,
-        <ReferenceArea
-          key="band-high"
-          y1={indicator.limits.good}
-          y2={yMax}
-          fill={highColor}
-          fillOpacity={0.08}
-          strokeWidth={0}
-          ifOverflow="hidden"
-        />,
-        <ReferenceLine
-          key="line-excellent"
-          y={indicator.limits.excellent}
-          stroke={elevatedColor}
-          strokeDasharray="4 4"
-          label={{
-            value: "Excellent Limit",
-            position: "insideTopLeft",
-            fill: chrome.text,
-            fontSize: 11,
-          }}
-        />,
-        <ReferenceLine
-          key="line-good"
-          y={indicator.limits.good}
-          stroke={highColor}
-          strokeDasharray="4 4"
-          label={{
-            value: "Good Limit",
-            position: "insideBottomLeft",
-            fill: chrome.text,
-            fontSize: 11,
-          }}
-        />,
-      ]
-    : [];
+  const limitMarks = [
+    <ReferenceArea
+      key="band-elevated"
+      y1={indicator.limits.excellent}
+      y2={indicator.limits.good}
+      fill={elevatedColor}
+      fillOpacity={0.08}
+      strokeWidth={0}
+      ifOverflow="hidden"
+    />,
+    <ReferenceArea
+      key="band-high"
+      y1={indicator.limits.good}
+      y2={yMax}
+      fill={highColor}
+      fillOpacity={0.08}
+      strokeWidth={0}
+      ifOverflow="hidden"
+    />,
+    <ReferenceLine
+      key="line-excellent"
+      y={indicator.limits.excellent}
+      stroke={elevatedColor}
+      strokeDasharray="4 4"
+      label={{
+        value: "Excellent Limit",
+        position: "insideTopLeft",
+        fill: chrome.text,
+        fontSize: 11,
+      }}
+    />,
+    <ReferenceLine
+      key="line-good"
+      y={indicator.limits.good}
+      stroke={highColor}
+      strokeDasharray="4 4"
+      label={{
+        value: "Good Limit",
+        position: "insideBottomLeft",
+        fill: chrome.text,
+        fontSize: 11,
+      }}
+    />,
+  ];
 
   return (
     <Stack spacing={1}>

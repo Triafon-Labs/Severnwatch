@@ -30,6 +30,7 @@ import FunctionsIcon from "@mui/icons-material/Functions";
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
+  CLASSIFIED_INDICATORS,
   INDICATORS,
   IndicatorKey,
   SAMPLE_BAND_UI,
@@ -45,7 +46,7 @@ import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 
-const INDICATOR_ORDER: IndicatorKey[] = ["eColi", "enterococci", "coliforms"];
+const INDICATOR_ORDER = CLASSIFIED_INDICATORS;
 
 const isIndicator = (v: string | null): v is IndicatorKey =>
   v !== null && (INDICATOR_ORDER as string[]).includes(v);
@@ -171,22 +172,18 @@ const SampleHistoryCard: React.FC = () => {
               <Divider />
 
               <Box sx={tileGridSx}>
-                {indicator.limits && (
-                  <>
-                    <StatTile
-                      icon={<WarningAmberIcon />}
-                      label="Over Good"
-                      value={`${stats.overGood} of ${stats.total}`}
-                      detail={`${indicator.limits.good.toLocaleString("en-GB")} or more`}
-                    />
-                    <StatTile
-                      icon={<WarningAmberIcon />}
-                      label="Over Excellent"
-                      value={`${stats.overExcellent} of ${stats.total}`}
-                      detail={`${indicator.limits.excellent.toLocaleString("en-GB")} or more`}
-                    />
-                  </>
-                )}
+                <StatTile
+                  icon={<WarningAmberIcon />}
+                  label="Over Good"
+                  value={`${stats.overGood} of ${stats.total}`}
+                  detail={`${indicator.limits.good.toLocaleString("en-GB")} or more`}
+                />
+                <StatTile
+                  icon={<WarningAmberIcon />}
+                  label="Over Excellent"
+                  value={`${stats.overExcellent} of ${stats.total}`}
+                  detail={`${indicator.limits.excellent.toLocaleString("en-GB")} or more`}
+                />
                 {stats.highest && (
                   <StatTile
                     icon={<ArrowUpwardIcon />}

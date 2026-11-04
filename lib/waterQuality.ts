@@ -13,16 +13,21 @@ import { formatLondonDate } from "@/lib/londonDate";
 // (900 vs 1000 E. coli) because they're judged on a different percentile, so
 // on a single number the ladder would run backwards.
 
-export type IndicatorKey = "eColi" | "enterococci" | "coliforms";
+// Only the two the bathing water classification is judged on. The export
+// also carries total thermotolerant coliforms, which the parser still reads
+// (WaterQualitySample.coliforms) but the cards leave out: they're a broader
+// count that E. coli is the main part of, have had no limit since the 2006
+// bathing water rules replaced them, and with nothing to compare against,
+// a reading of "690" just looks alarming.
+export type IndicatorKey = "eColi" | "enterococci";
 
 export interface Indicator {
   key: IndicatorKey;
   label: string;
   shortLabel: string;
   // The single-sample limits, per 100 ml: the inland Excellent and Good
-  // limits from the Bathing Water Regulations 2013. Coliforms have none -
-  // they aren't part of the classification.
-  limits: { excellent: number; good: number } | null;
+  // limits from the Bathing Water Regulations 2013.
+  limits: { excellent: number; good: number };
 }
 
 export const INDICATORS: Record<IndicatorKey, Indicator> = {
@@ -38,16 +43,9 @@ export const INDICATORS: Record<IndicatorKey, Indicator> = {
     shortLabel: "Enterococci",
     limits: { excellent: 200, good: 400 },
   },
-  coliforms: {
-    key: "coliforms",
-    label: "Thermotolerant coliforms",
-    shortLabel: "Coliforms",
-    limits: null,
-  },
 };
 
-// The two that the classification is judged on, worst-case first when a
-// sample is summarised.
+// The two that the classification is judged on, in display order.
 export const CLASSIFIED_INDICATORS: IndicatorKey[] = ["eColi", "enterococci"];
 
 export type SampleBand = "low" | "elevated" | "high";
@@ -97,7 +95,7 @@ export const bandForCount = (
   count: BacteriaCount | null,
   indicator: Indicator
 ): SampleBand | null => {
-  if (!count || !indicator.limits) return null;
+  if (!count) return null;
   const { excellent, good } = indicator.limits;
   if (count.value >= good) return "high";
   if (count.value >= excellent) return "elevated";
@@ -124,7 +122,7 @@ export const worstIndicator = (
   for (const key of CLASSIFIED_INDICATORS) {
     const count = sample[key];
     const limits = INDICATORS[key].limits;
-    if (!count || !limits) continue;
+    if (!count) continue;
     const ratio = count.value / limits.good;
     if (ratio > worstRatio) {
       worst = key;

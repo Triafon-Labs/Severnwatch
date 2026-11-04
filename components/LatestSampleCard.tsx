@@ -22,6 +22,7 @@ import PoolIcon from "@mui/icons-material/Pool";
 import { WaterQualitySample } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
+  CLASSIFIED_INDICATORS,
   COUNT_UNIT,
   INDICATORS,
   IndicatorKey,
@@ -47,7 +48,7 @@ import SampleBandChip from "@/components/SampleBandChip";
 
 const numberFormat = new Intl.NumberFormat("en-GB");
 
-const COUNT_TILES: IndicatorKey[] = ["eColi", "enterococci", "coliforms"];
+const COUNT_TILES = CLASSIFIED_INDICATORS;
 
 // One indicator's count, with where it sits against the limits and what the
 // sample before it read - the change is usually the story, not the number.
@@ -61,13 +62,12 @@ const CountTile: React.FC<{
   const band = bandForCount(count, indicator);
   const previous = previousCount(samples, indicatorKey);
 
-  const limitLine = indicator.limits
-    ? band === "high"
+  const limitLine =
+    band === "high"
       ? `Over the Good limit (${numberFormat.format(indicator.limits.good)})`
       : band === "elevated"
         ? `Over the Excellent limit (${numberFormat.format(indicator.limits.excellent)})`
-        : `Under the Excellent limit (${numberFormat.format(indicator.limits.excellent)})`
-    : "Not used for classification";
+        : `Under the Excellent limit (${numberFormat.format(indicator.limits.excellent)})`;
 
   return (
     <StatTile

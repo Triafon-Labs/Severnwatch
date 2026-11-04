@@ -24,11 +24,14 @@ filenames mean a correction in a newer export replaces the older value.
 - Only rows whose Site is **Grandstand Road** (`WATER_QUALITY_SITE_NAME` in
   `lib/config.ts`). Any other sites in the export are ignored.
 - Only rows with Status **approved**.
-- E. coli, Intestinal Enterococci and Total Thermotolerant Coliforms, with
-  their Range column kept: `LessThan 10` is shown as "<10" and
-  `GreaterThan 1000` as ">1000", never as plain numbers.
+- E. coli and Intestinal Enterococci, with their Range column kept:
+  `LessThan 10` is shown as "<10" and `GreaterThan 1000` as ">1000", never
+  as plain numbers.
 - Air temperature, weather, rainfall, water users and Notes when they're
   filled in.
+- Total Thermotolerant Coliforms are parsed but not shown. They're a broader
+  count that E. coli is the main part of, and they've had no bathing water
+  limit since 2006, so there's nothing to judge them against.
 
 ## If the build fails
 

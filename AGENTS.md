@@ -246,7 +246,7 @@ Canonical names live in `lib/storageKeys.ts`.
 | `severnwatch_csoData`          | Last successful `/api/sewage` response                    |
 | `severnwatch_rainfallData`     | Last successful `/api/rainfall` response                  |
 | `severnwatch_waterQualityData` | Last successful `/api/water-quality` response             |
-| `sampleHistoryIndicator`       | `"eColi"` \| `"enterococci"` \| `"coliforms"`             |
+| `sampleHistoryIndicator`       | `"eColi"` \| `"enterococci"`                              |
 
 ---
 
