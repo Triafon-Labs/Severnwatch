@@ -28,11 +28,7 @@ import {
   sampleTimeMs,
   worstIndicator,
 } from "@/lib/waterQuality";
-import {
-  formatDaysAgo,
-  formatLondonDate,
-  londonDaysAgo,
-} from "@/lib/londonDate";
+import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 
 // A pollution risk for the reach, derived from two things:
 //

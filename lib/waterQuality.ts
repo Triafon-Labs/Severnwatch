@@ -1,6 +1,6 @@
 import { BacteriaCount, WaterQualitySample } from "@/types";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
-import { formatLondonDate } from "@/lib/londonDate";
+import { formatLondonDate } from "@/lib/time";
 
 // How the citizen science counts are read, in one place for the sample card,
 // the history chart and the headline pollution risk.

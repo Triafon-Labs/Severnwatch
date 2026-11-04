@@ -39,7 +39,7 @@ import {
   indicatorStats,
   sampleTimeMs,
 } from "@/lib/waterQuality";
-import { formatLondonDate } from "@/lib/londonDate";
+import { formatLondonDate } from "@/lib/time";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { collapseMotion, springTransition } from "@/lib/m3-palette";
 import InfoPanel from "@/components/InfoPanel";

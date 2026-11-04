@@ -34,7 +34,7 @@ import {
   spring,
   springTransition,
 } from "@/lib/m3-palette";
-import { useNowTicking } from "@/lib/time";
+import { useNowTicking } from "@/lib/useNowTicking";
 import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 

@@ -34,12 +34,8 @@ import {
   previousCount,
   sampleTimeMs,
 } from "@/lib/waterQuality";
-import {
-  formatDaysAgo,
-  formatLondonDate,
-  londonDaysAgo,
-} from "@/lib/londonDate";
-import { useNowTicking } from "@/lib/time";
+import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
+import { useNowTicking } from "@/lib/useNowTicking";
 import { WATER_QUALITY_STALE_DAYS } from "@/lib/config";
 import { m3Spring, spring, springTransition } from "@/lib/m3-palette";
 import InfoPanel from "@/components/InfoPanel";

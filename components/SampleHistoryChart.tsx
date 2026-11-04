@@ -30,7 +30,7 @@ import {
   formatCount,
   sampleTimeMs,
 } from "@/lib/waterQuality";
-import { formatLondonDate, londonMonthStarts } from "@/lib/londonDate";
+import { formatLondonDate, londonMonthStarts } from "@/lib/time";
 import { useResolvedColorScheme } from "@/lib/ThemeContext";
 import { useTooltipDismiss } from "@/lib/useTooltipDismiss";
 import { SERIES_COLORS } from "@/lib/chartColors";

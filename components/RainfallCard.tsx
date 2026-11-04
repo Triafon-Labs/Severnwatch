@@ -27,7 +27,8 @@ import StatTile, { tileGridSx } from "@/components/StatTile";
 import dynamic from "next/dynamic";
 import { springTransition } from "@/lib/m3-palette";
 import { RAINFALL_GAUGES } from "@/lib/config";
-import { formatDataAge, useNowTicking } from "@/lib/time";
+import { formatDataAge } from "@/lib/time";
+import { useNowTicking } from "@/lib/useNowTicking";
 
 // When a gauge's newest reading was taken. EA gauges report on their own
 // telemetry schedules and often upload in batches, so the newest reading can

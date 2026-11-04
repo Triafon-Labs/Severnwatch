@@ -7,7 +7,7 @@ import {
   WaterQualitySite,
 } from "@/types";
 import { WATER_QUALITY_SITE_NAME } from "@/lib/config";
-import { londonWallClockToUtcMs } from "@/lib/londonDate";
+import { londonWallClockToUtcMs } from "@/lib/time";
 
 // Reads SAS's Cartographer "Download data" export. Server-only: it reads the
 // filesystem, and is imported by /api/water-quality alone.

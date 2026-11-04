@@ -145,8 +145,8 @@ lib/
   themes.ts             The MUI theme
   ThemeContext.tsx      Colour-scheme provider/hooks (light/dark/system)
   storageKeys.ts        Canonical localStorage key names
-  time.ts               Europe/London formatting helpers
-  londonDate.ts         London calendar-day helpers (React-free, so the server route can use them)
+  time.ts               Europe/London time and calendar-day helpers (no React, so servers can import it)
+  useNowTicking.ts      Client hook: the current time, ticking each minute (kept out of time.ts)
   format.ts             Duration and "data as of" formatting
   useTooltipDismiss.ts  Closes a recharts tooltip on an outside press
 
