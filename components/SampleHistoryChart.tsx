@@ -64,7 +64,7 @@ interface Point {
   plotted: number;
   count: BacteriaCount;
   band: SampleBand | null;
-  hasNote: boolean;
+  note: string | null;
 }
 
 const monthTick = (ms: number) =>
@@ -83,7 +83,9 @@ const SampleTooltip = ({
   const point = payload?.[0]?.payload as Point | undefined;
   if (!active || !point) return null;
   return (
-    <Paper sx={{ p: 2, pointerEvents: "none" }}>
+    // Capped so a long tester's note wraps rather than stretching the
+    // tooltip across, and off, a phone screen.
+    <Paper sx={{ p: 2, pointerEvents: "none", maxWidth: 260 }}>
       <Typography variant="body1">
         {formatLondonDate(point.sortKey, { withTime: true })}
       </Typography>
@@ -96,9 +98,13 @@ const SampleTooltip = ({
           {SAMPLE_BAND_UI[point.band].description}
         </Typography>
       )}
-      {point.hasNote && (
-        <Typography variant="body2" color="text.secondary">
-          Has a tester&apos;s note
+      {point.note && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mt: 1, whiteSpace: "pre-line" }}
+        >
+          Tester&apos;s note: {point.note}
         </Typography>
       )}
     </Paper>
@@ -141,7 +147,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
             plotted: count.value,
             count,
             band: bandForCount(count, indicator),
-            hasNote: Boolean(s.notes),
+            note: s.notes,
           };
         }),
     [samples, indicatorKey, indicator]

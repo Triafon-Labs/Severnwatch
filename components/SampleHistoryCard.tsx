@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Box,
@@ -228,65 +228,108 @@ const SampleHistoryCard: React.FC = () => {
                       <TableBody>
                         {[...samples].reverse().map((s, idx, all) => {
                           const band = bandForSample(s);
+                          const isLast = idx === all.length - 1;
+                          // A note gets a row of its own beneath its sample,
+                          // in the same stripe, rather than a hover tooltip -
+                          // there's no hover on a phone, which is where this
+                          // gets read. Notes are rare, so it costs little.
+                          const rowSx = {
+                            bgcolor:
+                              idx % 2 === 1
+                                ? "surfaces.containerHigh"
+                                : "transparent",
+                          };
                           return (
-                            <TableRow
-                              key={s.id}
-                              sx={{
-                                bgcolor:
-                                  idx % 2 === 1
-                                    ? "surfaces.containerHigh"
-                                    : "transparent",
-                                "& td": {
-                                  borderBottom:
-                                    idx === all.length - 1 ? 0 : undefined,
-                                },
-                              }}
-                            >
-                              <TableCell sx={{ whiteSpace: "nowrap" }}>
-                                {formatLondonDate(sampleTimeMs(s), {
-                                  withWeekday: false,
-                                })}
-                                {s.notes && (
-                                  <FormatQuoteIcon
-                                    titleAccess={s.notes}
-                                    color="primary"
-                                    sx={{
-                                      fontSize: 16,
-                                      ml: 0.5,
-                                      verticalAlign: "text-bottom",
-                                    }}
-                                  />
-                                )}
-                              </TableCell>
-                              <TableCell align="right">
-                                {formatCount(s.eColi)}
-                              </TableCell>
-                              <TableCell align="right">
-                                {formatCount(s.enterococci)}
-                              </TableCell>
-                              <TableCell
-                                align="right"
-                                padding="none"
-                                sx={{ pr: 1 }}
+                            <Fragment key={s.id}>
+                              <TableRow
+                                sx={{
+                                  ...rowSx,
+                                  "& td": {
+                                    borderBottom:
+                                      isLast || s.notes ? 0 : undefined,
+                                  },
+                                }}
                               >
-                                {band && (
-                                  // A dot rather than the chip: four columns
-                                  // don't leave room for a label on a phone.
-                                  <Box
-                                    role="img"
-                                    aria-label={SAMPLE_BAND_UI[band].label}
-                                    title={SAMPLE_BAND_UI[band].description}
-                                    sx={{
-                                      display: "inline-block",
-                                      width: 10,
-                                      height: 10,
-                                      borderRadius: "50%",
-                                      bgcolor: SAMPLE_BAND_UI[band].color,
-                                    }}
-                                  />
-                                )}
-                              </TableCell>
-                            </TableRow>
+                                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                                  {formatLondonDate(sampleTimeMs(s), {
+                                    withWeekday: false,
+                                  })}
+                                </TableCell>
+                                <TableCell align="right">
+                                  {formatCount(s.eColi)}
+                                </TableCell>
+                                <TableCell align="right">
+                                  {formatCount(s.enterococci)}
+                                </TableCell>
+                                <TableCell
+                                  align="right"
+                                  padding="none"
+                                  sx={{ pr: 1 }}
+                                >
+                                  {band && (
+                                    // A dot rather than the chip: four columns
+                                    // don't leave room for a label on a phone.
+                                    <Box
+                                      role="img"
+                                      aria-label={SAMPLE_BAND_UI[band].label}
+                                      title={SAMPLE_BAND_UI[band].description}
+                                      sx={{
+                                        display: "inline-block",
+                                        width: 10,
+                                        height: 10,
+                                        borderRadius: "50%",
+                                        bgcolor: SAMPLE_BAND_UI[band].color,
+                                      }}
+                                    />
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                              {s.notes && (
+                                <TableRow
+                                  sx={{
+                                    ...rowSx,
+                                    "& td": {
+                                      borderBottom: isLast ? 0 : undefined,
+                                    },
+                                  }}
+                                >
+                                  <TableCell colSpan={4} sx={{ pt: 0 }}>
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        gap: 0.75,
+                                        alignItems: "flex-start",
+                                      }}
+                                    >
+                                      <FormatQuoteIcon
+                                        color="primary"
+                                        aria-hidden
+                                        sx={{ fontSize: 18, flexShrink: 0 }}
+                                      />
+                                      <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ whiteSpace: "pre-line" }}
+                                      >
+                                        <Box
+                                          component="span"
+                                          sx={{
+                                            position: "absolute",
+                                            width: 1,
+                                            height: 1,
+                                            overflow: "hidden",
+                                            clip: "rect(0 0 0 0)",
+                                          }}
+                                        >
+                                          Tester&apos;s note:{" "}
+                                        </Box>
+                                        {s.notes}
+                                      </Typography>
+                                    </Box>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Fragment>
                           );
                         })}
                       </TableBody>
