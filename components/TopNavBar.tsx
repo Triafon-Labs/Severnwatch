@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   AppBar,
   Box,
@@ -17,8 +17,8 @@ import ShareIcon from "@mui/icons-material/Share";
 import Image from "next/image";
 import SettingsModal from "@/components/SettingsModal";
 import { useSevernContext } from "@/lib/SevernDataContext";
-import { DATA_STALE_THRESHOLD_MS, OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
-import { getLondonHHMM, getRelativeTimeString } from "@/lib/time";
+import { OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
+import { useFreshness } from "@/lib/useFreshness";
 import { formatOutfallSubtitle } from "@/lib/format";
 import { collapseMotion } from "@/lib/m3-palette";
 import { APP_NAME } from "@/lib/config";
@@ -100,11 +100,6 @@ const buildShareText = (
   return lines.join("\n");
 };
 
-const isDataStale = (lastUpdated: string | null): boolean => {
-  if (!lastUpdated) return false;
-  return Date.now() - new Date(lastUpdated).getTime() > DATA_STALE_THRESHOLD_MS;
-};
-
 const TopNavBar: React.FC = () => {
   const scrolled = useScrollTrigger({ disableHysteresis: true, threshold: 8 });
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -122,42 +117,7 @@ const TopNavBar: React.FC = () => {
 
   const isOfflineError = error === OFFLINE_NO_CACHE_ERROR;
 
-  // Seeded from the current value on first render, then ticked on a timer so
-  // "3 min ago" keeps counting up between fetches rather than freezing at
-  // whatever it said when the data landed.
-  const [relativeLastUpdated, setRelativeLastUpdated] = useState<string>(() =>
-    getRelativeTimeString(lastUpdated)
-  );
-  const [isStale, setIsStale] = useState<boolean>(() =>
-    isDataStale(lastUpdated)
-  );
-
-  useEffect(() => {
-    // queueMicrotask breaks the synchronous set-state-in-an-effect the lint
-    // rules flag, while still running before paint.
-    queueMicrotask(() => {
-      setRelativeLastUpdated(getRelativeTimeString(lastUpdated));
-      setIsStale(isDataStale(lastUpdated));
-    });
-
-    const interval = setInterval(() => {
-      setRelativeLastUpdated(getRelativeTimeString(lastUpdated));
-      setIsStale(isDataStale(lastUpdated));
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [lastUpdated]);
-
-  // "Updated just now" alone reads as if this instant triggered a live fetch,
-  // when it may just be a fast cache hit on data fetched slightly earlier -
-  // pairing it with the clock time it was actually fetched keeps that honest.
-  const lastUpdatedClockTime = lastUpdated
-    ? getLondonHHMM(new Date(lastUpdated))
-    : null;
-  const freshnessText =
-    lastUpdatedClockTime && relativeLastUpdated
-      ? `${lastUpdatedClockTime} · ${relativeLastUpdated}`
-      : relativeLastUpdated;
+  const { freshnessText, isStale } = useFreshness(lastUpdated);
 
   const handleShare = async () => {
     const text = buildShareText(cso, rainfall);
@@ -256,26 +216,19 @@ const TopNavBar: React.FC = () => {
               height={40}
               style={{ flexShrink: 0 }}
             />
-            <Box sx={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <Typography
-                variant="h6"
-                noWrap
-                sx={{ fontWeight: 600, lineHeight: 1.2 }}
-                color="text.primary"
-              >
-                {APP_NAME}
-              </Typography>
-              {(isRefreshing || freshnessText) && (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  noWrap
-                  sx={{ lineHeight: 1.2, mt: -0.2 }}
-                >
-                  {isRefreshing ? "Updating…" : `Updated ${freshnessText}`}
-                </Typography>
-              )}
-            </Box>
+            {/* The name alone. The "Updated" line moved into the Water
+                Quality Status card, as Paddlecheck moved its own into the
+                status card: it says when the headline was worked out, so it
+                belongs beside it, and the banners above take over once the
+                data is stale or an update has failed. */}
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{ fontWeight: 600, lineHeight: 1.2, minWidth: 0 }}
+              color="text.primary"
+            >
+              {APP_NAME}
+            </Typography>
           </Box>
           <Box sx={{ display: "flex", flexShrink: 0 }}>
             <IconButton onClick={handleShare} aria-label="share">

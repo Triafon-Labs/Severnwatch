@@ -105,10 +105,10 @@ app/
   manifest.ts           PWA web manifest
 
 components/
-  TopNavBar.tsx              App bar – share, settings, refresh, freshness, banners
+  TopNavBar.tsx              App bar – share, settings, refresh, stale/offline banners
   SettingsModal.tsx          Bottom sheet – theme, links, conditions key, deep dive, version
   ConditionsKey.tsx          Legend for the status colours, map markers and chart bands
-  PollutionRiskCard.tsx      Headline pollution risk, derived from spills + rainfall
+  PollutionRiskCard.tsx      Headline pollution risk from spills, rainfall + latest sample, with the "Updated" line
   CsoListCard.tsx            Live/recent spills, then the network as a river diagram
   RiverSchematic.tsx         Transit-map view of the catchment, stops in downstream order
   CsoOutfallRow.tsx          One outfall as a labelled row, shared by both of the above
@@ -147,6 +147,7 @@ lib/
   storageKeys.ts        Canonical localStorage key names
   time.ts               Europe/London time and calendar-day helpers (no React, so servers can import it)
   useNowTicking.ts      Client hook: the current time, ticking each minute (kept out of time.ts)
+  useFreshness.ts       "10:33 · just now" and whether data is stale – status card and the banners
   format.ts             Duration and "data as of" formatting
   useTooltipDismiss.ts  Closes a recharts tooltip on an outside press
 
@@ -222,7 +223,8 @@ puts the cards into their skeletons (they read `isRefreshing`), so the
 skeletons clearing means what's on screen just came from the network; a poll
 would blank the page under whoever was reading it.
 
-Freshness is communicated by the nav bar's "Updated HH:MM (n min ago)" line,
+Freshness is communicated by the "Updated HH:MM · n min ago" line under the
+Water Quality Status title (`lib/useFreshness.ts`, as in Paddlecheck),
 the "As of" caption under the rainfall chart (the age of the newest gauge
 reading, which the EA typically receives only once or twice a day), and a
 banner above the app bar. That banner says "Live update failed" only when a
