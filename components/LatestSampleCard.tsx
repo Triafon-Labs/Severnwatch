@@ -315,11 +315,9 @@ const LatestSampleCard: React.FC = () => {
               )}
 
               <Typography variant="caption" color="text.secondary">
-                Counts are colony-forming units {COUNT_UNIT}. This is a snapshot
-                of the river that week, graded against the inland bathing water
-                limits - not an official classification. See How Limits Work
-                under Sample History. Results arrive a day or more after the
-                water is collected.
+                Colony-forming units {COUNT_UNIT}. A snapshot of that week, not
+                an official classification - see How Limits Work below. Results
+                arrive a day or more after sampling.
               </Typography>
             </Stack>
           </Grow>
