@@ -104,7 +104,7 @@ app/
     rainfall/           EA rainfall gauges + Open-Meteo forecast
     water-quality/      Committed + uploaded SAS CSVs, static; rebuilt on each upload
       upload/           POST: passcode-checked upload of one export (validates, stores, revalidates)
-  upload/               The tester's upload page (unlinked, noindex)
+  upload/               The tester's upload page (from Settings → Info → For Testers; noindex)
   layout.tsx            Root layout – ThemeRegistry, data provider, safe-area frame
   page.tsx              Home page – the cards
   globals.css           Global resets only; type and colour come from the theme

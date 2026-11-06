@@ -20,6 +20,8 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import NextLink from "next/link";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 import { WaterQualityDeepDive } from "@/components/WaterQualityInfoContent";
 import ConditionsKey from "@/components/ConditionsKey";
@@ -434,6 +436,34 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
             </SourceLink>
             &apos;s citizen science programme.
           </Typography>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* The way in to /upload for whoever does the weekly testing, so
+              it doesn't rest on them keeping a bookmark. At the foot of the
+              sheet so it doesn't draw a reader's eye; the passcode on the
+              page is what guards uploads, not the link being hidden. */}
+          <Typography variant="h6" gutterBottom>
+            For Testers
+          </Typography>
+          <ListItem
+            component={NextLink}
+            href="/upload"
+            onClick={onClose}
+            sx={{ pl: 0, color: "primary.main" }}
+          >
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography>Upload Sample Results</Typography>
+              <Typography
+                variant="caption"
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                Add this week&apos;s SAS export. Needs the testers&apos;
+                passcode.
+              </Typography>
+            </Box>
+            <ChevronRightIcon fontSize="small" />
+          </ListItem>
         </Box>
       </Box>
     </Drawer>

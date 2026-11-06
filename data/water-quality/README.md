@@ -9,14 +9,15 @@ hand.
 
 1. On the SAS Water Quality map, download the data for the Grandstand Road
    site (the "SAS Coliforms Map Data" CSV export). Don't edit the file.
-2. Open **`/upload`** on the site (bookmark it), enter the passcode, choose
-   the file and press Upload.
+2. In the app, open **Settings → Info → For Testers → Upload Sample
+   Results** (or go straight to `/upload`), enter the passcode, choose the
+   file and press Upload.
 
 The page checks the file before anything is stored, then says what it found:
 "25 samples read - 1 new", or exactly what's wrong with the file. The cards
 pick the new samples up within a minute, with no redeploy.
 
-The page isn't linked from the app and asks search engines not to list it.
+The page asks search engines not to list it.
 
 ## Where the samples come from
 
