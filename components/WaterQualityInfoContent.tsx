@@ -10,7 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
-import { EA_CLASSIFICATIONS_URL, SAS_CLASSIFICATIONS_URL } from "@/lib/config";
+import { CLASSIFICATIONS_EXPLAINER_URL } from "@/lib/config";
 
 // Shared between "How Limits Work" at the foot of the Sample History card and
 // the deep dive in the settings sheet's Info tab, so the two stay in sync.
@@ -126,12 +126,11 @@ export const SampleLimitsSection: React.FC = () => (
     >
       Official classifications cover designated bathing waters only - which
       Grandstand Road isn&apos;t - and are worked out from several seasons of
-      samples. More from{" "}
-      <SourceLink href={SAS_CLASSIFICATIONS_URL}>
-        Surfers Against Sewage
-      </SourceLink>{" "}
-      and the{" "}
-      <SourceLink href={EA_CLASSIFICATIONS_URL}>Environment Agency</SourceLink>.
+      samples.{" "}
+      <SourceLink href={CLASSIFICATIONS_EXPLAINER_URL}>
+        What the classifications mean
+      </SourceLink>
+      .
     </Typography>
   </>
 );

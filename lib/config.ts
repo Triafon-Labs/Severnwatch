@@ -366,15 +366,15 @@ export const WATER_QUALITY_RELEVANT_DAYS = 7;
 // Past this, the sample card says plainly that testing has gone quiet.
 export const WATER_QUALITY_STALE_DAYS = 14;
 
-// --- Bathing water classification explainers (linked from "How Limits Work") ---
+// --- Bathing water classification explainer (linked from "How Limits Work") ---
 // The app grades one week at a time and never shows an official
 // classification, so the season-long method is linked to rather than
-// re-explained: SAS's plain-English explainer, and the Environment Agency on
-// how classifications differ from short-term pollution.
-export const SAS_CLASSIFICATIONS_URL =
-  "https://datahq.sas.org.uk/wp-content/uploads/2026/07/Bathing-Water-Classifications-explained.docx.pdf";
-export const EA_CLASSIFICATIONS_URL =
-  "https://environmentagency.blog.gov.uk/2024/02/23/bathing-water-classifications-and-short-term-pollution/";
+// re-explained. SAS's glossary entry: a short plain-English paragraph, not a
+// PDF or a long post. The text fragment (#:~:text=) scrolls to the entry in
+// browsers that support it; others land at the top of the glossary, where
+// the entry is second.
+export const CLASSIFICATIONS_EXPLAINER_URL =
+  "https://datahq.sas.org.uk/toolkit/glossary/#:~:text=Bathing%20Water%20Classifications";
 
 // --- Environment Agency rainfall API documentation ---
 export const EA_RAINFALL_DOCS_URL =
