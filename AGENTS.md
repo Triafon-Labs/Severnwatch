@@ -19,11 +19,12 @@ Before any Next.js work, find and read the relevant doc in `node_modules/next/di
 Severnwatch is a Progressive Web App showing River Severn water quality
 conditions at Worcester, UK: combined sewer overflow (CSO) spill status,
 upstream rainfall with a short forecast, and citizen science water quality
-sampling. There is no database and no persistence. Spill and rainfall
-readings are fetched live from public APIs through Next.js routes. The
-Grandstand Road sample results are the exception: SAS has no API for them, so
-their CSV export is committed to `data/water-quality/` and parsed at build
-time (see that folder's README).
+sampling. There is no database. Spill and rainfall readings are fetched live
+from public APIs through Next.js routes. The Grandstand Road sample results
+are the exception: SAS has no API for them, so each week's CSV export is
+uploaded by a tester through `/upload` and kept in a private Vercel Blob
+store, on top of a baseline committed to `data/water-quality/` (see that
+folder's README).
 
 Sibling project to [Paddlecheck](https://github.com/dylanr97/Paddlecheck) (the
 Worcester Canoe Club kayaking conditions app). The two share a tech stack, a
@@ -48,7 +49,10 @@ scopes. **Location hardcoded to:** Worcester, UK (lat 52.2, lon -2.2).
 | CI            | GitHub Actions (lint + build on PR, opt-in uptime + health ping)               |
 | Releases      | commit-and-tag-version (auto version bump + changelog + tag on merge to main)  |
 
-No environment variables are required for local development.
+No environment variables are required for local development. In production,
+`/upload` needs a connected Vercel Blob store (`BLOB_READ_WRITE_TOKEN`, set by
+Vercel) and `UPLOAD_PASSCODE`; without them uploads are refused and the cards
+use the committed CSVs.
 
 ---
 
@@ -98,7 +102,9 @@ app/
   api/
     sewage/             Severn Trent storm overflow feed, filtered to the catchment
     rainfall/           EA rainfall gauges + Open-Meteo forecast
-    water-quality/      SAS sample CSVs from data/water-quality/, prerendered at build
+    water-quality/      Committed + uploaded SAS CSVs, static; rebuilt on each upload
+      upload/           POST: passcode-checked upload of one export (validates, stores, revalidates)
+  upload/               The tester's upload page (unlinked, noindex)
   layout.tsx            Root layout – ThemeRegistry, data provider, safe-area frame
   page.tsx              Home page – the cards
   globals.css           Global resets only; type and colour come from the theme
@@ -118,6 +124,7 @@ components/
   SampleHistoryCard.tsx      Every sample – indicator toggle, stats, full table, how the limits work
   SampleHistoryChart.tsx     Recharts history of one indicator, against the limits
   SampleBandChip.tsx         A sample's Excellent/Good/Poor band as a status chip
+  UploadForm.tsx             The /upload page's form – passcode, file, the check's result
   WaterQualityInfoContent.tsx  Threshold tables + deep dive copy (shared)
   InfoPanel.tsx              Shared tonal panel, optionally a button
   StatTile.tsx               Labelled-figure tile (icon + label, value, detail) – gauges, periods, risk factors
@@ -134,6 +141,7 @@ lib/
   pollutionRisk.ts      Derived high/raised/lower risk from spill timing, rainfall + latest sample
   waterQuality.ts       Sample bands against the bathing water limits, formatting, findings, stats
   waterQualityCsv.ts    Server-only: reads + validates the SAS CSV export(s), merges by Feature ID
+  waterQualityStore.ts  Server-only: uploaded exports in Vercel Blob (or a local folder off Vercel)
   rainfall.ts           EA rainfall fetching and shaping
   rainfallAnalysis.ts   Intensity/daily buckets, trailing sums, forecast total
   catchment.ts          Nearest-waypoint filtering (which waypoint, and how far)
@@ -183,7 +191,7 @@ docs/                   Reference documents
 | Outfall place names           | Nominatim reverse geocoding                                                                | Only for Ongoing/Recent, capped by `SEWAGE_MAX_RESULTS` |
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) | 15-min readings, three gauges                           |
 | Rainfall forecast             | Open-Meteo `api.open-meteo.com/v1/forecast`                                                | Single point for Worcester, not per-gauge               |
-| Citizen science water quality | SAS CSV export, committed to `data/water-quality/`                                         | No API; updated by hand. Static route, built at deploy  |
+| Citizen science water quality | SAS CSV export, uploaded via `/upload` (Vercel Blob) + committed baseline                  | No API; uploaded by hand. Static, rebuilt per upload    |
 
 ---
 
@@ -355,9 +363,9 @@ If Git hooks are not firing:
 ## What This Project Does Not Have
 
 - No database and no historical ingestion — everything is live-fetched, apart
-  from the hand-committed sample CSVs in `data/water-quality/`
+  from the sample CSVs (committed, or uploaded to Vercel Blob)
 - No authentication
 - No automated tests (Jest/Vitest/Playwright)
-- No environment variables required
+- No environment variables required locally (uploads need two in production)
 - No multi-location support (hardcoded to Worcester)
 - No analytics

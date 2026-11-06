@@ -114,3 +114,14 @@ export interface WaterQualityResponse {
   // "Updated" line - the cards date each sample themselves.
   asOf: string;
 }
+
+// /api/water-quality/upload's reply, which the /upload page shows.
+export type UploadResponse =
+  | {
+      ok: true;
+      samples: number; // Grandstand Road samples in the file
+      added: number; // not in the data before
+      updated: number; // already there, with a different result
+      latestSampledAt: string | null;
+    }
+  | { ok: false; error: string }; // written for the tester, shown as-is

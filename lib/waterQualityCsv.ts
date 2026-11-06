@@ -8,9 +8,10 @@ import {
 } from "@/types";
 import { WATER_QUALITY_SITE_NAME } from "@/lib/config";
 import { londonWallClockToUtcMs } from "@/lib/time";
+import { listStoredExports } from "@/lib/waterQualityStore";
 
 // Reads SAS's Cartographer "Download data" export. Server-only: it reads the
-// filesystem, and is imported by /api/water-quality alone.
+// filesystem, and is imported by /api/water-quality and its upload route.
 //
 // The export's shape is checked rather than trusted. A file whose columns
 // don't match is an error, not something to guess at: if SAS rename a column,
@@ -166,12 +167,15 @@ const humanise = (value: string): string | null => {
   return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
-interface ParsedFile {
+export interface ParsedExport {
   site: WaterQualitySite | null;
   samples: WaterQualitySample[];
 }
 
-const parseExport = (text: string, fileName: string): ParsedFile => {
+// One export, checked and parsed. Throws with the file, row and column named
+// when it doesn't look like the SAS export - which the upload route shows to
+// the tester as-is, so the messages are written for them.
+export const parseExport = (text: string, fileName: string): ParsedExport => {
   const rows = parseCsv(text);
   if (rows.length === 0) return { site: null, samples: [] };
 
@@ -183,9 +187,17 @@ const parseExport = (text: string, fileName: string): ParsedFile => {
     if (i === -1) missing.push(name);
     index[key] = i;
   }
+  // Most columns missing means it's a different file altogether, and a list
+  // of twenty column names helps nobody; a few missing means SAS have changed
+  // the export, and the names are what needs fixing in COLUMNS above.
+  if (missing.length > Object.keys(COLUMNS).length / 2) {
+    throw new Error(
+      `${fileName} isn't the SAS water quality export. Download the data again from the SAS map and upload that file.`
+    );
+  }
   if (missing.length > 0) {
     throw new Error(
-      `${fileName} doesn't look like a SAS water quality export - missing column(s): ${missing.join(", ")}`
+      `${fileName} looks like the SAS export, but it's missing column(s): ${missing.join(", ")}. SAS may have changed the export format.`
     );
   }
 
@@ -240,10 +252,33 @@ const parseExport = (text: string, fileName: string): ParsedFile => {
   return { site, samples };
 };
 
-// Every CSV in the data folder, merged by Feature ID. Files are read in name
-// order and a later file's copy of a sample replaces an earlier one, so a
-// fresh export that corrects a result wins as long as it's named after the
-// one it corrects - which the dated names in the README give for free.
+// Exports merged by Feature ID, in the order given: a later export's copy of
+// a sample replaces an earlier one, so a correction wins.
+export const mergeExports = (
+  parsed: ParsedExport[]
+): { site: WaterQualitySite; samples: WaterQualitySample[] } => {
+  const byId = new Map<string, WaterQualitySample>();
+  let site: WaterQualitySite | null = null;
+  for (const file of parsed) {
+    site ??= file.site;
+    for (const sample of file.samples) byId.set(sample.id, sample);
+  }
+  return {
+    site: site ?? {
+      name: WATER_QUALITY_SITE_NAME,
+      river: "River Severn",
+      gridRef: "",
+    },
+    samples: [...byId.values()].sort(
+      (a, b) => Date.parse(a.sampledAt) - Date.parse(b.sampledAt)
+    ),
+  };
+};
+
+// Every committed CSV in data/water-quality/ (in name order - the dated names
+// in its README make that oldest first), then every uploaded export (in
+// upload order, lib/waterQualityStore.ts). The committed files are the
+// baseline; uploads layer on top and win where they repeat a sample.
 export const loadWaterQualitySamples = async (): Promise<{
   site: WaterQualitySite;
   samples: WaterQualitySample[];
@@ -256,26 +291,13 @@ export const loadWaterQualitySamples = async (): Promise<{
     .filter((f) => f.toLowerCase().endsWith(".csv"))
     .sort();
 
-  const byId = new Map<string, WaterQualitySample>();
-  let site: WaterQualitySite | null = null;
-
-  for (const file of files) {
-    const parsed = parseExport(
-      await readFile(path.join(dir, file), "utf8"),
-      file
-    );
-    site ??= parsed.site;
-    for (const sample of parsed.samples) byId.set(sample.id, sample);
-  }
-
-  return {
-    site: site ?? {
-      name: WATER_QUALITY_SITE_NAME,
-      river: "River Severn",
-      gridRef: "",
-    },
-    samples: [...byId.values()].sort(
-      (a, b) => Date.parse(a.sampledAt) - Date.parse(b.sampledAt)
-    ),
-  };
+  const committed = await Promise.all(
+    files.map(async (file) =>
+      parseExport(await readFile(path.join(dir, file), "utf8"), file)
+    )
+  );
+  const uploaded = (await listStoredExports()).map(({ name, text }) =>
+    parseExport(text, name)
+  );
+  return mergeExports([...committed, ...uploaded]);
 };
