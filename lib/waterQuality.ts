@@ -194,49 +194,6 @@ export const indicatorStats = (
   return { total: withCount.length, bands, highest };
 };
 
-// Plain-English observations about the newest sample, for the sample card:
-// counts at the top of the test's range, record highs, and how it compares
-// with the run of samples before it. Ordered most striking first.
-export const notableFindings = (samples: WaterQualitySample[]): string[] => {
-  const latest = samples[samples.length - 1];
-  if (!latest) return [];
-  const earlier = samples.slice(0, -1);
-  const findings: string[] = [];
-
-  for (const key of CLASSIFIED_INDICATORS) {
-    const count = latest[key];
-    if (count?.qualifier === "above") {
-      findings.push(
-        `${INDICATORS[key].shortLabel} was over the test's ${numberFormat.format(count.value)} maximum, so could be higher.`
-      );
-    }
-  }
-
-  if (earlier.length > 0) {
-    for (const key of CLASSIFIED_INDICATORS) {
-      const count = latest[key];
-      if (!count || count.qualifier === "below") continue;
-      const previous = earlier
-        .map((s) => s[key])
-        .filter((c): c is BacteriaCount => c !== null);
-      if (previous.length === 0) continue;
-      const topRank = Math.max(...previous.map(countRank));
-      const rank = countRank(count);
-      if (rank > topRank) {
-        findings.push(
-          `Highest ${INDICATORS[key].shortLabel} of all ${previous.length + 1} samples.`
-        );
-      } else if (rank === topRank) {
-        findings.push(
-          `Joint highest ${INDICATORS[key].shortLabel} of all ${previous.length + 1} samples.`
-        );
-      }
-    }
-  }
-
-  return findings;
-};
-
 // The newest sample before this one with a count for `key`, for "previous"
 // comparisons on the sample card.
 export const previousCount = (

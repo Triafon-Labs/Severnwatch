@@ -120,7 +120,7 @@ components/
   CsoOutfallRow.tsx          One outfall as a labelled row, shared by both of the above
   RainfallCard.tsx           Gauge stats, chart, change tiles
   RainfallChart.tsx          Recharts intensity/daily/forecast views
-  LatestSampleCard.tsx       Newest Grandstand Road sample – counts, notable findings, tester's note
+  LatestSampleCard.tsx       Newest Grandstand Road sample – counts, tier, tester's note, conditions
   SampleHistoryCard.tsx      Every sample – indicator toggle, tier counts, earlier notes, how the limits work
   SampleHistoryChart.tsx     Recharts history of one indicator, against the limits
   SampleBandChip.tsx         A sample's Excellent/Good/Poor band as a status chip
@@ -139,7 +139,7 @@ lib/
   SevernDataContext.tsx React Context wrapping the hook
   csoStatus.ts          CSO state → label/colour/severity, in one place
   pollutionRisk.ts      Derived high/raised/lower risk from spill timing, rainfall + latest sample
-  waterQuality.ts       Sample bands against the bathing water limits, formatting, findings, stats
+  waterQuality.ts       Sample bands against the bathing water limits, formatting, stats
   waterQualityCsv.ts    Server-only: reads + validates the SAS CSV export(s), merges by Feature ID
   waterQualityStore.ts  Server-only: uploaded exports in Vercel Blob (or a local folder off Vercel)
   rainfall.ts           EA rainfall fetching and shaping

@@ -30,7 +30,6 @@ import {
   bandForCount,
   bandForSample,
   formatCount,
-  notableFindings,
   previousCount,
   sampleTimeMs,
 } from "@/lib/waterQuality";
@@ -166,7 +165,6 @@ const LatestSampleCard: React.FC = () => {
 
   const samples = useMemo(() => waterQuality?.samples ?? [], [waterQuality]);
   const latest = samples[samples.length - 1];
-  const findings = useMemo(() => notableFindings(samples), [samples]);
 
   const band = latest ? bandForSample(latest) : null;
   const ui = band ? SAMPLE_BAND_UI[band] : null;
@@ -251,24 +249,6 @@ const LatestSampleCard: React.FC = () => {
                   <CountTile key={key} samples={samples} indicatorKey={key} />
                 ))}
               </Box>
-
-              {findings.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Notable
-                  </Typography>
-                  <Box
-                    component="ul"
-                    sx={{ m: 0, mt: 0.5, pl: 2.5, "& li + li": { mt: 0.5 } }}
-                  >
-                    {findings.map((f) => (
-                      <Typography key={f} component="li" variant="body2">
-                        {f}
-                      </Typography>
-                    ))}
-                  </Box>
-                </Box>
-              )}
 
               {latest.notes && (
                 <InfoPanel align="flex-start">
