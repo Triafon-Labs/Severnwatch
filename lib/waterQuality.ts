@@ -194,13 +194,14 @@ export const indicatorStats = (
   return { total: withCount.length, bands, highest };
 };
 
-// The newest sample before this one with a count for `key`, for "previous"
-// comparisons on the sample card.
+// The nearest sample before samples[index] with a count for `key`, for the
+// "Was 110 on 26 Oct" line on the sample details.
 export const previousCount = (
   samples: WaterQualitySample[],
+  index: number,
   key: IndicatorKey
 ): { count: BacteriaCount; sampledAt: string } | null => {
-  for (let i = samples.length - 2; i >= 0; i--) {
+  for (let i = index - 1; i >= 0; i--) {
     const count = samples[i][key];
     if (count) return { count, sampledAt: samples[i].sampledAt };
   }

@@ -2,22 +2,16 @@
 
 import { useMemo, useRef } from "react";
 import { useTheme } from "@mui/material/styles";
-import { Box, Paper, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import {
   CartesianGrid,
   ComposedChart,
   Line,
   ReferenceArea,
   ResponsiveContainer,
-  Tooltip,
-  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  NameType,
-  ValueType,
-} from "recharts/types/component/DefaultTooltipContent";
 import { BacteriaCount, WaterQualitySample } from "@/types";
 import {
   COUNT_UNIT,
@@ -26,12 +20,10 @@ import {
   SAMPLE_BAND_UI,
   SampleBand,
   bandForCount,
-  formatCount,
   sampleTimeMs,
 } from "@/lib/waterQuality";
-import { formatLondonDate, londonMonthStarts } from "@/lib/time";
+import { londonMonthStarts } from "@/lib/time";
 import { useResolvedColorScheme } from "@/lib/ThemeContext";
-import { useTooltipDismiss } from "@/lib/useTooltipDismiss";
 import { SERIES_COLORS } from "@/lib/chartColors";
 import { revealSx } from "@/lib/chartMotion";
 
@@ -41,7 +33,7 @@ import { revealSx } from "@/lib/chartMotion";
 // jump from 100 to 1000 look the same size as one from 10 to 100, which
 // undersells exactly the results that matter. The cost is that the low
 // counts (<10, 20, 80) bunch along the floor; they're all well under the
-// limits, and the tooltip and table give the exact figures. If the lab ever
+// limits, and picking a point gives the exact figures. If the lab ever
 // reports far higher counts, clip the axis and mark the off-scale points
 // rather than going back to log. Each dot carries its band colour, so the
 // chart reads the same way as the sample card's chips.
@@ -59,6 +51,7 @@ const niceStep = (max: number): number => {
 };
 
 interface Point {
+  id: string;
   sortKey: number;
   plotted: number;
   count: BacteriaCount;
@@ -71,34 +64,26 @@ const monthTick = (ms: number) =>
     month: "short",
   });
 
-// Paddlecheck's river graph tooltip: the time and the headline figure, and
-// nothing else. The band is already the dot's colour, and a tester's note
-// is shown in full in the sample table below, where it doesn't depend on a
-// tap landing on the right point.
-const SampleTooltip = ({
-  active,
-  payload,
-}: TooltipContentProps<ValueType, NameType>) => {
-  const point = payload?.[0]?.payload as Point | undefined;
-  if (!active || !point) return null;
-  return (
-    <Paper sx={{ p: 2, pointerEvents: "none" }}>
-      <Typography variant="body1">
-        {formatLondonDate(point.sortKey, { withTime: true })}
-      </Typography>
-      <Typography variant="body2">
-        {formatCount(point.count)} {COUNT_UNIT}
-      </Typography>
-    </Paper>
-  );
-};
-
 interface Props {
   samples: WaterQualitySample[];
   indicatorKey: IndicatorKey;
+  // The picked sample, shown in full under the chart (SampleHistoryCard).
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onStep: (direction: 1 | -1) => void;
 }
 
-const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
+// No tooltip, as on Paddlecheck's forecast graph: tapping or dragging across
+// the chart picks a sample, which is ringed here and shown in full under the
+// chart with arrows to step through the rest. A tooltip on a phone sat under
+// the finger doing the picking and vanished as soon as it lifted.
+const SampleHistoryChart: React.FC<Props> = ({
+  samples,
+  indicatorKey,
+  selectedId,
+  onSelect,
+  onStep,
+}) => {
   const indicator = INDICATORS[indicatorKey];
   const theme = useTheme();
   const resolvedMode = useResolvedColorScheme();
@@ -121,7 +106,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
   const poorColor = SAMPLE_BAND_UI.poor.color;
 
   const chartRef = useRef<HTMLDivElement>(null);
-  const { tooltipActive, chartMoveProps } = useTooltipDismiss(chartRef);
+  const pressing = useRef(false);
 
   const data = useMemo<Point[]>(
     () =>
@@ -130,6 +115,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
         .map((s) => {
           const count = s[indicatorKey]!;
           return {
+            id: s.id,
             sortKey: sampleTimeMs(s),
             plotted: count.value,
             count,
@@ -138,6 +124,26 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
         }),
     [samples, indicatorKey, indicator]
   );
+
+  // Picks the sample whose dot is nearest the pointer across the chart. Read
+  // from the dots as drawn, rather than worked out from the axis scale, so it
+  // can't drift from what's on screen whatever width the y-axis takes.
+  const pickAt = (clientX: number) => {
+    const dots = chartRef.current?.querySelectorAll(".recharts-line-dots > *");
+    if (!dots || dots.length === 0) return;
+    let nearest = -1;
+    let nearestGap = Infinity;
+    dots.forEach((dot, i) => {
+      const box = dot.getBoundingClientRect();
+      const gap = Math.abs(box.left + box.width / 2 - clientX);
+      if (gap < nearestGap) {
+        nearest = i;
+        nearestGap = gap;
+      }
+    });
+    const point = data[nearest];
+    if (point && point.id !== selectedId) onSelect(point.id);
+  };
 
   const first = data[0]?.sortKey ?? 0;
   const last = data[data.length - 1]?.sortKey ?? 0;
@@ -158,7 +164,7 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
   // The dot is the reading: filled in its band colour, hollow where the
   // count was under the test's detection limit, and an upward triangle where
   // it was over the test's top limit - the true value is above the mark.
-  const renderDot = (props: {
+  const renderMark = (props: {
     cx?: number;
     cy?: number;
     index?: number;
@@ -206,6 +212,32 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
         stroke={chrome.surface}
         strokeWidth={1.5}
       />
+    );
+  };
+
+  // The picked sample gets a ring around its mark, as Paddlecheck outlines
+  // its picked hour's bar.
+  const renderDot = (props: {
+    cx?: number;
+    cy?: number;
+    index?: number;
+    payload?: Point;
+  }) => {
+    const mark = renderMark(props);
+    const { cx, cy, index, payload } = props;
+    if (cx == null || cy == null || payload?.id !== selectedId) return mark;
+    return (
+      <g key={`dot-${index}`}>
+        <circle
+          cx={cx}
+          cy={cy}
+          r={10}
+          fill="none"
+          stroke={theme.palette.text.primary}
+          strokeWidth={2}
+        />
+        {mark}
+      </g>
     );
   };
 
@@ -270,13 +302,47 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
       <Typography variant="caption" color="text.secondary">
         {indicator.label} ({COUNT_UNIT})
       </Typography>
-      <Box ref={chartRef} sx={{ width: "100%", height: 240, ...chartRevealSx }}>
+      <Box
+        ref={chartRef}
+        role="group"
+        tabIndex={0}
+        aria-label={`${indicator.label} history. Use the left and right arrow keys to step through samples.`}
+        onPointerDown={(e) => {
+          pressing.current = true;
+          pickAt(e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (pressing.current) pickAt(e.clientX);
+        }}
+        onPointerUp={() => {
+          pressing.current = false;
+        }}
+        onPointerLeave={() => {
+          pressing.current = false;
+        }}
+        onPointerCancel={() => {
+          pressing.current = false;
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft") onStep(-1);
+          else if (e.key === "ArrowRight") onStep(1);
+          else return;
+          e.preventDefault();
+        }}
+        sx={{
+          width: "100%",
+          height: 240,
+          cursor: "pointer",
+          // Vertical drags still scroll the page; horizontal ones scrub.
+          touchAction: "pan-y",
+          ...chartRevealSx,
+        }}
+      >
         {/* Keyed on the indicator so each one draws in afresh. */}
         <ResponsiveContainer key={indicatorKey} width="100%" height="100%">
           <ComposedChart
             data={data}
             margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-            {...chartMoveProps}
           >
             <CartesianGrid
               vertical={false}
@@ -303,7 +369,6 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
               tickLine={false}
               width="auto"
             />
-            <Tooltip active={tooltipActive} content={SampleTooltip} />
             <Line
               dataKey="plotted"
               name={indicator.shortLabel}
@@ -312,10 +377,8 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
               strokeWidth={2}
               type="linear"
               dot={renderDot}
-              // No active dot, as in Paddlecheck's forecast graph: recharts
-              // would draw a plain series-colour dot over the tapped sample,
-              // hiding its band colour and its ">" triangle while the
-              // tooltip is open.
+              // No active dot: with no tooltip there's no hover state, and the
+              // picked sample has its own ring (renderDot).
               activeDot={false}
               isAnimationActive={false}
             />

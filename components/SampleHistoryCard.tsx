@@ -10,6 +10,7 @@ import {
   Collapse,
   Divider,
   Grow,
+  IconButton,
   Skeleton,
   Stack,
   ToggleButton,
@@ -20,7 +21,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import CircleIcon from "@mui/icons-material/Circle";
-import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
   CLASSIFIED_INDICATORS,
@@ -28,6 +30,7 @@ import {
   IndicatorKey,
   SAMPLE_BAND_UI,
   SampleBand,
+  bandForSample,
   formatCount,
   indicatorStats,
   sampleTimeMs,
@@ -38,6 +41,9 @@ import { collapseMotion, springTransition } from "@/lib/m3-palette";
 import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
+import SampleBandChip from "@/components/SampleBandChip";
+import SampleDetails from "@/components/SampleDetails";
+import { WaterQualitySample } from "@/types";
 import { SampleLimitsSection } from "@/components/WaterQualityInfoContent";
 
 const INDICATOR_ORDER = CLASSIFIED_INDICATORS;
@@ -75,6 +81,93 @@ const SampleHistoryChart = dynamic(
   { ssr: false, loading: () => <ChartSkeleton /> }
 );
 
+interface StepProps {
+  onPrev: () => void;
+  onNext: () => void;
+  canPrev: boolean;
+  canNext: boolean;
+}
+
+// A horizontal drag this far across the header or details steps one sample;
+// anything shorter, or more vertical than horizontal, is a tap or a scroll.
+// Paddlecheck's forecast swipe.
+const SWIPE_THRESHOLD_PX = 40;
+
+const swipe = ({ onPrev, onNext, canPrev, canNext }: StepProps) => {
+  let start: { x: number; y: number } | null = null;
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      // A drag that starts on an arrow isn't a swipe: the arrow's own click
+      // would step a second time.
+      start = (e.target as HTMLElement).closest("button")
+        ? null
+        : { x: e.clientX, y: e.clientY };
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      if (!start) return;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      start = null;
+      if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) {
+        return;
+      }
+      // Swiping left brings the later sample in, as with any carousel.
+      if (dx < 0 && canNext) onNext();
+      if (dx > 0 && canPrev) onPrev();
+    },
+  };
+};
+
+// "‹ Wed 28 Oct, 11:45 [Poor] ›" under the chart - Paddlecheck's forecast
+// hour header. The picked sample's details follow beneath it, in place of a
+// tooltip.
+const SampleHeader: React.FC<StepProps & { sample: WaterQualitySample }> = ({
+  sample,
+  onPrev,
+  onNext,
+  canPrev,
+  canNext,
+}) => {
+  const band = bandForSample(sample);
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <IconButton
+        onClick={onPrev}
+        disabled={!canPrev}
+        aria-label="Previous sample"
+        edge="start"
+      >
+        <ChevronLeftIcon />
+      </IconButton>
+      <Box
+        aria-live="polite"
+        sx={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 1,
+          flexWrap: "wrap",
+          minWidth: 0,
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          {formatLondonDate(sampleTimeMs(sample), { withTime: true })}
+        </Typography>
+        {band && <SampleBandChip band={band} />}
+      </Box>
+      <IconButton
+        onClick={onNext}
+        disabled={!canNext}
+        aria-label="Next sample"
+        edge="end"
+      >
+        <ChevronRightIcon />
+      </IconButton>
+    </Box>
+  );
+};
+
 const SampleHistoryCard: React.FC = () => {
   const { waterQuality, waterQualityError, loading, isRefreshing, isOffline } =
     useSevernContext();
@@ -104,10 +197,23 @@ const SampleHistoryCard: React.FC = () => {
 
   const indicator = INDICATORS[indicatorKey];
   const stats = indicatorStats(samples, indicatorKey);
-  const pastNotes = samples
-    .slice(0, -1)
-    .filter((s) => s.notes)
-    .reverse();
+
+  // The picked sample, by Feature ID so it stays put when the data refreshes.
+  // Null, or an id no longer in the data, means the newest.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const foundIndex = samples.findIndex((s) => s.id === selectedId);
+  const selectedIndex = foundIndex !== -1 ? foundIndex : samples.length - 1;
+  const selected = samples[selectedIndex];
+  const step = (direction: 1 | -1) => {
+    const next = samples[selectedIndex + direction];
+    if (next) setSelectedId(next.id);
+  };
+  const stepProps = {
+    onPrev: () => step(-1),
+    onNext: () => step(1),
+    canPrev: selectedIndex > 0,
+    canNext: selectedIndex < samples.length - 1,
+  };
   const firstMs = samples[0] ? sampleTimeMs(samples[0]) : null;
 
   return (
@@ -180,7 +286,19 @@ const SampleHistoryCard: React.FC = () => {
               <SampleHistoryChart
                 samples={samples}
                 indicatorKey={indicatorKey}
+                selectedId={selected?.id ?? null}
+                onSelect={setSelectedId}
+                onStep={step}
               />
+
+              {selected && (
+                <Box {...swipe(stepProps)} sx={{ touchAction: "pan-y" }}>
+                  <SampleHeader sample={selected} {...stepProps} />
+                  <Box sx={{ mt: 1.5 }}>
+                    <SampleDetails samples={samples} index={selectedIndex} />
+                  </Box>
+                </Box>
+              )}
 
               <Divider />
 
@@ -211,40 +329,6 @@ const SampleHistoryCard: React.FC = () => {
                   />
                 )}
               </Box>
-
-              {/* Earlier samples' notes, which the chart's tooltip doesn't
-                  carry - the newest one is on the Latest Sample card. Usually
-                  empty, so the section only appears when there's one. */}
-              {pastNotes.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Earlier Notes
-                  </Typography>
-                  <Stack spacing={1} sx={{ mt: 1 }}>
-                    {pastNotes.map((s) => (
-                      <InfoPanel key={s.id} align="flex-start">
-                        <FormatQuoteIcon
-                          color="primary"
-                          sx={{ flexShrink: 0 }}
-                        />
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {formatLondonDate(sampleTimeMs(s), {
-                              withWeekday: false,
-                            })}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{ whiteSpace: "pre-line" }}
-                          >
-                            {s.notes}
-                          </Typography>
-                        </Box>
-                      </InfoPanel>
-                    ))}
-                  </Stack>
-                </Box>
-              )}
 
               {/* How the limits on the chart are used here - one sample at a
                   time - against what they mean officially, a season-long
