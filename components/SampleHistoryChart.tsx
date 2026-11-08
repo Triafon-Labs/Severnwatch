@@ -8,7 +8,6 @@ import {
   ComposedChart,
   Line,
   ReferenceArea,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   TooltipContentProps,
@@ -210,59 +209,59 @@ const SampleHistoryChart: React.FC<Props> = ({ samples, indicatorKey }) => {
     );
   };
 
-  // The labels go on the outside of the pair - Good's above its line,
-  // Excellent's below its own - so they can't overprint in the gap between
-  // them on a short chart. (recharts' "inside"
-  // positions are measured from the line's own zero-height box, so
-  // insideBottom is above the line and insideTop below it.)
+  // The three tiers as bands, each shaded in its tier colour (as the dots
+  // and chips are) and named in its own top-left corner. Labelling the bands
+  // rather than the limit lines between them keeps each name inside the
+  // range it describes - "Good Limit" above the line used to sit in the Poor
+  // band - and top-left is the corner the data least often reaches, as the
+  // season starts low. The band edges mark the limits, so no separate lines.
   //
   // A flat array, not a fragment: recharts walks its children's types and
   // silently drops a Fragment's contents (as in RainfallChart).
-  // The Excellent range is left unshaded: a dark-green wash under a
-  // light-green one was too close to tell apart, and the dark-green line and
-  // dots already mark it.
+  // Per scheme, as one wash can't suit both backgrounds: on the light card a
+  // faint red turns mauve against the teal-grey, and on the dark card every
+  // band all but vanishes. Dark gets stronger washes throughout.
+  const bandOpacity =
+    resolvedMode === "dark"
+      ? { excellent: 0.16, good: 0.24, poor: 0.3 }
+      : { excellent: 0.08, good: 0.16, poor: 0.2 };
+  const bandLabel = (value: string) => ({
+    value,
+    position: "insideTopLeft" as const,
+    fill: chrome.text,
+    fontSize: 11,
+    fontWeight: 600,
+  });
   const limitMarks = [
+    <ReferenceArea
+      key="band-excellent"
+      y1={0}
+      y2={indicator.limits.excellent}
+      fill={excellentColor}
+      fillOpacity={bandOpacity.excellent}
+      strokeWidth={0}
+      ifOverflow="hidden"
+      label={bandLabel(SAMPLE_BAND_UI.excellent.label)}
+    />,
     <ReferenceArea
       key="band-good"
       y1={indicator.limits.excellent}
       y2={indicator.limits.good}
       fill={goodColor}
-      fillOpacity={0.1}
+      fillOpacity={bandOpacity.good}
       strokeWidth={0}
       ifOverflow="hidden"
+      label={bandLabel(SAMPLE_BAND_UI.good.label)}
     />,
     <ReferenceArea
       key="band-poor"
       y1={indicator.limits.good}
       y2={yMax}
       fill={poorColor}
-      fillOpacity={0.08}
+      fillOpacity={bandOpacity.poor}
       strokeWidth={0}
       ifOverflow="hidden"
-    />,
-    <ReferenceLine
-      key="line-excellent"
-      y={indicator.limits.excellent}
-      stroke={excellentColor}
-      strokeDasharray="4 4"
-      label={{
-        value: "Excellent Limit",
-        position: "insideTopLeft",
-        fill: chrome.text,
-        fontSize: 11,
-      }}
-    />,
-    <ReferenceLine
-      key="line-good"
-      y={indicator.limits.good}
-      stroke={goodColor}
-      strokeDasharray="4 4"
-      label={{
-        value: "Good Limit",
-        position: "insideBottomLeft",
-        fill: chrome.text,
-        fontSize: 11,
-      }}
+      label={bandLabel(SAMPLE_BAND_UI.poor.label)}
     />,
   ];
 
