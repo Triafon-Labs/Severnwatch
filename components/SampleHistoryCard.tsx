@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Box,
@@ -12,21 +12,14 @@ import {
   Grow,
   Skeleton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   ToggleButton,
   Typography,
 } from "@mui/material";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import FunctionsIcon from "@mui/icons-material/Functions";
+import CircleIcon from "@mui/icons-material/Circle";
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
@@ -34,7 +27,7 @@ import {
   INDICATORS,
   IndicatorKey,
   SAMPLE_BAND_UI,
-  bandForSample,
+  SampleBand,
   formatCount,
   indicatorStats,
   sampleTimeMs,
@@ -48,6 +41,21 @@ import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 import { SampleLimitsSection } from "@/components/WaterQualityInfoContent";
 
 const INDICATOR_ORDER = CLASSIFIED_INDICATORS;
+
+const BANDS: SampleBand[] = ["excellent", "good", "poor"];
+
+const numberFormat = new Intl.NumberFormat("en-GB");
+
+// The count range each tier covers for the indicator on the chart.
+const bandRange = (
+  band: SampleBand,
+  limits: { excellent: number; good: number }
+) =>
+  band === "excellent"
+    ? `Under ${numberFormat.format(limits.excellent)}`
+    : band === "good"
+      ? `${numberFormat.format(limits.excellent)} to ${numberFormat.format(limits.good - 1)}`
+      : `${numberFormat.format(limits.good)} or more`;
 
 const isIndicator = (v: string | null): v is IndicatorKey =>
   v !== null && (INDICATOR_ORDER as string[]).includes(v);
@@ -92,11 +100,14 @@ const SampleHistoryCard: React.FC = () => {
     }
   }, [indicatorKey]);
 
-  const [tableOpen, setTableOpen] = useState(false);
   const [limitsOpen, setLimitsOpen] = useState(false);
 
   const indicator = INDICATORS[indicatorKey];
   const stats = indicatorStats(samples, indicatorKey);
+  const pastNotes = samples
+    .slice(0, -1)
+    .filter((s) => s.notes)
+    .reverse();
   const firstMs = samples[0] ? sampleTimeMs(samples[0]) : null;
 
   return (
@@ -173,19 +184,21 @@ const SampleHistoryCard: React.FC = () => {
 
               <Divider />
 
+              {/* How many samples landed in each tier, for the indicator on
+                  the chart, and the highest - named after the tiers so they
+                  read the same as the chips and the chart's colours. */}
               <Box sx={tileGridSx}>
-                <StatTile
-                  icon={<WarningAmberIcon />}
-                  label="Over Good"
-                  value={`${stats.overGood} of ${stats.total}`}
-                  detail={`${indicator.limits.good.toLocaleString("en-GB")} or more`}
-                />
-                <StatTile
-                  icon={<WarningAmberIcon />}
-                  label="Over Excellent"
-                  value={`${stats.overExcellent} of ${stats.total}`}
-                  detail={`${indicator.limits.excellent.toLocaleString("en-GB")} or more`}
-                />
+                {BANDS.map((band) => (
+                  <StatTile
+                    key={band}
+                    icon={
+                      <CircleIcon sx={{ color: SAMPLE_BAND_UI[band].color }} />
+                    }
+                    label={SAMPLE_BAND_UI[band].label}
+                    value={`${stats.bands[band]} of ${stats.total}`}
+                    detail={bandRange(band, indicator.limits)}
+                  />
+                ))}
                 {stats.highest && (
                   <StatTile
                     icon={<ArrowUpwardIcon />}
@@ -197,146 +210,41 @@ const SampleHistoryCard: React.FC = () => {
                     )}
                   />
                 )}
-                <StatTile
-                  icon={<FunctionsIcon />}
-                  label="Median"
-                  value={formatCount(stats.median)}
-                  detail="Half of samples were higher"
-                />
               </Box>
 
-              <Box>
-                <Button
-                  onClick={() => setTableOpen((o) => !o)}
-                  endIcon={tableOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                  aria-expanded={tableOpen}
-                  size="small"
-                >
-                  {tableOpen ? "Hide All Samples" : "Show All Samples"}
-                </Button>
-                <Collapse in={tableOpen} unmountOnExit {...collapseMotion}>
-                  <TableContainer sx={{ mt: 1 }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Date</TableCell>
-                          <TableCell align="right">E. coli</TableCell>
-                          <TableCell align="right">Enterococci</TableCell>
-                          <TableCell padding="none" sx={{ width: 24 }} />
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {[...samples].reverse().map((s, idx, all) => {
-                          const band = bandForSample(s);
-                          const isLast = idx === all.length - 1;
-                          // A note gets a row of its own beneath its sample,
-                          // in the same stripe, rather than a hover tooltip -
-                          // there's no hover on a phone, which is where this
-                          // gets read. Notes are rare, so it costs little.
-                          const rowSx = {
-                            bgcolor:
-                              idx % 2 === 1
-                                ? "surfaces.containerHigh"
-                                : "transparent",
-                          };
-                          return (
-                            <Fragment key={s.id}>
-                              <TableRow
-                                sx={{
-                                  ...rowSx,
-                                  "& td": {
-                                    borderBottom:
-                                      isLast || s.notes ? 0 : undefined,
-                                  },
-                                }}
-                              >
-                                <TableCell sx={{ whiteSpace: "nowrap" }}>
-                                  {formatLondonDate(sampleTimeMs(s), {
-                                    withWeekday: false,
-                                  })}
-                                </TableCell>
-                                <TableCell align="right">
-                                  {formatCount(s.eColi)}
-                                </TableCell>
-                                <TableCell align="right">
-                                  {formatCount(s.enterococci)}
-                                </TableCell>
-                                <TableCell
-                                  align="right"
-                                  padding="none"
-                                  sx={{ pr: 1 }}
-                                >
-                                  {band && (
-                                    // A dot rather than the chip: four columns
-                                    // don't leave room for a label on a phone.
-                                    <Box
-                                      role="img"
-                                      aria-label={SAMPLE_BAND_UI[band].label}
-                                      title={SAMPLE_BAND_UI[band].description}
-                                      sx={{
-                                        display: "inline-block",
-                                        width: 10,
-                                        height: 10,
-                                        borderRadius: "50%",
-                                        bgcolor: SAMPLE_BAND_UI[band].color,
-                                      }}
-                                    />
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                              {s.notes && (
-                                <TableRow
-                                  sx={{
-                                    ...rowSx,
-                                    "& td": {
-                                      borderBottom: isLast ? 0 : undefined,
-                                    },
-                                  }}
-                                >
-                                  <TableCell colSpan={4} sx={{ pt: 0 }}>
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        gap: 0.75,
-                                        alignItems: "flex-start",
-                                      }}
-                                    >
-                                      <FormatQuoteIcon
-                                        color="primary"
-                                        aria-hidden
-                                        sx={{ fontSize: 18, flexShrink: 0 }}
-                                      />
-                                      <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{ whiteSpace: "pre-line" }}
-                                      >
-                                        <Box
-                                          component="span"
-                                          sx={{
-                                            position: "absolute",
-                                            width: 1,
-                                            height: 1,
-                                            overflow: "hidden",
-                                            clip: "rect(0 0 0 0)",
-                                          }}
-                                        >
-                                          Tester&apos;s note:{" "}
-                                        </Box>
-                                        {s.notes}
-                                      </Typography>
-                                    </Box>
-                                  </TableCell>
-                                </TableRow>
-                              )}
-                            </Fragment>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Collapse>
-              </Box>
+              {/* Earlier samples' notes, which the chart's tooltip doesn't
+                  carry - the newest one is on the Latest Sample card. Usually
+                  empty, so the section only appears when there's one. */}
+              {pastNotes.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Earlier Notes
+                  </Typography>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    {pastNotes.map((s) => (
+                      <InfoPanel key={s.id} align="flex-start">
+                        <FormatQuoteIcon
+                          color="primary"
+                          sx={{ flexShrink: 0 }}
+                        />
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {formatLondonDate(sampleTimeMs(s), {
+                              withWeekday: false,
+                            })}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{ whiteSpace: "pre-line" }}
+                          >
+                            {s.notes}
+                          </Typography>
+                        </Box>
+                      </InfoPanel>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
 
               {/* How the limits on the chart are used here - one sample at a
                   time - against what they mean officially, a season-long

@@ -42,12 +42,10 @@ import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 import SampleBandChip from "@/components/SampleBandChip";
 
-const numberFormat = new Intl.NumberFormat("en-GB");
-
 const COUNT_TILES = CLASSIFIED_INDICATORS;
 
-// One indicator's count, with where it sits against the limits and what the
-// sample before it read - the change is usually the story, not the number.
+// One indicator's count and tier, and what the sample before it read - the
+// change is usually the story, not the number.
 const CountTile: React.FC<{
   samples: WaterQualitySample[];
   indicatorKey: IndicatorKey;
@@ -57,13 +55,6 @@ const CountTile: React.FC<{
   const count = latest[indicatorKey];
   const band = bandForCount(count, indicator);
   const previous = previousCount(samples, indicatorKey);
-
-  const limitLine =
-    band === "poor"
-      ? `Over the Good limit (${numberFormat.format(indicator.limits.good)})`
-      : band === "good"
-        ? `Under the Good limit (${numberFormat.format(indicator.limits.good)})`
-        : `Under the Excellent limit (${numberFormat.format(indicator.limits.excellent)})`;
 
   return (
     <StatTile
@@ -84,17 +75,14 @@ const CountTile: React.FC<{
         </Box>
       }
       detail={
-        <>
-          {count ? limitLine : "Not tested"}
-          {previous && (
-            <Box component="span" sx={{ display: "block" }}>
-              Previously {formatCount(previous.count)} on{" "}
-              {formatLondonDate(Date.parse(previous.sampledAt), {
-                withWeekday: false,
-              })}
-            </Box>
-          )}
-        </>
+        !count
+          ? "Not tested"
+          : previous
+            ? `Was ${formatCount(previous.count)} on ${formatLondonDate(
+                Date.parse(previous.sampledAt),
+                { withWeekday: false }
+              )}`
+            : undefined
       }
     />
   );
@@ -196,9 +184,7 @@ const LatestSampleCard: React.FC = () => {
           color="text.secondary"
           sx={{ mt: 0.5, mb: 2 }}
         >
-          {waterQuality?.site.name ?? "Grandstand Road"},{" "}
-          {waterQuality?.site.river ?? "River Severn"} · citizen science testing
-          for Surfers Against Sewage
+          {waterQuality?.site.name ?? "Grandstand Road"} · counts {COUNT_UNIT}
         </Typography>
 
         {showSkeleton && <LatestSampleSkeleton />}
@@ -255,8 +241,7 @@ const LatestSampleCard: React.FC = () => {
                 <InfoPanel align="flex-start">
                   <EventBusyIcon color="warning" sx={{ flexShrink: 0 }} />
                   <Typography variant="body2" color="text.secondary">
-                    No new sample for {days} days. Testing is usually weekly, so
-                    this may not reflect the river now.
+                    No new sample for {days} days, so this may be out of date.
                   </Typography>
                 </InfoPanel>
               )}
@@ -313,12 +298,6 @@ const LatestSampleCard: React.FC = () => {
                   </Box>
                 </Box>
               )}
-
-              <Typography variant="caption" color="text.secondary">
-                Colony-forming units {COUNT_UNIT}. A snapshot of that week, not
-                an official classification - see How Limits Work below. Results
-                arrive a day or more after sampling.
-              </Typography>
             </Stack>
           </Grow>
         )}

@@ -1,6 +1,5 @@
 import { BacteriaCount, WaterQualitySample } from "@/types";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
-import { formatLondonDate } from "@/lib/time";
 
 // How the citizen science counts are read, in one place for the sample card,
 // the history chart and the headline pollution risk.
@@ -172,10 +171,8 @@ const countRank = (count: BacteriaCount): number =>
 
 export interface IndicatorStats {
   total: number; // samples with a count for this indicator
-  overGood: number;
-  overExcellent: number; // includes those over Good
+  bands: Record<SampleBand, number>;
   highest: { count: BacteriaCount; sampledAt: string } | null;
-  median: BacteriaCount | null;
 }
 
 export const indicatorStats = (
@@ -184,28 +181,17 @@ export const indicatorStats = (
 ): IndicatorStats => {
   const indicator = INDICATORS[key];
   const withCount = samples.filter((s) => s[key]);
-  let overGood = 0;
-  let overExcellent = 0;
+  const bands: Record<SampleBand, number> = { excellent: 0, good: 0, poor: 0 };
   let highest: IndicatorStats["highest"] = null;
   for (const s of withCount) {
     const count = s[key]!;
     const band = bandForCount(count, indicator);
-    if (band === "poor") overGood++;
-    if (band === "poor" || band === "good") overExcellent++;
+    if (band) bands[band]++;
     if (!highest || countRank(count) > countRank(highest.count)) {
       highest = { count, sampledAt: s.sampledAt };
     }
   }
-  // The median holds up to censoring where a mean can't: it only needs the
-  // middle value to be a real number, and when that one is itself "<10"
-  // the honest median is "<10".
-  const sorted = withCount
-    .map((s) => s[key]!)
-    .sort((a, b) => countRank(a) - countRank(b));
-  const median =
-    sorted.length === 0 ? null : sorted[Math.floor((sorted.length - 1) / 2)];
-
-  return { total: withCount.length, overGood, overExcellent, highest, median };
+  return { total: withCount.length, bands, highest };
 };
 
 // Plain-English observations about the newest sample, for the sample card:
@@ -221,16 +207,12 @@ export const notableFindings = (samples: WaterQualitySample[]): string[] => {
     const count = latest[key];
     if (count?.qualifier === "above") {
       findings.push(
-        `${INDICATORS[key].shortLabel} was above the test's upper limit of ${numberFormat.format(count.value)}, so the true count could be much higher.`
+        `${INDICATORS[key].shortLabel} was over the test's ${numberFormat.format(count.value)} maximum, so could be higher.`
       );
     }
   }
 
   if (earlier.length > 0) {
-    const since = formatLondonDate(sampleTimeMs(samples[0]), {
-      withWeekday: false,
-      withYear: true,
-    });
     for (const key of CLASSIFIED_INDICATORS) {
       const count = latest[key];
       if (!count || count.qualifier === "below") continue;
@@ -242,21 +224,14 @@ export const notableFindings = (samples: WaterQualitySample[]): string[] => {
       const rank = countRank(count);
       if (rank > topRank) {
         findings.push(
-          `Highest ${INDICATORS[key].shortLabel} of the ${previous.length + 1} samples taken since ${since}.`
+          `Highest ${INDICATORS[key].shortLabel} of all ${previous.length + 1} samples.`
         );
       } else if (rank === topRank) {
         findings.push(
-          `Joint highest ${INDICATORS[key].shortLabel} of the ${previous.length + 1} samples taken since ${since}.`
+          `Joint highest ${INDICATORS[key].shortLabel} of all ${previous.length + 1} samples.`
         );
       }
     }
-  }
-
-  const band = bandForSample(latest);
-  if (band === "excellent") {
-    findings.push(
-      "Both E. coli and Enterococci were below the Excellent limits."
-    );
   }
 
   return findings;
