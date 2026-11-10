@@ -286,10 +286,11 @@ rejecting commits whose first line isn't a valid Conventional Commit
   entry, and a `BREAKING CHANGE:` footer bumps major. The job skips itself when
   the triggering commit is its own `chore(release): ...` commit, to avoid a
   loop.
-- **keep-alive.yml** – every 15 minutes, pings the deployed site and asserts
-  that both API routes still return usable data. It is **inert until a
-  repository variable named `SITE_URL` is set**, so it does nothing on a repo
-  that isn't deployed yet. The 15-minute cadence matches both routes'
+- **keep-alive.yml** – every 15 minutes, pings the deployed site
+  (`https://severnwatch.vercel.app`, hard-coded in the workflow) and asserts
+  that both API routes still return usable data. A fork skips it until it sets
+  a `SITE_URL` repository variable pointing at its own deployment, which also
+  overrides the default here. The 15-minute cadence matches both routes'
   `revalidate` window, so each ping rebuilds the caches as they expire — worth
   doing because a cold sewage rebuild reverse-geocodes sequentially at 1
   request per second and can take ~15s. GitHub runs schedules late and skips
