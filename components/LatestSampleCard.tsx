@@ -28,10 +28,15 @@ import InfoPanel from "@/components/InfoPanel";
 import { tileGridSx } from "@/components/StatTile";
 import SampleDetails from "@/components/SampleDetails";
 
+const bandTransition = spring(
+  "background-color, color",
+  m3Spring.effectsDefault
+);
+
 // Mirrors the hero and the count tiles at their rendered heights.
 const LatestSampleSkeleton: React.FC = () => (
   <Stack spacing={2} aria-hidden>
-    <Skeleton variant="rounded" height={88} sx={{ borderRadius: "28px" }} />
+    <Skeleton variant="rounded" height={80} sx={{ borderRadius: "16px" }} />
     <Box sx={tileGridSx}>
       {[0, 1].map((i) => (
         <Skeleton key={i} variant="rounded" height={96} animation="wave" />
@@ -88,34 +93,77 @@ const LatestSampleCard: React.FC = () => {
         {!showSkeleton && latest && (
           <Grow in appear {...springTransition()}>
             <Stack spacing={2}>
-              <InfoPanel
+              {/* Same shape as Paddlecheck's weather warnings and Who Can
+                  Paddle verdict: the band arrives as an accent stripe on a
+                  tonal panel rather than as a fill, so the card doesn't put a
+                  second full-width colour slab under the pollution risk
+                  headline. The icon sits on a disc of the band colour, since
+                  the light green and yellow hues are too pale to read as a
+                  bare glyph on a light surface. */}
+              <Box
                 sx={{
-                  gap: 2,
-                  p: 2,
-                  borderRadius: "28px",
-                  backgroundColor: ui?.color ?? "surfaces.containerHigh",
-                  color: ui?.onColor ?? "text.primary",
-                  transition: spring(
-                    "background-color",
-                    m3Spring.effectsDefault
-                  ),
+                  display: "flex",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  backgroundColor: "surfaces.containerHighest",
                 }}
               >
-                <ScienceOutlinedIcon sx={{ fontSize: 40, flexShrink: 0 }} />
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography
-                    variant="h6"
-                    component="p"
-                    sx={{ fontWeight: 500, lineHeight: 1.2 }}
+                <Box
+                  aria-hidden
+                  sx={{
+                    width: 6,
+                    flexShrink: 0,
+                    backgroundColor: ui?.color ?? "divider",
+                    transition: bandTransition,
+                  }}
+                />
+                <Box
+                  sx={{
+                    p: 2,
+                    flex: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                  }}
+                >
+                  <Box
+                    aria-hidden
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: ui?.color ?? "surfaces.containerHigh",
+                      color: ui?.onColor ?? "text.secondary",
+                      transition: bandTransition,
+                    }}
                   >
-                    {ui?.headline ?? "Sample Recorded"}
-                  </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    {formatLondonDate(sampleTimeMs(latest), { withTime: true })}{" "}
-                    · {formatDaysAgo(days)}
-                  </Typography>
+                    <ScienceOutlinedIcon sx={{ fontSize: 24 }} />
+                  </Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      component="p"
+                      sx={{
+                        fontSize: "1.25rem",
+                        fontWeight: 500,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {ui?.headline ?? "Sample Recorded"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatLondonDate(sampleTimeMs(latest), {
+                        withTime: true,
+                      })}{" "}
+                      · {formatDaysAgo(days)}
+                    </Typography>
+                  </Box>
                 </Box>
-              </InfoPanel>
+              </Box>
 
               {days > WATER_QUALITY_STALE_DAYS && (
                 <InfoPanel align="flex-start">
