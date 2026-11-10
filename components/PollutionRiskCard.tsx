@@ -68,7 +68,7 @@ const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
         sx={{
           gap: { xs: 1.75, sm: 2.5 },
           p: { xs: 2, sm: 3 },
-          borderRadius: "28px",
+          borderRadius: "16px",
           backgroundColor: ui.color,
           color: ui.onColor,
           transition: spring("background-color", m3Spring.effectsDefault),
@@ -201,7 +201,7 @@ const PollutionRiskCard: React.FC = () => {
             <Skeleton
               variant="rounded"
               animation="wave"
-              sx={{ height: { xs: 72, sm: 104 }, borderRadius: "28px" }}
+              sx={{ height: { xs: 72, sm: 104 }, borderRadius: "16px" }}
             />
             <Box
               sx={{
@@ -226,7 +226,7 @@ const PollutionRiskCard: React.FC = () => {
         )}
 
         {!showSkeleton && csoError && !cso && (
-          <InfoPanel align="flex-start" sx={{ borderRadius: 3, p: 2 }}>
+          <InfoPanel align="flex-start" sx={{ p: 2 }}>
             <CloudOffIcon
               color="warning"
               sx={{ flexShrink: 0, fontSize: 32 }}
