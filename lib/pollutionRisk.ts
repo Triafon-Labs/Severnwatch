@@ -1,7 +1,14 @@
-import { CsoOutfall, CsoResponse, RainfallResponse } from "@/types";
+import {
+  CsoOutfall,
+  CsoResponse,
+  RainfallResponse,
+  WaterQualityResponse,
+} from "@/types";
 import {
   CATCHMENT_WAYPOINTS,
   SEWAGE_RECENT_SPILL_BASE_HOURS,
+  WATER_QUALITY_RECENT_DAYS,
+  WATER_QUALITY_RELEVANT_DAYS,
 } from "@/lib/config";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
 import { plumeTravelRangeFor } from "@/lib/catchment";
@@ -12,6 +19,16 @@ import {
   peakRateMmPerHour,
   sumRecentMm,
 } from "@/lib/rainfallAnalysis";
+import {
+  CLASSIFIED_INDICATORS,
+  INDICATORS,
+  bandForCount,
+  bandForSample,
+  formatCount,
+  sampleTimeMs,
+  worstIndicator,
+} from "@/lib/waterQuality";
+import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 
 // A pollution risk for the reach, derived from two things:
 //
@@ -21,9 +38,12 @@ import {
 // - Rain falling, or about to fall, on the catchment at the rainfall chart's
 //   moderate or heavy intensity. Combined sewers start to overflow within
 //   hours of rain like that, usually before the spill feed shows it.
+// - The newest citizen science sample, if it's recent and came back
+//   elevated or high (see sampleFactor below). It can only raise the risk:
+//   a clean sample from days ago says nothing about a spill since.
 //
-// Nothing here measures bacteria, so the bottom of the scale is "lower",
-// never "safe".
+// Even the samples are snapshots days old, so the bottom of the scale is
+// "lower", never "safe".
 export type PollutionRiskLevel = "high" | "raised" | "lower";
 
 // Labels and colours for each level, shared by the card and the Conditions
@@ -50,7 +70,7 @@ export const RISK_LEVEL_UI: Record<
 };
 
 export type PollutionRiskFactorKey =
-  "passing" | "arriving" | "lingering" | "rain";
+  "passing" | "arriving" | "lingering" | "rain" | "sample";
 
 // Split the way the card's tile reads, as Paddlecheck splits its reasons:
 // what it's about, the reading, and a line on when or where - "Arriving",
@@ -171,11 +191,60 @@ const rainFactor = (
   };
 };
 
+// The newest sample, while it's recent enough to say something about the
+// river now. A Poor sample (over the Good limit) counts as High Risk for
+// WATER_QUALITY_RECENT_DAYS, then as Raised until WATER_QUALITY_RELEVANT_DAYS.
+// Excellent and Good samples add nothing: a sample within the Good limit
+// raising the risk would contradict its own chip. Days are London calendar
+// days, so a sample "a week ago" drops out on the same day for everyone.
+const sampleFactor = (
+  waterQuality: WaterQualityResponse,
+  now: number
+): PollutionRiskFactor | null => {
+  const latest = waterQuality.samples[waterQuality.samples.length - 1];
+  if (!latest) return null;
+  const band = bandForSample(latest);
+  const days = londonDaysAgo(sampleTimeMs(latest), now);
+  if (band !== "poor" || days < 0) return null;
+
+  const level: PollutionRiskLevel | null =
+    days <= WATER_QUALITY_RECENT_DAYS
+      ? "high"
+      : days <= WATER_QUALITY_RELEVANT_DAYS
+        ? "raised"
+        : null;
+  if (!level) return null;
+
+  // Every classified indicator over its Good limit, worst first - a sample
+  // with both E. coli and Enterococci over says so, rather than naming
+  // whichever one happened to be further over.
+  const worst = worstIndicator(latest);
+  const over = CLASSIFIED_INDICATORS.filter(
+    (k) => bandForCount(latest[k], INDICATORS[k]) === "poor"
+  ).sort((a, b) => (a === worst ? -1 : b === worst ? 1 : 0));
+  return {
+    key: "sample",
+    level,
+    label: "Latest Sample",
+    value: over
+      .map((k) => `${INDICATORS[k].shortLabel} ${formatCount(latest[k])}`)
+      .join(" · "),
+    detail: `${formatLondonDate(sampleTimeMs(latest))} · ${formatDaysAgo(days)}`,
+  };
+};
+
+const LEVEL_RANK: Record<PollutionRiskLevel, number> = {
+  high: 2,
+  raised: 1,
+  lower: 0,
+};
+
 const spills = (n: number) => (n === 1 ? "1 spill" : `${n} spills`);
 
 export const derivePollutionRisk = (
   cso: CsoResponse,
   rainfall: RainfallResponse | null,
+  waterQuality: WaterQualityResponse | null = null,
   now: number = Date.now()
 ): PollutionRisk => {
   let passing = 0;
@@ -217,7 +286,7 @@ export const derivePollutionRisk = (
     factors.push({
       key: "lingering",
       level: "raised",
-      label: "Passed by",
+      label: "Passed By",
       value: spills(lingering),
       detail: `In the last ${SEWAGE_RECENT_SPILL_BASE_HOURS}h`,
     });
@@ -225,6 +294,14 @@ export const derivePollutionRisk = (
 
   const rain = rainfall ? rainFactor(rainfall, now) : null;
   if (rain) factors.push(rain);
+
+  const sample = waterQuality ? sampleFactor(waterQuality, now) : null;
+  if (sample) factors.push(sample);
+
+  // Worst first. The spill factors above are pushed in severity order, but
+  // a sample can be High after a Raised spill, so sort rather than rely on
+  // push order. Array sort is stable, so equal levels keep their order.
+  factors.sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level]);
 
   return { level: factors[0]?.level ?? "lower", factors };
 };

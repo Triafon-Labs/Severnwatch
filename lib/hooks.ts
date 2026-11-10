@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CsoResponse, RainfallResponse } from "@/types";
+import { CsoResponse, RainfallResponse, WaterQualityResponse } from "@/types";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { DATA_REVALIDATE_SECONDS } from "@/lib/fetchCache";
 
@@ -33,8 +33,10 @@ export const DATA_STALE_THRESHOLD_MS = 2 * DATA_REVALIDATE_SECONDS * 1000;
 export interface SevernData {
   cso: CsoResponse | null;
   rainfall: RainfallResponse | null;
+  waterQuality: WaterQualityResponse | null;
   csoError: boolean;
   rainfallError: boolean;
+  waterQualityError: boolean;
   // True until the first fetch (or the cache seeded ahead of it) has given the
   // cards something to render. The cards also show their skeletons while
   // isRefreshing - every fetch, as in Paddlecheck, so the skeletons clearing
@@ -46,10 +48,12 @@ export interface SevernData {
   // window - its request failed and fell back to the saved copy, or the live
   // fallback failed too. The nav bar's "Live update failed" banner.
   lastFetchFailed: boolean;
-  // Oldest `asOf` across whichever sources are on screen, which is what the
-  // nav bar's freshness line and stale banner report - the newest would let
-  // a fresh sewage response hide rainfall that is hours old. Null until
-  // something loads.
+  // Oldest `asOf` across the live sources on screen (spills and rainfall),
+  // which is what the freshness line and stale banner report - the newest
+  // would let a fresh sewage response hide rainfall that is hours old. Null
+  // until something loads. The water quality samples are left out: their
+  // `asOf` is when the response was built - at deploy, or after an upload -
+  // not when anything was sampled, so it would read as permanently stale.
   lastUpdated: string | null;
   error: string | null;
   refetch: () => void;
@@ -117,11 +121,31 @@ const loadSource = async <T extends { asOf: string }>(
   return { body: readCache<T>(storageKey), fromCache: true };
 };
 
+// The water quality samples: their route, then the saved copy. No `/live`
+// step and no age check - the route is static, rebuilt at deploy and after
+// each upload (app/api/water-quality), so its `asOf` is always "old" and
+// there's no live twin to try. Never rejects.
+const loadStaticSource = async <T>(
+  path: string,
+  storageKey: string
+): Promise<{ body: T | null; fromCache: boolean }> => {
+  const body = await fetchJson<T>(path).catch(() => null);
+  if (body) {
+    writeCache(storageKey, body);
+    return { body, fromCache: false };
+  }
+  return { body: readCache<T>(storageKey), fromCache: true };
+};
+
 export const useSevernData = (): SevernData => {
   const [cso, setCso] = useState<CsoResponse | null>(null);
   const [rainfall, setRainfall] = useState<RainfallResponse | null>(null);
   const [csoError, setCsoError] = useState(false);
   const [rainfallError, setRainfallError] = useState(false);
+  const [waterQuality, setWaterQuality] = useState<WaterQualityResponse | null>(
+    null
+  );
+  const [waterQualityError, setWaterQualityError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -151,9 +175,15 @@ export const useSevernData = (): SevernData => {
       STORAGE_KEYS.RAINFALL_DATA
     );
 
-    const [csoResult, rainfallResult] = await Promise.all([
+    const waterQualityPromise = loadStaticSource<WaterQualityResponse>(
+      "/api/water-quality",
+      STORAGE_KEYS.WATER_QUALITY_DATA
+    );
+
+    const [csoResult, rainfallResult, waterQualityResult] = await Promise.all([
       csoPromise,
       rainfallPromise,
+      waterQualityPromise,
     ]);
 
     if (csoResult.body) setCso(csoResult.body);
@@ -161,6 +191,11 @@ export const useSevernData = (): SevernData => {
 
     if (rainfallResult.body) setRainfall(rainfallResult.body);
     setRainfallError(rainfallResult.fromCache && !rainfallResult.body);
+
+    if (waterQualityResult.body) setWaterQuality(waterQualityResult.body);
+    setWaterQualityError(
+      waterQualityResult.fromCache && !waterQualityResult.body
+    );
 
     const oldestResultTime = oldest(
       csoResult.body?.asOf,
@@ -177,12 +212,15 @@ export const useSevernData = (): SevernData => {
     setLastFetchFailed(
       csoResult.fromCache ||
         rainfallResult.fromCache ||
+        waterQualityResult.fromCache ||
         (oldestResultTime !== null &&
           ageMs(oldestResultTime) > REFETCH_AFTER_MS)
     );
 
     const gotSomething =
-      Boolean(csoResult.body) || Boolean(rainfallResult.body);
+      Boolean(csoResult.body) ||
+      Boolean(rainfallResult.body) ||
+      Boolean(waterQualityResult.body);
     setError(
       !gotSomething && !navigator.onLine ? OFFLINE_NO_CACHE_ERROR : null
     );
@@ -225,13 +263,17 @@ export const useSevernData = (): SevernData => {
       const cachedRainfall = readCache<RainfallResponse>(
         STORAGE_KEYS.RAINFALL_DATA
       );
+      const cachedWaterQuality = readCache<WaterQualityResponse>(
+        STORAGE_KEYS.WATER_QUALITY_DATA
+      );
       if (cachedCso) setCso(cachedCso);
       if (cachedRainfall) setRainfall(cachedRainfall);
+      if (cachedWaterQuality) setWaterQuality(cachedWaterQuality);
       const cachedDataTime = oldest(cachedCso?.asOf, cachedRainfall?.asOf);
       if (cachedDataTime) {
         dataAt.current = new Date(cachedDataTime).getTime();
       }
-      if (cachedCso || cachedRainfall) setLoading(false);
+      if (cachedCso || cachedRainfall || cachedWaterQuality) setLoading(false);
       void load();
     });
   }, [load]);
@@ -286,8 +328,10 @@ export const useSevernData = (): SevernData => {
   return {
     cso,
     rainfall,
+    waterQuality,
     csoError,
     rainfallError,
+    waterQualityError,
     loading,
     isRefreshing,
     isOffline,

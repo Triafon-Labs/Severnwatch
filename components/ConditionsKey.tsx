@@ -11,7 +11,11 @@ import ThunderstormIcon from "@mui/icons-material/Thunderstorm";
 import { CsoState } from "@/types";
 import { CSO_STATE_UI, CSO_STATE_ORDER } from "@/lib/csoStatus";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
-import { SEWAGE_RECENT_SPILL_BASE_HOURS } from "@/lib/config";
+import {
+  SEWAGE_RECENT_SPILL_BASE_HOURS,
+  WATER_QUALITY_RECENT_DAYS,
+  WATER_QUALITY_RELEVANT_DAYS,
+} from "@/lib/config";
 import { MAX_PLUME_TRAVEL_HOURS } from "@/lib/catchment";
 import { PollutionRiskLevel, RISK_LEVEL_UI } from "@/lib/pollutionRisk";
 import { HOURLY_HEAVY_MM, HOURLY_MODERATE_MM } from "@/lib/rainfallAnalysis";
@@ -41,9 +45,10 @@ const STATE_DESCRIPTIONS: Record<CsoState, string> = {
 
 // What each of the headline card's levels means (see lib/pollutionRisk.ts).
 const RISK_DESCRIPTIONS: Record<PollutionRiskLevel, string> = {
-  high: "Water from a spill is estimated to be passing Worcester.",
-  raised: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, or moderate or heavy rain is falling or due within a few hours.`,
-  lower: "No monitored spills affecting Worcester. Not a water test.",
+  high: `Water from a spill is estimated to be passing Worcester, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RECENT_DAYS} days.`,
+  raised: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, moderate or heavy rain is falling or due within a few hours, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RELEVANT_DAYS} days.`,
+  lower:
+    "No monitored spills affecting Worcester and no recent Poor sample. Not a guarantee the water is clean.",
 };
 
 const RISK_ORDER: PollutionRiskLevel[] = ["high", "raised", "lower"];

@@ -1,5 +1,6 @@
 import { CsoOutfall, CsoResponse, CsoState } from "@/types";
 import {
+  APP_NAME,
   SEWAGE_API_URL,
   SEWAGE_RECENT_SPILL_BASE_HOURS,
   SEWAGE_MAX_RESULTS,
@@ -40,7 +41,7 @@ const reverseGeocode = async (
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1`,
       {
         headers: {
-          "User-Agent": "Severnwatch (River Severn water quality dashboard)",
+          "User-Agent": `${APP_NAME} (River Severn water quality dashboard)`,
         },
       }
     );

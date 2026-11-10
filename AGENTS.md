@@ -19,8 +19,12 @@ Before any Next.js work, find and read the relevant doc in `node_modules/next/di
 Severnwatch is a Progressive Web App showing River Severn water quality
 conditions at Worcester, UK: combined sewer overflow (CSO) spill status,
 upstream rainfall with a short forecast, and citizen science water quality
-sampling. There is no database and no persistence — every reading is fetched
-live from a public API through a Next.js route and displayed.
+sampling. There is no database. Spill and rainfall readings are fetched live
+from public APIs through Next.js routes. The Grandstand Road sample results
+are the exception: SAS has no API for them, so each week's CSV export is
+uploaded by a tester through `/upload` and kept in a private Vercel Blob
+store, on top of a baseline committed to `data/water-quality/` (see that
+folder's README).
 
 Sibling project to [Paddlecheck](https://github.com/dylanr97/Paddlecheck) (the
 Worcester Canoe Club kayaking conditions app). The two share a tech stack, a
@@ -45,7 +49,10 @@ scopes. **Location hardcoded to:** Worcester, UK (lat 52.2, lon -2.2).
 | CI            | GitHub Actions (lint + build on PR, opt-in uptime + health ping)               |
 | Releases      | commit-and-tag-version (auto version bump + changelog + tag on merge to main)  |
 
-No environment variables are required for local development.
+No environment variables are required for local development. In production,
+`/upload` needs a connected Vercel Blob store (`BLOB_READ_WRITE_TOKEN`, set by
+Vercel) and `UPLOAD_PASSCODE`; without them uploads are refused and the cards
+use the committed CSVs.
 
 ---
 
@@ -97,23 +104,30 @@ app/
       live/             Same response with no cache – called when the cached one has expired
     rainfall/           EA rainfall gauges + Open-Meteo forecast (lib/rainfall.ts)
       live/             Same, no cache
+    water-quality/      Committed + uploaded SAS CSVs, static; rebuilt on each upload
+      upload/           POST: passcode-checked upload of one export (validates, stores, revalidates)
+  upload/               The tester's upload page (from Settings → Info → For Testers; noindex)
   layout.tsx            Root layout – ThemeRegistry, data provider, safe-area frame
-  page.tsx              Home page – the four cards
+  page.tsx              Home page – the cards
   globals.css           Global resets only; type and colour come from the theme
   manifest.ts           PWA web manifest
 
 components/
-  TopNavBar.tsx              App bar – share, settings, refresh, freshness, banners
+  TopNavBar.tsx              App bar – share, settings, refresh, stale/offline banners
   SettingsModal.tsx          Bottom sheet – theme, links, conditions key, deep dive, version
   ConditionsKey.tsx          Legend for the status colours, map markers and chart bands
-  PollutionRiskCard.tsx      Headline pollution risk, derived from spills + rainfall
+  PollutionRiskCard.tsx      Headline pollution risk from spills, rainfall + latest sample, with the "Updated" line
   CsoListCard.tsx            Live/recent spills, then the network as a river diagram
   RiverSchematic.tsx         Transit-map view of the catchment, stops in downstream order
   CsoOutfallRow.tsx          One outfall as a labelled row, shared by both of the above
   RainfallCard.tsx           Gauge stats, chart, change tiles
   RainfallChart.tsx          Recharts intensity/daily/forecast views
-  WaterQualityMap.tsx        SAS citizen science map embed + explainer
-  WaterQualityExplainer.tsx  Classification bands disclosure
+  LatestSampleCard.tsx       Newest Grandstand Road sample – counts, tier, tester's note, conditions
+  SampleHistoryCard.tsx      Every sample – indicator toggle, picked sample with ‹ › stepping, tier counts, how the limits work
+  SampleHistoryChart.tsx     Recharts history of one indicator in tier bands; tap/drag picks a sample (no tooltip)
+  SampleDetails.tsx          One sample's counts, note and conditions – Latest Sample and the picked sample
+  SampleBandChip.tsx         A sample's Excellent/Good/Poor band as a status chip
+  UploadForm.tsx             The /upload page's form – passcode, file, the check's result
   WaterQualityInfoContent.tsx  Threshold tables + deep dive copy (shared)
   InfoPanel.tsx              Shared tonal panel, optionally a button
   StatTile.tsx               Labelled-figure tile (icon + label, value, detail) – gauges, periods, risk factors
@@ -127,7 +141,10 @@ lib/
   hooks.ts              useSevernData – all fetching, caching, offline state
   SevernDataContext.tsx React Context wrapping the hook
   csoStatus.ts          CSO state → label/colour/severity, in one place
-  pollutionRisk.ts      Derived high/raised/lower risk from spill timing + rainfall
+  pollutionRisk.ts      Derived high/raised/lower risk from spill timing, rainfall + latest sample
+  waterQuality.ts       Sample bands against the bathing water limits, formatting, stats
+  waterQualityCsv.ts    Server-only: reads + validates the SAS CSV export(s), merges by Feature ID
+  waterQualityStore.ts  Server-only: uploaded exports in Vercel Blob (or a local folder off Vercel)
   fetchCache.ts         The shared 15-minute cache window and live/no-store switch
   sewage.ts             Builds the /api/sewage response – feed, catchment filter, geocoding
   rainfall.ts           EA rainfall fetching and shaping; builds the /api/rainfall response
@@ -141,12 +158,17 @@ lib/
   themes.ts             The MUI theme
   ThemeContext.tsx      Colour-scheme provider/hooks (light/dark/system)
   storageKeys.ts        Canonical localStorage key names
-  time.ts               Europe/London formatting helpers
+  time.ts               Europe/London time and calendar-day helpers (no React, so servers can import it)
+  useNowTicking.ts      Client hook: the current time, ticking each minute (kept out of time.ts)
+  useFreshness.ts       "10:33 · just now" and whether data is stale – status card and the banners
   format.ts             Duration and "data as of" formatting
   useTooltipDismiss.ts  Closes a recharts tooltip on an outside press
 
 types/
   index.ts              All shared TypeScript types
+
+data/
+  water-quality/        Hand-downloaded SAS CSV exports + README on adding them
 
 public/                 Static assets – icons, favicon, sw.js (offline shell)
 docs/                   Reference documents
@@ -174,7 +196,7 @@ docs/                   Reference documents
 | Outfall place names           | Nominatim reverse geocoding                                                                | Only for Ongoing/Recent, capped by `SEWAGE_MAX_RESULTS` |
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) | 15-min readings, three gauges                           |
 | Rainfall forecast             | Open-Meteo `api.open-meteo.com/v1/forecast`                                                | Single point for Worcester, not per-gauge               |
-| Citizen science water quality | Surfers Against Sewage Water Quality map (Cartographer embed)                              | UK-wide, embedded as-is                                 |
+| Citizen science water quality | SAS CSV export, uploaded via `/upload` (Vercel Blob) + committed baseline                  | No API; uploaded by hand. Static, rebuilt per upload    |
 
 ---
 
@@ -188,28 +210,36 @@ one fetch rather than three.
 {
   cso: CsoResponse | null
   rainfall: RainfallResponse | null
+  waterQuality: WaterQualityResponse | null
   csoError: boolean          // that source failed AND had no cache to fall back on
   rainfallError: boolean
+  waterQualityError: boolean
   loading: boolean           // true only when there is genuinely nothing to render
   isRefreshing: boolean      // any fetch in flight
   isOffline: boolean
   lastFetchFailed: boolean   // a source couldn't be got from inside the cache window
-  lastUpdated: string | null // oldest asOf across the sources on screen
+  lastUpdated: string | null // oldest asOf across the live sources on screen (not water quality)
   error: string | null       // set only when offline with no cache at all
   refetch: () => void
 }
 ```
 
-The two sources are fetched independently, so one feed blipping doesn't
-discard data that arrived fine from the other. Each tries its cached route
-(`/api/sewage`, `/api/rainfall`, both cached for 15 minutes –
+The sources are fetched independently, so one feed blipping doesn't
+discard data that arrived fine from the others. Spills and rainfall each try
+their cached route (`/api/sewage`, `/api/rainfall`, both cached for 15 minutes –
 `DATA_REVALIDATE_SECONDS` in `lib/fetchCache.ts`). If that fails, or hands back
-an entry whose `asOf` is already past the window, it tries the same route's
+an entry whose `asOf` is already past the window, they try the same route's
 `/live` twin, which runs the same code (`lib/sewage.ts`, `lib/rainfall.ts`) with
-no cache. Only then does it fall back to its own `localStorage` copy. The
+no cache. Only then do they fall back to their own `localStorage` copy. The
 `/live` step matters after a quiet spell: past the window the route cache gives
 the first visitor its expired entry and rebuilds behind them, so without it
 that visitor would see hours-old data.
+
+The water quality samples skip the `/live` step and the age check
+(`loadStaticSource`): `/api/water-quality` is static, rebuilt at deploy and
+after each upload, so its `asOf` is always "old" and there is no live twin. It
+goes straight from its route to its saved copy, and it stays out of
+`lastUpdated` and the refetch-on-return check.
 
 There is **no background poll**, matching Paddlecheck. Data is fetched on load,
 on a manual refresh, and when the reader comes back to the app — tab shown,
@@ -219,7 +249,8 @@ puts the cards into their skeletons (they read `isRefreshing`), so the
 skeletons clearing means what's on screen just came from the network; a poll
 would blank the page under whoever was reading it.
 
-Freshness is communicated by the nav bar's "Updated HH:MM (n min ago)" line,
+Freshness is communicated by the "Updated HH:MM · n min ago" line under the
+Water Quality Status title (`lib/useFreshness.ts`, as in Paddlecheck),
 the "As of" caption under the rainfall chart (the age of the newest gauge
 reading, which the EA typically receives only once or twice a day), and a
 banner above the app bar. That banner says "Live update failed" only when the
@@ -232,7 +263,8 @@ the banner threshold well above the window: a successful fetch can return data
 up to one window old, so a banner set just above it comes back a few minutes
 after a refresh that worked. The nav bar works staleness out during render from
 a ticking clock rather than holding it in state, so the render where a refresh
-lands never pairs the new data with the old "stale" flag.
+lands never pairs the new data with the old "stale" flag (`lib/useFreshness.ts`,
+shared with the status card's "Updated" line).
 
 ---
 
@@ -240,12 +272,14 @@ lands never pairs the new data with the old "stale" flag.
 
 Canonical names live in `lib/storageKeys.ts`.
 
-| Key                        | Value                                                     |
-| -------------------------- | --------------------------------------------------------- |
-| `themeMode`                | `"light"` \| `"dark"` \| `"system"` (read/written by MUI) |
-| `rainfallRange`            | `"forecast"` \| `"1h"` \| `"8h"` \| `"24h"` \| `"7d"`     |
-| `severnwatch_csoData`      | Last successful `/api/sewage` response                    |
-| `severnwatch_rainfallData` | Last successful `/api/rainfall` response                  |
+| Key                            | Value                                                     |
+| ------------------------------ | --------------------------------------------------------- |
+| `themeMode`                    | `"light"` \| `"dark"` \| `"system"` (read/written by MUI) |
+| `rainfallRange`                | `"forecast"` \| `"1h"` \| `"8h"` \| `"24h"` \| `"7d"`     |
+| `severnwatch_csoData`          | Last successful `/api/sewage` response                    |
+| `severnwatch_rainfallData`     | Last successful `/api/rainfall` response                  |
+| `severnwatch_waterQualityData` | Last successful `/api/water-quality` response             |
+| `sampleHistoryIndicator`       | `"eColi"` \| `"enterococci"`                              |
 
 ---
 
@@ -357,9 +391,10 @@ If Git hooks are not firing:
 
 ## What This Project Does Not Have
 
-- No database and no historical ingestion — everything is live-fetched
+- No database and no historical ingestion — everything is live-fetched, apart
+  from the sample CSVs (committed, or uploaded to Vercel Blob)
 - No authentication
 - No automated tests (Jest/Vitest/Playwright)
-- No environment variables required
+- No environment variables required locally (uploads need two in production)
 - No multi-location support (hardcoded to Worcester)
 - No analytics

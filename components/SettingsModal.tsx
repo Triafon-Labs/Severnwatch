@@ -20,11 +20,13 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import NextLink from "next/link";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 import { WaterQualityDeepDive } from "@/components/WaterQualityInfoContent";
 import ConditionsKey from "@/components/ConditionsKey";
 import { useAppTheme, ThemeMode } from "@/lib/ThemeContext";
-import { USEFUL_LINKS } from "@/lib/config";
+import { APP_NAME, USEFUL_LINKS } from "@/lib/config";
 import { m3Duration, m3Easing, m3Spring, spring } from "@/lib/m3-palette";
 
 interface SettingsModalProps {
@@ -38,6 +40,16 @@ interface SettingsModalProps {
 // covered barely any ground, which is why velocity gets its own threshold.
 const DISMISS_DISTANCE_RATIO = 0.3;
 const DISMISS_VELOCITY_PX_PER_MS = 0.5;
+
+// An inline link in the About text, opened in a new tab - Paddlecheck's.
+const SourceLink: React.FC<{ href: string; children: React.ReactNode }> = ({
+  href,
+  children,
+}) => (
+  <Link href={href} target="_blank" rel="noopener noreferrer" color="inherit">
+    {children}
+  </Link>
+);
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const [activeTab, setActiveTab] = useState<"settings" | "info">("settings");
@@ -294,7 +306,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
           sx={panelSx(activeTab === "info")}
         >
           <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-            About Severnwatch
+            About {APP_NAME}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             River Severn conditions at Worcester - sewage spill status, upstream
@@ -373,7 +385,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               alignItems: "center",
             }}
           >
-            <Typography>Severnwatch Version</Typography>
+            <Typography>{APP_NAME} Version</Typography>
             <Typography>
               {process.env.NEXT_PUBLIC_APP_VERSION || "N/A"}
             </Typography>
@@ -387,6 +399,71 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
             conditions yourself and use your own judgement before entering the
             water.
           </Typography>
+          {/* Required by the sources' licences, as in Paddlecheck. The
+              Environment Agency's Open Government Licence asks for this exact
+              statement (it's the one the EA gives for the whole real-time
+              API, rainfall included); Open-Meteo and Severn Trent's storm
+              overflow feed are CC BY 4.0, which needs a credit; Nominatim's
+              place names are OpenStreetMap data under the ODbL, which needs
+              the "© OpenStreetMap contributors" line. SAS's samples carry no
+              stated licence, so they get a plain credit. */}
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mt: 1, display: "block" }}
+          >
+            This uses Environment Agency flood and river level data from the
+            real-time data API (Beta), under the{" "}
+            <SourceLink href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">
+              Open Government Licence
+            </SourceLink>
+            . Storm overflow data © Severn Trent Water (
+            <SourceLink href="https://creativecommons.org/licenses/by/4.0/">
+              CC BY 4.0
+            </SourceLink>
+            ). Rainfall forecast by{" "}
+            <SourceLink href="https://open-meteo.com/">Open-Meteo</SourceLink> (
+            <SourceLink href="https://creativecommons.org/licenses/by/4.0/">
+              CC BY 4.0
+            </SourceLink>
+            ). Outfall place names ©{" "}
+            <SourceLink href="https://www.openstreetmap.org/copyright">
+              OpenStreetMap contributors
+            </SourceLink>
+            , via Nominatim. Water quality samples from{" "}
+            <SourceLink href="https://www.sas.org.uk/">
+              Surfers Against Sewage
+            </SourceLink>
+            &apos;s citizen science programme.
+          </Typography>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* The way in to /upload for whoever does the weekly testing, so
+              it doesn't rest on them keeping a bookmark. At the foot of the
+              sheet so it doesn't draw a reader's eye; the passcode on the
+              page is what guards uploads, not the link being hidden. */}
+          <Typography variant="h6" gutterBottom>
+            For Testers
+          </Typography>
+          <ListItem
+            component={NextLink}
+            href="/upload"
+            onClick={onClose}
+            sx={{ pl: 0, color: "primary.main" }}
+          >
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography>Upload Sample Results</Typography>
+              <Typography
+                variant="caption"
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                Add this week&apos;s SAS export. Needs the testers&apos;
+                passcode.
+              </Typography>
+            </Box>
+            <ChevronRightIcon fontSize="small" />
+          </ListItem>
         </Box>
       </Box>
     </Drawer>

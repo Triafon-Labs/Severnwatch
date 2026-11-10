@@ -29,9 +29,11 @@ Node 22 or newer is required (`engines.node` in `package.json`, and what both CI
 | CSO spill status              | Severn Trent Water Storm Overflow Activity feed (public ArcGIS FeatureServer)              |
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) |
 | Rainfall forecast             | Open-Meteo (single point for Worcester)                                                    |
-| Citizen science water quality | Surfers Against Sewage (SAS) Water Quality map (Cartographer embed)                        |
+| Citizen science water quality | Surfers Against Sewage (SAS) CSV export, uploaded through `/upload` each week              |
 
-There's no database — everything is fetched live server-side and displayed. No persistence, no historical ingestion. Responses are mirrored into `localStorage` purely as an offline fallback.
+There's no database. Spills and rainfall are fetched live server-side and displayed, and responses are mirrored into `localStorage` purely as an offline fallback.
+
+The one exception is the Grandstand Road sample results. SAS has no public API for them, so a tester uploads each week's CSV export through the `/upload` page, which checks it and stores it in a private Vercel Blob store, on top of a baseline committed to `data/water-quality/`. See [`data/water-quality/README.md`](data/water-quality/README.md) for how to add results and set uploads up.
 
 ## Getting Started
 
@@ -40,7 +42,7 @@ npm install
 npm run dev
 ```
 
-No environment variables are needed.
+No environment variables are needed for local development. Uploading sample results through `/upload` on the live site needs a Vercel Blob store and an `UPLOAD_PASSCODE`; see [`data/water-quality/README.md`](data/water-quality/README.md).
 
 ## Commits and Releases
 

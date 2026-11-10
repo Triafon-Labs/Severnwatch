@@ -5,6 +5,7 @@ import ThemeRegistry from "@/components/ThemeRegistry";
 import TopNavBar from "@/components/TopNavBar";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import { SevernDataProvider } from "@/lib/SevernDataContext";
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/config";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { Box } from "@mui/material";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
@@ -23,9 +24,8 @@ const robotoFlex = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Severnwatch",
-  description:
-    "River Severn water quality and rainfall conditions at Worcester",
+  title: APP_NAME,
+  description: APP_DESCRIPTION,
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Severnwatch",
+    title: APP_NAME,
     // Paired with viewportFit: "cover" below - the translucent bar is what
     // hands the installed app the strip behind the status bar, which the
     // safe-area padding on the frame then insets the content back out of.

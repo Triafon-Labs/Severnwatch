@@ -23,6 +23,7 @@
     "@fontsource-variable/roboto-flex": "^5.2.8",
     "@mui/icons-material": "^9.5.0",
     "@mui/material": "^9.5.0",
+    "@vercel/blob": "^2.8.2",
     "date-fns": "^4.4.0",
     "next": "^16.4.3",
     "react": "^19.3.1",

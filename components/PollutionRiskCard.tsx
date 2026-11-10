@@ -19,6 +19,7 @@ import WavesIcon from "@mui/icons-material/Waves";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import HistoryIcon from "@mui/icons-material/History";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
   PollutionRiskFactor,
@@ -33,7 +34,8 @@ import {
   spring,
   springTransition,
 } from "@/lib/m3-palette";
-import { useNowTicking } from "@/lib/time";
+import { useNowTicking } from "@/lib/useNowTicking";
+import { useFreshness } from "@/lib/useFreshness";
 import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 
@@ -51,6 +53,7 @@ const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
   arriving: ScheduleIcon,
   lingering: HistoryIcon,
   rain: WaterDropIcon,
+  sample: ScienceOutlinedIcon,
 };
 
 // Matches Paddlecheck's PaddlingStatusHero: the label alone in the status
@@ -145,23 +148,50 @@ const ContributingFactors: React.FC<{ factors: PollutionRiskFactor[] }> = ({
 );
 
 const PollutionRiskCard: React.FC = () => {
-  const { cso, rainfall, csoError, loading, isRefreshing, isOffline } =
-    useSevernContext();
+  const {
+    cso,
+    rainfall,
+    waterQuality,
+    csoError,
+    loading,
+    isRefreshing,
+    isOffline,
+    lastUpdated,
+  } = useSevernContext();
+  const { freshnessText } = useFreshness(lastUpdated);
   const showSkeleton = loading || (isRefreshing && !isOffline);
   // Ticks so "due in ~N h" counts down, and a spill moves from due to
   // passing, between fetches.
   const now = useNowTicking();
 
   const risk = useMemo(
-    () => (cso ? derivePollutionRisk(cso, rainfall, now.getTime()) : null),
-    [cso, rainfall, now]
+    () =>
+      cso
+        ? derivePollutionRisk(cso, rainfall, waterQuality, now.getTime())
+        : null,
+    [cso, rainfall, waterQuality, now]
   );
 
   return (
     <Card>
       <CardContent>
-        <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
+        <Typography variant="h5" component="h2">
           Water Quality Status
+        </Typography>
+        {/* When the spill and rainfall data were fetched - Paddlecheck's
+            "Updated" line under its status card title. The banners above the
+            app bar take over once it's stale or an update has failed. Held at
+            one line's height so the card doesn't jump when it fills in. */}
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mt: 0.25, mb: 1.5, minHeight: "1.43em" }}
+        >
+          {isRefreshing
+            ? "Updating…"
+            : freshnessText
+              ? `Updated ${freshnessText}`
+              : null}
         </Typography>
 
         {/* Mirrors the hero and its scale strip, so the card doesn't change

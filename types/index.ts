@@ -64,3 +64,64 @@ export interface RainfallResponse {
   forecast: RainfallForecastPoint[];
   asOf: string; // ISO timestamp - when this data was fetched from source
 }
+
+// Citizen science water quality samples, from Surfers Against Sewage's
+// Cartographer export. There is no public API: the export is downloaded by
+// hand and dropped into data/water-quality/ (see the README there), and
+// /api/water-quality parses whatever is in that folder.
+
+// A lab count can sit outside what the test can measure. "below" is the
+// detection limit ("<10": none found in the volume tested), "above" is the
+// top of the dilution range (">1000": at least that many, possibly far more).
+// Neither is the number itself, so neither should be averaged or shown as
+// if it were.
+export type CountQualifier = "below" | "exact" | "above";
+
+export interface BacteriaCount {
+  value: number; // colony-forming units per 100 ml
+  qualifier: CountQualifier;
+}
+
+export interface WaterQualitySample {
+  id: string; // the export's Feature ID - stable across exports
+  sampledAt: string; // ISO, converted from the export's London wall-clock time
+  eColi: BacteriaCount | null;
+  enterococci: BacteriaCount | null;
+  // Total thermotolerant coliforms - a broader count than E. coli, which is
+  // one of them. Not part of the bathing water classification.
+  coliforms: BacteriaCount | null;
+  airTemperatureC: number | null;
+  weather: string | null; // human-readable, e.g. "Light rain"
+  weatherDayBefore: string | null;
+  rainfallMm: number | null;
+  rainfallDayBeforeMm: number | null;
+  swimmers: number | null;
+  otherWaterUsers: number | null;
+  notes: string | null; // free text written by the tester
+}
+
+export interface WaterQualitySite {
+  name: string;
+  river: string;
+  gridRef: string;
+}
+
+export interface WaterQualityResponse {
+  site: WaterQualitySite;
+  samples: WaterQualitySample[]; // oldest first
+  // When the response was built. For the file-based source this is the
+  // build, not the sampling, so it deliberately doesn't feed the app bar's
+  // "Updated" line - the cards date each sample themselves.
+  asOf: string;
+}
+
+// /api/water-quality/upload's reply, which the /upload page shows.
+export type UploadResponse =
+  | {
+      ok: true;
+      samples: number; // Grandstand Road samples in the file
+      added: number; // not in the data before
+      updated: number; // already there, with a different result
+      latestSampledAt: string | null;
+    }
+  | { ok: false; error: string }; // written for the tester, shown as-is

@@ -5,6 +5,16 @@
 // Severnwatch. It is currently set up for the River Severn at Worcester, UK.
 // ============================================================================
 
+// --- App identity ---
+// The name and one-line description, in one place - the page title, the
+// installed app's name, the app bar, the share text, the settings sheet and
+// the User-Agent sent to Nominatim all read these, as Paddlecheck reads its
+// APP_NAME. The service worker's cache names (public/sw.js) are a static
+// file and can't import this, so they spell it out.
+export const APP_NAME = "Severnwatch";
+export const APP_DESCRIPTION =
+  "River Severn water quality and rainfall conditions at Worcester";
+
 export const LOCATION_NAME = "Worcester";
 export const LATITUDE = 52.2;
 export const LONGITUDE = -2.2;
@@ -322,8 +332,49 @@ export const SEVERN_TRENT_MAP_URL =
   "https://www.stwater.co.uk/in-my-area/storm-overflow-map/";
 
 // --- SAS (Surfers Against Sewage) citizen science water quality map ---
-export const SAS_MAP_EMBED_URL =
+// Linked from the Info tab only. It used to be embedded as a card, until the
+// Grandstand Road samples were read into the app directly (see below): the
+// embed was UK-wide, heavy, and loaded SAS's own analytics into the page.
+export const SAS_MAP_URL =
   "https://app.cartographer.io/embed/map?map=SasWaterQuality&workspace=sas&project=wq";
+
+// --- SAS citizen science samples (manual export) ---
+// SAS's map has no public API, so its "Download data" export is saved into
+// data/water-quality/ by hand (see the README there). Every CSV in it is
+// read and merged by Feature ID, so a new export can sit alongside the old
+// ones and a partial export can't wipe out earlier samples. The folder path
+// itself is written out in lib/waterQualityCsv.ts, where the bundler needs
+// it as a literal.
+
+// The one site the cards follow. An export that also covers other sites is
+// filtered down to this name.
+export const WATER_QUALITY_SITE_NAME = "Grandstand Road";
+
+// How a sample feeds the headline pollution risk. Testing is roughly
+// weekly, and a result is only known a day or so after the sample is taken,
+// so a sample is never "live" - these keep an old result from outweighing
+// what the spill feed says now.
+//
+// - A Poor sample (over the Good limit) counts as High Risk for this many
+//   London calendar days after sampling, then as Raised Risk until
+//   WATER_QUALITY_RELEVANT_DAYS.
+// - Excellent and Good samples never change the risk: one clean sample says
+//   nothing about a spill that started after it was taken.
+export const WATER_QUALITY_RECENT_DAYS = 2;
+export const WATER_QUALITY_RELEVANT_DAYS = 7;
+
+// Past this, the sample card says plainly that testing has gone quiet.
+export const WATER_QUALITY_STALE_DAYS = 14;
+
+// --- Bathing water classification explainer (linked from "How Limits Work") ---
+// The app grades one week at a time and never shows an official
+// classification, so the season-long method is linked to rather than
+// re-explained. SAS's glossary entry: a short plain-English paragraph, not a
+// PDF or a long post. The text fragment (#:~:text=) scrolls to the entry in
+// browsers that support it; others land at the top of the glossary, where
+// the entry is second.
+export const CLASSIFICATIONS_EXPLAINER_URL =
+  "https://datahq.sas.org.uk/toolkit/glossary/#:~:text=Bathing%20Water%20Classifications";
 
 // --- Environment Agency rainfall API documentation ---
 export const EA_RAINFALL_DOCS_URL =
@@ -339,6 +390,6 @@ export interface UsefulLink {
 
 export const USEFUL_LINKS: UsefulLink[] = [
   { name: "Severn Trent Storm Overflow Map", url: SEVERN_TRENT_MAP_URL },
-  { name: "Surfers Against Sewage Water Quality Map", url: SAS_MAP_EMBED_URL },
+  { name: "Surfers Against Sewage Water Quality Map", url: SAS_MAP_URL },
   { name: "Environment Agency Rainfall Data", url: EA_RAINFALL_DOCS_URL },
 ];

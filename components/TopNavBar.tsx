@@ -17,14 +17,11 @@ import ShareIcon from "@mui/icons-material/Share";
 import Image from "next/image";
 import SettingsModal from "@/components/SettingsModal";
 import { useSevernContext } from "@/lib/SevernDataContext";
-import { DATA_STALE_THRESHOLD_MS, OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
-import {
-  getLondonHHMM,
-  getRelativeTimeString,
-  useNowTicking,
-} from "@/lib/time";
+import { OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
+import { useFreshness } from "@/lib/useFreshness";
 import { formatOutfallSubtitle } from "@/lib/format";
 import { collapseMotion } from "@/lib/m3-palette";
+import { APP_NAME } from "@/lib/config";
 import { CsoResponse, RainfallResponse } from "@/types";
 
 // Filled with the saturated accent rather than the tonal container pair.
@@ -58,7 +55,7 @@ const buildShareText = (
   rainfall: RainfallResponse | null
 ): string => {
   if (!cso && !rainfall) {
-    return "Check current River Severn conditions at Worcester on Severnwatch.";
+    return `Check current River Severn conditions at Worcester on ${APP_NAME}.`;
   }
 
   const lines: string[] = [];
@@ -120,27 +117,7 @@ const TopNavBar: React.FC = () => {
 
   const isOfflineError = error === OFFLINE_NO_CACHE_ERROR;
 
-  // Worked out during render from lastUpdated and a ticking clock, not kept
-  // in state of their own. State set from an effect lags a render behind:
-  // the render where a refresh landed carried the new data with the old
-  // "stale" flag, so the banner began to open just as the fetch that should
-  // have cleared it finished.
-  const now = useNowTicking(30 * 1000);
-  const relativeLastUpdated = getRelativeTimeString(lastUpdated, now);
-  const isStale = lastUpdated
-    ? now.getTime() - new Date(lastUpdated).getTime() > DATA_STALE_THRESHOLD_MS
-    : false;
-
-  // "Updated just now" alone reads as if this instant triggered a live fetch,
-  // when it may just be a fast cache hit on data fetched slightly earlier -
-  // pairing it with the clock time it was actually fetched keeps that honest.
-  const lastUpdatedClockTime = lastUpdated
-    ? getLondonHHMM(new Date(lastUpdated))
-    : null;
-  const freshnessText =
-    lastUpdatedClockTime && relativeLastUpdated
-      ? `${lastUpdatedClockTime} · ${relativeLastUpdated}`
-      : relativeLastUpdated;
+  const { freshnessText, isStale } = useFreshness(lastUpdated);
 
   const handleShare = async () => {
     const text = buildShareText(cso, rainfall);
@@ -151,7 +128,7 @@ const TopNavBar: React.FC = () => {
     const message = `${text}\n\n${url}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Severnwatch", text: message });
+        await navigator.share({ title: APP_NAME, text: message });
       } else {
         await navigator.clipboard.writeText(message);
         setSnackbarOpen(true);
@@ -234,31 +211,24 @@ const TopNavBar: React.FC = () => {
                 is what we want here - there's nothing to resize. */}
             <Image
               src="/favicon.svg"
-              alt="Severnwatch Logo"
+              alt={`${APP_NAME} logo`}
               width={40}
               height={40}
               style={{ flexShrink: 0 }}
             />
-            <Box sx={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <Typography
-                variant="h6"
-                noWrap
-                sx={{ fontWeight: 600, lineHeight: 1.2 }}
-                color="text.primary"
-              >
-                Severnwatch
-              </Typography>
-              {(isRefreshing || freshnessText) && (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  noWrap
-                  sx={{ lineHeight: 1.2, mt: -0.2 }}
-                >
-                  {isRefreshing ? "Updating…" : `Updated ${freshnessText}`}
-                </Typography>
-              )}
-            </Box>
+            {/* The name alone. The "Updated" line moved into the Water
+                Quality Status card, as Paddlecheck moved its own into the
+                status card: it says when the headline was worked out, so it
+                belongs beside it, and the banners above take over once the
+                data is stale or an update has failed. */}
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{ fontWeight: 600, lineHeight: 1.2, minWidth: 0 }}
+              color="text.primary"
+            >
+              {APP_NAME}
+            </Typography>
           </Box>
           <Box sx={{ display: "flex", flexShrink: 0 }}>
             <IconButton onClick={handleShare} aria-label="share">
