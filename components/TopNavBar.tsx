@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   AppBar,
   Box,
@@ -18,7 +18,11 @@ import Image from "next/image";
 import SettingsModal from "@/components/SettingsModal";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import { DATA_STALE_THRESHOLD_MS, OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
-import { getLondonHHMM, getRelativeTimeString } from "@/lib/time";
+import {
+  getLondonHHMM,
+  getRelativeTimeString,
+  useNowTicking,
+} from "@/lib/time";
 import { formatOutfallSubtitle } from "@/lib/format";
 import { collapseMotion } from "@/lib/m3-palette";
 import { CsoResponse, RainfallResponse } from "@/types";
@@ -99,11 +103,6 @@ const buildShareText = (
   return lines.join("\n");
 };
 
-const isDataStale = (lastUpdated: string | null): boolean => {
-  if (!lastUpdated) return false;
-  return Date.now() - new Date(lastUpdated).getTime() > DATA_STALE_THRESHOLD_MS;
-};
-
 const TopNavBar: React.FC = () => {
   const scrolled = useScrollTrigger({ disableHysteresis: true, threshold: 8 });
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -114,38 +113,23 @@ const TopNavBar: React.FC = () => {
     lastUpdated,
     isOffline,
     isRefreshing,
-    usingCachedData,
+    lastFetchFailed,
     error,
     refetch,
   } = useSevernContext();
 
   const isOfflineError = error === OFFLINE_NO_CACHE_ERROR;
 
-  // Seeded from the current value on first render, then ticked on a timer so
-  // "3 min ago" keeps counting up between fetches rather than freezing at
-  // whatever it said when the data landed.
-  const [relativeLastUpdated, setRelativeLastUpdated] = useState<string>(() =>
-    getRelativeTimeString(lastUpdated)
-  );
-  const [isStale, setIsStale] = useState<boolean>(() =>
-    isDataStale(lastUpdated)
-  );
-
-  useEffect(() => {
-    // queueMicrotask breaks the synchronous set-state-in-an-effect the lint
-    // rules flag, while still running before paint.
-    queueMicrotask(() => {
-      setRelativeLastUpdated(getRelativeTimeString(lastUpdated));
-      setIsStale(isDataStale(lastUpdated));
-    });
-
-    const interval = setInterval(() => {
-      setRelativeLastUpdated(getRelativeTimeString(lastUpdated));
-      setIsStale(isDataStale(lastUpdated));
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [lastUpdated]);
+  // Worked out during render from lastUpdated and a ticking clock, not kept
+  // in state of their own. State set from an effect lags a render behind:
+  // the render where a refresh landed carried the new data with the old
+  // "stale" flag, so the banner began to open just as the fetch that should
+  // have cleared it finished.
+  const now = useNowTicking(30 * 1000);
+  const relativeLastUpdated = getRelativeTimeString(lastUpdated, now);
+  const isStale = lastUpdated
+    ? now.getTime() - new Date(lastUpdated).getTime() > DATA_STALE_THRESHOLD_MS
+    : false;
 
   // "Updated just now" alone reads as if this instant triggered a live fetch,
   // when it may just be a fast cache hit on data fetched slightly earlier -
@@ -202,13 +186,13 @@ const TopNavBar: React.FC = () => {
           !isOffline &&
           !isOfflineError &&
           !isRefreshing &&
-          (usingCachedData || isStale)
+          (lastFetchFailed || isStale)
         }
         unmountOnExit
         {...collapseMotion}
       >
         <StatusBanner severity="warning">
-          {usingCachedData
+          {lastFetchFailed
             ? `Live update failed${freshnessText ? ` – showing data from ${freshnessText}` : ""}`
             : `Showing data from ${freshnessText} – refresh for the latest`}
         </StatusBanner>
