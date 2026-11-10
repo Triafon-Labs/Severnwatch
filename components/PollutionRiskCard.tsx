@@ -201,7 +201,7 @@ const PollutionRiskCard: React.FC = () => {
             <Skeleton
               variant="rounded"
               animation="wave"
-              sx={{ height: { xs: 72, sm: 104 }, borderRadius: "16px" }}
+              sx={{ height: { xs: 72, sm: 104 } }}
             />
             <Box
               sx={{

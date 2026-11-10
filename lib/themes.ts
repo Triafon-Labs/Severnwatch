@@ -662,7 +662,7 @@ const components: ThemeOptions["components"] = {
   MuiAlert: {
     styleOverrides: {
       root: ({ theme }) => [
-        { borderRadius: 12 },
+        { borderRadius: 16 },
         // Nothing currently renders an <Alert>: the status panels that used to
         // be outlined Alerts are now InfoPanels on the tonal container pair,
         // which is the shape M3 actually gives an inline status surface. This
@@ -903,8 +903,11 @@ const components: ThemeOptions["components"] = {
   // default 11%-black wash is nearly invisible in dark mode. Pin them to the
   // next surface step up instead, which is the same tone the loaded panels
   // will occupy.
+  // A rounded skeleton always stands in for a panel, tile or card, so it
+  // takes their 16px corners rather than MUI's default of the 12px shape.
   MuiSkeleton: {
     styleOverrides: {
+      rounded: { borderRadius: 16 },
       root: ({ theme }) =>
         perScheme(theme, (m3) => ({
           backgroundColor: m3.surfaceContainerHigh,
