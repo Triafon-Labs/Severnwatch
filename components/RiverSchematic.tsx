@@ -217,7 +217,7 @@ const ClearMonitorsGroup: React.FC<{
           alignItems: "center",
           px: 1.5,
           py: 1,
-          borderRadius: 2,
+          borderRadius: "16px",
           // Borderless on containerHigh, like the outfall rows beside it
           // and Paddlecheck's matrix rows.
           bgcolor: "surfaces.containerHigh",
@@ -313,7 +313,7 @@ const StationHeader: React.FC<{
     gap: 1,
     px: 1,
     textAlign: "left" as const,
-    borderRadius: 2,
+    borderRadius: "16px",
   };
 
   // A stop with no monitors has nothing to expand, so it stays inert rather
