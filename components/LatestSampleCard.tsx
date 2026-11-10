@@ -105,7 +105,7 @@ const LatestSampleCard: React.FC = () => {
                   display: "flex",
                   borderRadius: "16px",
                   overflow: "hidden",
-                  backgroundColor: "surfaces.containerHighest",
+                  backgroundColor: "surfaces.containerHigh",
                 }}
               >
                 <Box
@@ -137,7 +137,7 @@ const LatestSampleCard: React.FC = () => {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      backgroundColor: ui?.color ?? "surfaces.containerHigh",
+                      backgroundColor: ui?.color ?? "surfaces.containerHighest",
                       color: ui?.onColor ?? "text.secondary",
                       transition: bandTransition,
                     }}
