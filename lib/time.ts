@@ -10,11 +10,12 @@
 // How old a reading is, in words. "min", never "mins" or "minutes", so the
 // freshness caption in the app bar reads the same as the ones under the cards.
 export const getRelativeTimeString = (
-  date: string | Date | undefined | null
+  date: string | Date | undefined | null,
+  now: Date = new Date()
 ): string => {
   if (!date) return "";
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  const diffMins = Math.floor((Date.now() - dateObj.getTime()) / 60000);
+  const diffMins = Math.floor((now.getTime() - dateObj.getTime()) / 60000);
 
   if (diffMins < 1) return "just now";
   if (diffMins < 60) return `${diffMins} min ago`;

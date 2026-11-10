@@ -2,34 +2,37 @@ name: Keep Alive
 
 on:
   schedule:
-    # Every 5 minutes, which is also the sewage route's own revalidate window
-    # (see app/api/sewage/route.ts) - so each ping lands just as the cache
-    # expires and rebuilds it before a visitor has to wait for it. That route
+    # Every 15 minutes, which is also both routes' revalidate window (see
+    # lib/fetchCache.ts) - so each ping lands just as the cache expires and
+    # rebuilds it before a visitor has to wait for it. The sewage route
     # reverse-geocodes sequentially with a 1s gap between calls to respect
-    # Nominatim's usage policy, so a cold rebuild can take ~15s. Keeping it
-    # warm is the point of the schedule, not a side effect of it.
-    - cron: "*/5 * * * *"
+    # Nominatim's usage policy, so a cold rebuild can take ~15s. GitHub runs
+    # scheduled workflows late and sometimes skips them under load, so this
+    # narrows the gap rather than closing it: the client's live fallback
+    # (/api/*/live) is what guarantees a visitor never gets an expired entry.
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 # Only curls the public site; needs no access to the repo at all.
 permissions: {}
 
-# A ping that outlives its 5-minute slot should not stack up behind the next one.
+# A ping that outlives its 15-minute slot should not stack up behind the next one.
 concurrency:
   group: keep-alive
   cancel-in-progress: true
 
 jobs:
   ping:
-    # Inert until the deployment URL is configured, so the workflow can land
-    # without turning into a failing cron job on a repo that isn't deployed
-    # yet. Set a repository variable named SITE_URL to switch it on.
-    if: vars.SITE_URL != ''
+    # Pings this project's own deployment by default, as Paddlecheck's does. A
+    # fork checks its own site once it sets the SITE_URL repository variable,
+    # and skips this job until then - otherwise every fork with Actions
+    # enabled would ping this project's site every 15 minutes.
+    if: vars.SITE_URL != '' || github.repository == 'dylanr97/Severnwatch'
     runs-on: ubuntu-latest
+    env:
+      SITE_URL: ${{ vars.SITE_URL || 'https://severnwatch.vercel.app' }}
     steps:
       - name: Ping site and warm the API caches
-        env:
-          SITE_URL: ${{ vars.SITE_URL }}
         run: |
           for path in "/" "/api/sewage" "/api/rainfall"; do
             url="${SITE_URL}${path}"
@@ -54,7 +57,6 @@ jobs:
       # fail. Freshness of the underlying readings isn't observable from here.
       - name: Check upstream feeds still return usable data
         env:
-          SITE_URL: ${{ vars.SITE_URL }}
           # Keep in step with RAINFALL_GAUGES in lib/config.ts.
           EXPECTED_GAUGES: "3"
         run: |

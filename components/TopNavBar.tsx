@@ -110,7 +110,7 @@ const TopNavBar: React.FC = () => {
     lastUpdated,
     isOffline,
     isRefreshing,
-    usingCachedData,
+    lastFetchFailed,
     error,
     refetch,
   } = useSevernContext();
@@ -163,13 +163,13 @@ const TopNavBar: React.FC = () => {
           !isOffline &&
           !isOfflineError &&
           !isRefreshing &&
-          (usingCachedData || isStale)
+          (lastFetchFailed || isStale)
         }
         unmountOnExit
         {...collapseMotion}
       >
         <StatusBanner severity="warning">
-          {usingCachedData
+          {lastFetchFailed
             ? `Live update failed${freshnessText ? ` – showing data from ${freshnessText}` : ""}`
             : `Showing data from ${freshnessText} – refresh for the latest`}
         </StatusBanner>

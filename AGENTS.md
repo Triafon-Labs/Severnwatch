@@ -100,8 +100,10 @@ Rules that the code depends on:
 ```
 app/
   api/
-    sewage/             Severn Trent storm overflow feed, filtered to the catchment
-    rainfall/           EA rainfall gauges + Open-Meteo forecast
+    sewage/             Severn Trent storm overflow feed, filtered to the catchment (lib/sewage.ts)
+      live/             Same response with no cache – called when the cached one has expired
+    rainfall/           EA rainfall gauges + Open-Meteo forecast (lib/rainfall.ts)
+      live/             Same, no cache
     water-quality/      Committed + uploaded SAS CSVs, static; rebuilt on each upload
       upload/           POST: passcode-checked upload of one export (validates, stores, revalidates)
   upload/               The tester's upload page (from Settings → Info → For Testers; noindex)
@@ -143,7 +145,9 @@ lib/
   waterQuality.ts       Sample bands against the bathing water limits, formatting, stats
   waterQualityCsv.ts    Server-only: reads + validates the SAS CSV export(s), merges by Feature ID
   waterQualityStore.ts  Server-only: uploaded exports in Vercel Blob (or a local folder off Vercel)
-  rainfall.ts           EA rainfall fetching and shaping
+  fetchCache.ts         The shared 15-minute cache window and live/no-store switch
+  sewage.ts             Builds the /api/sewage response – feed, catchment filter, geocoding
+  rainfall.ts           EA rainfall fetching and shaping; builds the /api/rainfall response
   rainfallAnalysis.ts   Intensity/daily buckets, trailing sums, forecast total
   catchment.ts          Nearest-waypoint filtering (which waypoint, and how far)
   riverSchematic.ts     Outfalls -> the river diagram's rows, lanes and confluences
@@ -213,21 +217,34 @@ one fetch rather than three.
   loading: boolean           // true only when there is genuinely nothing to render
   isRefreshing: boolean      // any fetch in flight
   isOffline: boolean
-  usingCachedData: boolean
-  lastUpdated: string | null // newest asOf across the live sources (not water quality)
+  lastFetchFailed: boolean   // a source couldn't be got from inside the cache window
+  lastUpdated: string | null // oldest asOf across the live sources on screen (not water quality)
   error: string | null       // set only when offline with no cache at all
   refetch: () => void
 }
 ```
 
-The three sources are fetched independently, each falling back to its own
-`localStorage` copy on failure, so one feed blipping doesn't discard data that
-arrived fine from the other.
+The sources are fetched independently, so one feed blipping doesn't
+discard data that arrived fine from the others. Spills and rainfall each try
+their cached route (`/api/sewage`, `/api/rainfall`, both cached for 15 minutes –
+`DATA_REVALIDATE_SECONDS` in `lib/fetchCache.ts`). If that fails, or hands back
+an entry whose `asOf` is already past the window, they try the same route's
+`/live` twin, which runs the same code (`lib/sewage.ts`, `lib/rainfall.ts`) with
+no cache. Only then do they fall back to their own `localStorage` copy. The
+`/live` step matters after a quiet spell: past the window the route cache gives
+the first visitor its expired entry and rebuilds behind them, so without it
+that visitor would see hours-old data.
+
+The water quality samples skip the `/live` step and the age check
+(`loadStaticSource`): `/api/water-quality` is static, rebuilt at deploy and
+after each upload, so its `asOf` is always "old" and there is no live twin. It
+goes straight from its route to its saved copy, and it stays out of
+`lastUpdated` and the refetch-on-return check.
 
 There is **no background poll**, matching Paddlecheck. Data is fetched on load,
 on a manual refresh, and when the reader comes back to the app — tab shown,
 window focused, signal regained, or page restored from the back/forward cache —
-with data older than 5 minutes (the sewage route's cache window). Every fetch
+with data older than the 15-minute cache window. Every fetch
 puts the cards into their skeletons (they read `isRefreshing`), so the
 skeletons clearing means what's on screen just came from the network; a poll
 would blank the page under whoever was reading it.
@@ -236,10 +253,18 @@ Freshness is communicated by the "Updated HH:MM · n min ago" line under the
 Water Quality Status title (`lib/useFreshness.ts`, as in Paddlecheck),
 the "As of" caption under the rainfall chart (the age of the newest gauge
 reading, which the EA typically receives only once or twice a day), and a
-banner above the app bar. That banner says "Live update failed" only when a
-fetch actually fell back to the cache; data that is merely past
-`DATA_STALE_THRESHOLD_MS` because nobody has refreshed gets "Showing data from
-… – refresh for the latest" instead.
+banner above the app bar. That banner says "Live update failed" only when the
+last fetch couldn't get a source from inside the cache window (it fell back to
+the saved copy, or the live fallback failed too); data that is merely past
+`DATA_STALE_THRESHOLD_MS` (two windows, 30 minutes) because nobody has
+refreshed gets "Showing data from … – refresh for the latest" instead. Both go
+by the _oldest_ source, so fresh sewage data can't hide stale rainfall. Keep
+the banner threshold well above the window: a successful fetch can return data
+up to one window old, so a banner set just above it comes back a few minutes
+after a refresh that worked. The nav bar works staleness out during render from
+a ticking clock rather than holding it in state, so the render where a refresh
+lands never pairs the new data with the old "stale" flag (`lib/useFreshness.ts`,
+shared with the status card's "Updated" line).
 
 ---
 
@@ -295,13 +320,16 @@ rejecting commits whose first line isn't a valid Conventional Commit
   entry, and a `BREAKING CHANGE:` footer bumps major. The job skips itself when
   the triggering commit is its own `chore(release): ...` commit, to avoid a
   loop.
-- **keep-alive.yml** – every 5 minutes, pings the deployed site and asserts
-  that both API routes still return usable data. It is **inert until a
-  repository variable named `SITE_URL` is set**, so it does nothing on a repo
-  that isn't deployed yet. The 5-minute cadence matches the sewage route's own
-  `revalidate` window, so each ping rebuilds that cache as it expires — worth
-  doing because a cold rebuild reverse-geocodes sequentially at 1 request per
-  second and can take ~15s. It deliberately does **not** assert on `asOf`:
+- **keep-alive.yml** – every 15 minutes, pings the deployed site
+  (`https://severnwatch.vercel.app`, hard-coded in the workflow) and asserts
+  that both API routes still return usable data. A fork skips it until it sets
+  a `SITE_URL` repository variable pointing at its own deployment, which also
+  overrides the default here. The 15-minute cadence matches both routes'
+  `revalidate` window, so each ping rebuilds the caches as they expire — worth
+  doing because a cold sewage rebuild reverse-geocodes sequentially at 1
+  request per second and can take ~15s. GitHub runs schedules late and skips
+  them under load, so it only narrows the gap; the client's `/live` fallback
+  is what stops a visitor getting an expired entry. It deliberately does **not** assert on `asOf`:
   both routes stamp that with the time they built the response, not the time
   the readings were collected, so it is fresh by construction.
 

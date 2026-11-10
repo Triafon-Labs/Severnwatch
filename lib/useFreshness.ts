@@ -1,41 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { DATA_STALE_THRESHOLD_MS } from "@/lib/hooks";
 import { getLondonHHMM, getRelativeTimeString } from "@/lib/time";
-
-const isDataStale = (lastUpdated: string | null): boolean => {
-  if (!lastUpdated) return false;
-  return Date.now() - new Date(lastUpdated).getTime() > DATA_STALE_THRESHOLD_MS;
-};
+import { useNowTicking } from "@/lib/useNowTicking";
 
 // How fresh the data on screen is: "10:33 · just now", and whether it's past
-// DATA_STALE_THRESHOLD_MS. Re-read every 30 seconds so both stay right while
-// the page is left open. Shared by the status card's "Updated" line and the
-// stale-data banners above the app bar - Paddlecheck's hook, ported.
+// DATA_STALE_THRESHOLD_MS. Shared by the status card's "Updated" line and the
+// stale-data banners above the app bar (Paddlecheck's hook).
+//
+// Worked out during render from lastUpdated and a ticking clock, not kept in
+// state of its own. State set from an effect lags a render behind: the render
+// where a refresh landed carried the new data with the old "stale" flag, so
+// the banner began to open just as the fetch that should have cleared it
+// finished.
 export const useFreshness = (lastUpdated: string | null) => {
-  const [relative, setRelative] = useState<string>(() =>
-    getRelativeTimeString(lastUpdated)
-  );
-  const [isStale, setIsStale] = useState<boolean>(() =>
-    isDataStale(lastUpdated)
-  );
-
-  useEffect(() => {
-    // queueMicrotask breaks the synchronous set-state-in-an-effect the lint
-    // rules flag, while still running before paint.
-    queueMicrotask(() => {
-      setRelative(getRelativeTimeString(lastUpdated));
-      setIsStale(isDataStale(lastUpdated));
-    });
-
-    const interval = setInterval(() => {
-      setRelative(getRelativeTimeString(lastUpdated));
-      setIsStale(isDataStale(lastUpdated));
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [lastUpdated]);
+  const now = useNowTicking(30 * 1000);
+  const relative = getRelativeTimeString(lastUpdated, now);
+  const isStale = lastUpdated
+    ? now.getTime() - new Date(lastUpdated).getTime() > DATA_STALE_THRESHOLD_MS
+    : false;
 
   // "Updated just now" alone reads as if this instant triggered a live fetch,
   // when it may just be a fast cache hit on data fetched slightly earlier -

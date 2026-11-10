@@ -2,6 +2,7 @@ import {
   RainfallForecastPoint,
   RainfallGaugeData,
   RainfallReading,
+  RainfallResponse,
 } from "@/types";
 import {
   API_ENDPOINTS,
@@ -9,9 +10,11 @@ import {
   LONGITUDE,
   OPEN_METEO_FORECAST_URL,
   RAINFALL_FORECAST_HOURS,
+  RAINFALL_GAUGES,
   RAINFALL_HISTORY_DAYS,
   RainfallGauge,
 } from "@/lib/config";
+import { FetchLiveness, fetchCacheOptions } from "@/lib/fetchCache";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
@@ -26,7 +29,8 @@ interface EaReading {
 const READINGS_LIMIT = 1000;
 
 export const fetchGaugeData = async (
-  gauge: RainfallGauge
+  gauge: RainfallGauge,
+  liveness: FetchLiveness = {}
 ): Promise<RainfallGaugeData> => {
   const sinceISO = new Date(
     Date.now() - RAINFALL_HISTORY_DAYS * 24 * 60 * 60 * 1000
@@ -35,9 +39,8 @@ export const fetchGaugeData = async (
     `${gauge.id}-rainfall-tipping_bucket_raingauge-t-15_min-mm`
   )}?since=${sinceISO}&_limit=${READINGS_LIMIT}`;
 
-  const response = await fetch(url, {
-    next: { revalidate: 900 }, // matches the gauge's own 15-min reporting cadence
-  });
+  // The window matches the gauge's own 15-min reporting cadence.
+  const response = await fetch(url, fetchCacheOptions(liveness));
   if (!response.ok) {
     throw new Error(
       `Rainfall API fetch failed for gauge ${gauge.id}: ${response.status}`
@@ -77,16 +80,15 @@ interface OpenMeteoResponse {
   };
 }
 
-export const fetchRainfallForecast = async (): Promise<
-  RainfallForecastPoint[]
-> => {
+export const fetchRainfallForecast = async (
+  liveness: FetchLiveness = {}
+): Promise<RainfallForecastPoint[]> => {
   const url =
     `${OPEN_METEO_FORECAST_URL}?latitude=${LATITUDE}&longitude=${LONGITUDE}` +
     `&hourly=precipitation&timezone=UTC&forecast_hours=${RAINFALL_FORECAST_HOURS}`;
 
-  const response = await fetch(url, {
-    next: { revalidate: 900 }, // forecasts don't change fast enough to warrant polling harder
-  });
+  // Forecasts don't change fast enough to warrant polling harder.
+  const response = await fetch(url, fetchCacheOptions(liveness));
   if (!response.ok) {
     throw new Error(`Open-Meteo forecast fetch failed: ${response.status}`);
   }
@@ -99,4 +101,27 @@ export const fetchRainfallForecast = async (): Promise<
     dateTime: new Date(`${t}Z`).toISOString(),
     valueMm: values[i] ?? 0,
   }));
+};
+
+// Shared by /api/rainfall (cached) and /api/rainfall/live (liveness.live:
+// true, bypasses the cache) so both build the response identically. Throws
+// when a gauge fails; the routes turn that into a 500.
+export const getRainfallPayload = async (
+  liveness: FetchLiveness = {}
+): Promise<RainfallResponse> => {
+  const gauges = await Promise.all(
+    RAINFALL_GAUGES.map((gauge) => fetchGaugeData(gauge, liveness))
+  );
+
+  // Best-effort: Open-Meteo is a "nice to have" forecast layer on top of
+  // the EA gauge readings above, not the core data - a failure here
+  // shouldn't take down the rest of the rainfall card.
+  let forecast: RainfallForecastPoint[] = [];
+  try {
+    forecast = await fetchRainfallForecast(liveness);
+  } catch (error) {
+    console.error("Error fetching rainfall forecast:", error);
+  }
+
+  return { gauges, forecast, asOf: new Date().toISOString() };
 };
