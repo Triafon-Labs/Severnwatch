@@ -8,11 +8,12 @@ import { useEffect, useState } from "react";
 // How old a reading is, in words. "min", never "mins" or "minutes", so the
 // freshness caption in the app bar reads the same as the ones under the cards.
 export const getRelativeTimeString = (
-  date: string | Date | undefined | null
+  date: string | Date | undefined | null,
+  now: Date = new Date()
 ): string => {
   if (!date) return "";
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  const diffMins = Math.floor((Date.now() - dateObj.getTime()) / 60000);
+  const diffMins = Math.floor((now.getTime() - dateObj.getTime()) / 60000);
 
   if (diffMins < 1) return "just now";
   if (diffMins < 60) return `${diffMins} min ago`;
@@ -26,12 +27,22 @@ export const getRelativeTimeString = (
 };
 
 // Ticks once a minute so anything displaying data age stays accurate for as
-// long as the component stays mounted, even without a refetch.
+// long as the component stays mounted, even without a refetch. Also catches
+// up the moment the page is shown again: a backgrounded phone freezes the
+// interval, and without this the clock would resume from wherever it stopped.
 export const useNowTicking = (intervalMs: number = 60 * 1000): Date => {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), intervalMs);
-    return () => clearInterval(interval);
+    const tick = () => setNow(new Date());
+    const interval = setInterval(tick, intervalMs);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [intervalMs]);
   return now;
 };

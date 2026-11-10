@@ -3,24 +3,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CsoResponse, RainfallResponse } from "@/types";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
+import { DATA_REVALIDATE_SECONDS } from "@/lib/fetchCache";
 
 // There is no background poll. Like Paddlecheck, data is fetched on load, on
 // a manual refresh, and when the reader comes back to the app (tab shown,
 // window focused, signal regained, page restored from the back/forward
-// cache) with data older than this - the sewage route's own cache window, so
-// a sooner refetch would only re-read the same response. A 5-minute poll
-// used to run while the page was open, and since every fetch puts the cards
-// back into their skeletons, the page blanked every five minutes under
-// whoever was reading it.
-const REFETCH_AFTER_MS = 5 * 60 * 1000;
+// cache) with data older than this - the routes' own cache window, so a
+// sooner refetch would only re-read the same response. A 5-minute poll used
+// to run while the page was open, and since every fetch puts the cards back
+// into their skeletons, the page blanked every five minutes under whoever was
+// reading it.
+//
+// It is also the age past which a response from a route is thrown away for a
+// live one (/api/*/live). Once the window is up the route cache hands its
+// *expired* entry to whoever arrives first and rebuilds behind them, so after
+// a quiet spell the first visitor would otherwise get hours-old data.
+const REFETCH_AFTER_MS = DATA_REVALIDATE_SECONDS * 1000;
 
 export const OFFLINE_NO_CACHE_ERROR =
   "You're offline and there's no saved data to show yet.";
 
-// How old the data has to be before the nav bar says so out loud. Both feeds
-// update well inside this, so passing it means a fetch has been quietly
-// failing rather than that the sources are slow.
-export const DATA_STALE_THRESHOLD_MS = 45 * 60 * 1000;
+// How old the data has to be before the nav bar says so out loud. Two cache
+// windows: a successful fetch returns data up to one window old, so a banner
+// set any closer to the window would come back a few minutes after a refresh
+// that worked. At two, a good refresh keeps it away for a whole window, and
+// the banner only means a fetch failed or the page has been left open.
+export const DATA_STALE_THRESHOLD_MS = 2 * DATA_REVALIDATE_SECONDS * 1000;
 
 export interface SevernData {
   cso: CsoResponse | null;
@@ -34,9 +42,14 @@ export interface SevernData {
   loading: boolean;
   isRefreshing: boolean;
   isOffline: boolean;
-  usingCachedData: boolean;
-  // Newest `asOf` across whichever sources came back, which is what the nav
-  // bar's freshness line reports. Null until something loads.
+  // The last fetch couldn't get one of the sources from inside the cache
+  // window - its request failed and fell back to the saved copy, or the live
+  // fallback failed too. The nav bar's "Live update failed" banner.
+  lastFetchFailed: boolean;
+  // Oldest `asOf` across whichever sources are on screen, which is what the
+  // nav bar's freshness line and stale banner report - the newest would let
+  // a fresh sewage response hide rainfall that is hours old. Null until
+  // something loads.
   lastUpdated: string | null;
   error: string | null;
   refetch: () => void;
@@ -64,12 +77,44 @@ const writeCache = (key: string, value: unknown) => {
   }
 };
 
-const newest = (
+const oldest = (
   ...timestamps: (string | undefined | null)[]
 ): string | null => {
   const valid = timestamps.filter((t): t is string => Boolean(t));
   if (valid.length === 0) return null;
-  return valid.reduce((a, b) => (new Date(a) > new Date(b) ? a : b));
+  return valid.reduce((a, b) => (new Date(a) < new Date(b) ? a : b));
+};
+
+const ageMs = (iso: string) => Date.now() - new Date(iso).getTime();
+
+const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
+  const res = await fetch(url, init);
+  if (!res.ok) throw new Error(`${url}: ${res.status}`);
+  return (await res.json()) as T;
+};
+
+// One source: its cached route, then - if that failed or handed back an entry
+// already past the cache window - its live route, then the saved copy. Each
+// source does this on its own, so one feed blipping doesn't discard data that
+// arrived fine from the other. Never rejects.
+const loadSource = async <T extends { asOf: string }>(
+  path: string,
+  storageKey: string
+): Promise<{ body: T | null; fromCache: boolean }> => {
+  let body = await fetchJson<T>(path).catch(() => null);
+  if (!body || ageMs(body.asOf) > REFETCH_AFTER_MS) {
+    // no-store: this call exists to get round caches, and a browser holding
+    // on to an earlier response would hand back the staleness it's here for.
+    const live = await fetchJson<T>(`${path}/live`, {
+      cache: "no-store",
+    }).catch(() => null);
+    if (live) body = live;
+  }
+  if (body) {
+    writeCache(storageKey, body);
+    return { body, fromCache: false };
+  }
+  return { body: readCache<T>(storageKey), fromCache: true };
 };
 
 export const useSevernData = (): SevernData => {
@@ -80,47 +125,31 @@ export const useSevernData = (): SevernData => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
-  const [usingCachedData, setUsingCachedData] = useState(false);
+  const [lastFetchFailed, setLastFetchFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const newestDataAt = useRef<number | null>(null);
+  // When the oldest source on screen was built - what "is it worth
+  // refetching on return" is judged on.
+  const dataAt = useRef<number | null>(null);
   const lastFetchTime = useRef<number | null>(null);
   const isRefreshingRef = useRef(false);
 
   const load = useCallback(async () => {
+    // A tap on refresh while the load on open (or a return to the app) is
+    // still running would otherwise race it, and whichever finished last -
+    // not whichever started last - would decide what is on screen.
+    if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     setIsRefreshing(true);
 
-    // Each source is fetched independently and falls back to its own cached
-    // copy, so one feed blipping doesn't discard data that arrived fine from
-    // the other. `Promise.all` over already-caught promises never rejects.
-    const csoPromise = fetch("/api/sewage")
-      .then((res) => {
-        if (!res.ok) throw new Error(`sewage: ${res.status}`);
-        return res.json() as Promise<CsoResponse>;
-      })
-      .then((body) => {
-        writeCache(STORAGE_KEYS.CSO_DATA, body);
-        return { body, fromCache: false };
-      })
-      .catch(() => ({
-        body: readCache<CsoResponse>(STORAGE_KEYS.CSO_DATA),
-        fromCache: true,
-      }));
-
-    const rainfallPromise = fetch("/api/rainfall")
-      .then((res) => {
-        if (!res.ok) throw new Error(`rainfall: ${res.status}`);
-        return res.json() as Promise<RainfallResponse>;
-      })
-      .then((body) => {
-        writeCache(STORAGE_KEYS.RAINFALL_DATA, body);
-        return { body, fromCache: false };
-      })
-      .catch(() => ({
-        body: readCache<RainfallResponse>(STORAGE_KEYS.RAINFALL_DATA),
-        fromCache: true,
-      }));
+    const csoPromise = loadSource<CsoResponse>(
+      "/api/sewage",
+      STORAGE_KEYS.CSO_DATA
+    );
+    const rainfallPromise = loadSource<RainfallResponse>(
+      "/api/rainfall",
+      STORAGE_KEYS.RAINFALL_DATA
+    );
 
     const [csoResult, rainfallResult] = await Promise.all([
       csoPromise,
@@ -133,16 +162,24 @@ export const useSevernData = (): SevernData => {
     if (rainfallResult.body) setRainfall(rainfallResult.body);
     setRainfallError(rainfallResult.fromCache && !rainfallResult.body);
 
-    const newestResultTime = newest(
+    const oldestResultTime = oldest(
       csoResult.body?.asOf,
       rainfallResult.body?.asOf
     );
-    if (newestResultTime) {
-      newestDataAt.current = new Date(newestResultTime).getTime();
+    if (oldestResultTime) {
+      dataAt.current = new Date(oldestResultTime).getTime();
     }
 
-    const servedFromCache = csoResult.fromCache || rainfallResult.fromCache;
-    setUsingCachedData(servedFromCache);
+    // Failed means not getting a source from inside the cache window: its
+    // request fell back to the saved copy, or the live fallback failed and
+    // left an expired response. Data that only ages past the window later,
+    // with nothing fetching (there is no poll), isn't a failure.
+    setLastFetchFailed(
+      csoResult.fromCache ||
+        rainfallResult.fromCache ||
+        (oldestResultTime !== null &&
+          ageMs(oldestResultTime) > REFETCH_AFTER_MS)
+    );
 
     const gotSomething =
       Boolean(csoResult.body) || Boolean(rainfallResult.body);
@@ -164,8 +201,8 @@ export const useSevernData = (): SevernData => {
   const checkAndRefresh = useCallback(() => {
     if (isRefreshingRef.current) return;
     const isStale =
-      newestDataAt.current === null ||
-      Date.now() - newestDataAt.current >= REFETCH_AFTER_MS;
+      dataAt.current === null ||
+      Date.now() - dataAt.current >= REFETCH_AFTER_MS;
     const recentlyFetched =
       lastFetchTime.current !== null &&
       Date.now() - lastFetchTime.current < 10000;
@@ -177,7 +214,7 @@ export const useSevernData = (): SevernData => {
 
   // Seed from cache before the first fetch resolves, so a returning reader
   // sees last-known numbers immediately instead of a screen of skeletons -
-  // the banner in TopNavBar is what tells them it isn't live yet.
+  // the nav bar's "Updating…" line is what tells them it isn't live yet.
   useEffect(() => {
     // queueMicrotask still runs before paint, so the cached numbers are in
     // the first frame either way - it just keeps the seeding, and the first
@@ -190,14 +227,11 @@ export const useSevernData = (): SevernData => {
       );
       if (cachedCso) setCso(cachedCso);
       if (cachedRainfall) setRainfall(cachedRainfall);
-      const cachedDataTime = newest(cachedCso?.asOf, cachedRainfall?.asOf);
+      const cachedDataTime = oldest(cachedCso?.asOf, cachedRainfall?.asOf);
       if (cachedDataTime) {
-        newestDataAt.current = new Date(cachedDataTime).getTime();
+        dataAt.current = new Date(cachedDataTime).getTime();
       }
-      if (cachedCso || cachedRainfall) {
-        setUsingCachedData(true);
-        setLoading(false);
-      }
+      if (cachedCso || cachedRainfall) setLoading(false);
       void load();
     });
   }, [load]);
@@ -257,8 +291,8 @@ export const useSevernData = (): SevernData => {
     loading,
     isRefreshing,
     isOffline,
-    usingCachedData,
-    lastUpdated: newest(cso?.asOf, rainfall?.asOf),
+    lastFetchFailed,
+    lastUpdated: oldest(cso?.asOf, rainfall?.asOf),
     error,
     refetch,
   };
