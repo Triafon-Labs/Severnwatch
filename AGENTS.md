@@ -143,7 +143,7 @@ lib/
   csoStatus.ts          CSO state → label/colour/severity, in one place
   pollutionRisk.ts      Derived high/raised/lower risk from spill timing, rainfall + latest sample
   waterQuality.ts       Sample bands against the bathing water limits, formatting, stats
-  waterQualityCsv.ts    Server-only: reads + validates the SAS CSV export(s), merges by Feature ID
+  waterQualityCsv.ts    Server-only: reads + validates the SAS CSV export(s), merges by Survey ID
   waterQualityStore.ts  Server-only: uploaded exports in Vercel Blob (or a local folder off Vercel)
   fetchCache.ts         The shared 15-minute cache window and live/no-store switch
   sewage.ts             Builds the /api/sewage response – feed, catchment filter, geocoding

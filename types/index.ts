@@ -83,7 +83,7 @@ export interface BacteriaCount {
 }
 
 export interface WaterQualitySample {
-  id: string; // the export's Feature ID - stable across exports
+  id: string; // the export's Survey ID - stable across exports
   sampledAt: string; // ISO, converted from the export's London wall-clock time
   eColi: BacteriaCount | null;
   enterococci: BacteriaCount | null;
@@ -93,8 +93,8 @@ export interface WaterQualitySample {
   airTemperatureC: number | null;
   weather: string | null; // human-readable, e.g. "Light rain"
   weatherDayBefore: string | null;
-  rainfallMm: number | null;
-  rainfallDayBeforeMm: number | null;
+  rainfall24hMm: number | null; // tester's figure for the last 24 hours
+  rainfall3DaysMm: number | null; // ...and for the last 3 days
   swimmers: number | null;
   otherWaterUsers: number | null;
   notes: string | null; // free text written by the tester

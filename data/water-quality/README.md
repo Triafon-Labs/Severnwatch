@@ -1,14 +1,15 @@
 # Citizen science water quality samples
 
 The Latest Sample and Sample History cards, and the sample factor in the
-headline pollution risk, are built from Surfers Against Sewage's CSV export.
-SAS's Water Quality map has no public API, so each week's export is added by
-hand.
+headline pollution risk, are built from Surfers Against Sewage's "Water Quality Surveys" CSV export.
+SAS have no public API for it, so each week's export is added by hand.
 
 ## Adding new results
 
-1. On the SAS Water Quality map, download the data for the Grandstand Road
-   site (the "SAS Coliforms Map Data" CSV export). Don't edit the file.
+1. From SAS, download the Water Quality Surveys CSV export for the River
+   Severn team (`SAS_Water_Quality_Surveys.csv`). Don't edit the file. The
+   public map's "SAS Coliforms Map Data" download is **not** the right file:
+   it's refused, with a message saying so.
 2. In the app, open **Settings → Info → For Testers → Upload Sample
    Results** (or go straight to `/upload`), enter the passcode, choose the
    file and press Upload.
@@ -21,7 +22,7 @@ The page asks search engines not to list it.
 
 ## Where the samples come from
 
-The app merges, by Feature ID:
+The app merges, by Survey ID:
 
 1. **Every CSV committed in this folder**, in name order. This is the
    baseline, and how the first season's export got here.
@@ -37,7 +38,7 @@ dashboard (Storage → the store → `water-quality/`), then redeploy or upload
 again so the route rebuilds.
 
 Committing a CSV here still works too: name it
-`SAS_Coliforms_Map_Data_YYYY-MM-DD.csv` and push.
+`SAS_Water_Quality_Surveys_YYYY-MM-DD.csv` and push.
 
 ## Setting it up on Vercel
 
@@ -59,12 +60,13 @@ Running locally (`npm run dev`) needs neither: set `UPLOAD_PASSCODE` in
 
 - Only rows whose Site is **Grandstand Road** (`WATER_QUALITY_SITE_NAME` in
   `lib/config.ts`). Any other sites in the export are ignored.
-- Only rows with Status **approved**.
-- E. coli and Intestinal Enterococci, with their Range column kept:
-  `LessThan 10` is shown as "<10" and `GreaterThan 1000` as ">1000", never
-  as plain numbers.
-- Air temperature, weather, rainfall, water users and Notes when they're
-  filled in.
+- Only rows with Status **Approved**. Drafts are skipped, even where they
+  hold the day's weather and the approved row for the same day doesn't.
+- E. coli and Intestinal Enterococci, with their limits of detection kept:
+  `<10` and `>1000` are shown as such, never as plain numbers.
+- Air temperature, weather (on the day and the day before), rainfall (last
+  24 hours and last 3 days), water users and Notes when they're filled in.
+- Dates are read as UK day/month/year in Worcester time.
 - Total Thermotolerant Coliforms are parsed but not shown. They're a broader
   count that E. coli is the main part of, and they've had no bathing water
   limit since 2006, so there's nothing to judge them against.
@@ -72,7 +74,7 @@ Running locally (`npm run dev`) needs neither: set `UPLOAD_PASSCODE` in
 ## If a file is rejected, or the build fails
 
 Every file's column headings are checked. If SAS rename or drop a column, or
-a count has a Range value the parser doesn't recognise, the upload is
+a count has a qualifier the parser doesn't recognise, the upload is
 refused with the file, row and column named. A committed file that fails
 the same check stops the build. That's deliberate: showing wrong numbers
 would be worse than showing none. Fix the parser in `lib/waterQualityCsv.ts`,

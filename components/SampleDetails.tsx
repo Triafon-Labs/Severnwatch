@@ -94,15 +94,15 @@ const conditionTiles = (sample: WaterQualitySample) => {
         : undefined,
     });
   }
-  if (sample.rainfallMm !== null || sample.rainfallDayBeforeMm !== null) {
+  if (sample.rainfall24hMm !== null || sample.rainfall3DaysMm !== null) {
     tiles.push({
       key: "rain",
       icon: <WaterDropIcon />,
-      label: "Rainfall",
-      value: sample.rainfallMm !== null ? `${sample.rainfallMm} mm` : "—",
+      label: "Rainfall, 24 Hours",
+      value: sample.rainfall24hMm !== null ? `${sample.rainfall24hMm} mm` : "—",
       detail:
-        sample.rainfallDayBeforeMm !== null
-          ? `Day before: ${sample.rainfallDayBeforeMm} mm`
+        sample.rainfall3DaysMm !== null
+          ? `Last 3 days: ${sample.rainfall3DaysMm} mm`
           : undefined,
     });
   }

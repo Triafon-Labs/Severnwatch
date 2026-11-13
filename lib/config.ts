@@ -339,9 +339,9 @@ export const SAS_MAP_URL =
   "https://app.cartographer.io/embed/map?map=SasWaterQuality&workspace=sas&project=wq";
 
 // --- SAS citizen science samples (manual export) ---
-// SAS's map has no public API, so its "Download data" export is saved into
-// data/water-quality/ by hand (see the README there). Every CSV in it is
-// read and merged by Feature ID, so a new export can sit alongside the old
+// SAS have no public API, so their "Water Quality Surveys" CSV export is
+// added by hand (see the README in data/water-quality/). Every CSV is read
+// and merged by Survey ID, so a new export can sit alongside the old
 // ones and a partial export can't wipe out earlier samples. The folder path
 // itself is written out in lib/waterQualityCsv.ts, where the bundler needs
 // it as a literal.
