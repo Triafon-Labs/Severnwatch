@@ -198,7 +198,7 @@ const SampleHistoryCard: React.FC = () => {
   const indicator = INDICATORS[indicatorKey];
   const stats = indicatorStats(samples, indicatorKey);
 
-  // The picked sample, by Feature ID so it stays put when the data refreshes.
+  // The picked sample, by Survey ID so it stays put when the data refreshes.
   // Null, or an id no longer in the data, means the newest.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const foundIndex = samples.findIndex((s) => s.id === selectedId);

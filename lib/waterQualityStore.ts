@@ -15,7 +15,7 @@ import { get, list, put } from "@vercel/blob";
 // upload flow can be tried locally without a Vercel account. On Vercel the
 // filesystem is read-only, so there the store is required.
 //
-// Every upload is kept rather than overwritten. They're merged by Feature ID
+// Every upload is kept rather than overwritten. They're merged by Survey ID
 // in upload order (see loadWaterQualitySamples), so a partial export can't
 // remove samples, a later correction wins, and a bad upload is undone by
 // deleting that one file in the Vercel dashboard (Storage -> the store).

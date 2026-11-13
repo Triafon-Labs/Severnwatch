@@ -19,7 +19,6 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import NextLink from "next/link";
 import { UploadResponse } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
-import { WATER_QUALITY_SITE_NAME } from "@/lib/config";
 import { formatLondonDate } from "@/lib/time";
 import { collapseMotion } from "@/lib/m3-palette";
 import InfoPanel from "@/components/InfoPanel";
@@ -99,9 +98,9 @@ const UploadForm: React.FC = () => {
           color="text.secondary"
           sx={{ mt: 0.5, mb: 2 }}
         >
-          Download the {WATER_QUALITY_SITE_NAME} data from the Surfers Against
-          Sewage water quality map, then choose the CSV here. It&apos;s checked
-          before anything changes, and the site updates within a minute.
+          Download the Water Quality Surveys export from Surfers Against Sewage,
+          then choose the CSV here. It&apos;s checked before anything changes,
+          and the site updates within a minute.
         </Typography>
 
         <Box component="form" onSubmit={submit} noValidate>
