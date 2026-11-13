@@ -2,7 +2,7 @@
 
 A dashboard for river water quality conditions on the River Severn at Worcester, UK: combined sewer overflow (CSO) spill status, upstream rainfall, and citizen science water quality data.
 
-Sibling project to [Paddlecheck](https://github.com/dylanr97/Paddlecheck) (the Worcester Canoe Club kayaking conditions app) — shares its tech stack, Material Design 3 theme and release conventions, but is a separate app with its own scope.
+Sibling project to [Paddlecheck](https://github.com/Triafon-Labs/Paddlecheck) (the Worcester Canoe Club kayaking conditions app) — shares its tech stack, Material Design 3 theme and release conventions, but is a separate app with its own scope.
 
 ## Tech Stack
 

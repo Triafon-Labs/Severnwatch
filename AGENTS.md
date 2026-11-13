@@ -26,7 +26,7 @@ uploaded by a tester through `/upload` and kept in a private Vercel Blob
 store, on top of a baseline committed to `data/water-quality/` (see that
 folder's README).
 
-Sibling project to [Paddlecheck](https://github.com/dylanr97/Paddlecheck) (the
+Sibling project to [Paddlecheck](https://github.com/Triafon-Labs/Paddlecheck) (the
 Worcester Canoe Club kayaking conditions app). The two share a tech stack, a
 design system, and a release pipeline, but are separate apps with separate
 scopes. **Location hardcoded to:** Worcester, UK (lat 52.2, lon -2.2).
