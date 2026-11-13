@@ -27,7 +27,7 @@ jobs:
     # fork checks its own site once it sets the SITE_URL repository variable,
     # and skips this job until then - otherwise every fork with Actions
     # enabled would ping this project's site every 15 minutes.
-    if: vars.SITE_URL != '' || github.repository == 'dylanr97/Severnwatch'
+    if: vars.SITE_URL != '' || github.repository == 'Triafon-Labs/Severnwatch'
     runs-on: ubuntu-latest
     env:
       SITE_URL: ${{ vars.SITE_URL || 'https://severnwatch.vercel.app' }}
