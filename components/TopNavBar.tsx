@@ -19,10 +19,20 @@ import SettingsModal from "@/components/SettingsModal";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import { OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
 import { useFreshness } from "@/lib/useFreshness";
-import { formatOutfallSubtitle } from "@/lib/format";
 import { collapseMotion } from "@/lib/m3-palette";
 import { APP_NAME } from "@/lib/config";
-import { CsoResponse, RainfallResponse } from "@/types";
+import { CsoResponse, RainfallResponse, WaterQualityResponse } from "@/types";
+import {
+  RISK_LEVEL_UI,
+  derivePollutionRisk,
+  formatLowAgainIn,
+} from "@/lib/pollutionRisk";
+import {
+  SAMPLE_BAND_UI,
+  bandForSample,
+  sampleTimeMs,
+} from "@/lib/waterQuality";
+import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 
 // Filled with the saturated accent rather than the tonal container pair.
 // The container roles would be the more orthodox M3 reading of a persistent
@@ -50,53 +60,44 @@ const StatusBanner: React.FC<{
   </Box>
 );
 
+// The same message as the Pollution Risk card - its level, why, and the
+// latest sample - so a shared link doesn't read louder (or more reassuring)
+// than the app it points to. No emoji: a siren on a Raised estimate was the
+// most alarming thing the app put out.
 const buildShareText = (
   cso: CsoResponse | null,
-  rainfall: RainfallResponse | null
+  rainfall: RainfallResponse | null,
+  waterQuality: WaterQualityResponse | null
 ): string => {
-  if (!cso && !rainfall) {
-    return `Check current River Severn conditions at Worcester on ${APP_NAME}.`;
-  }
-
   const lines: string[] = [];
+  const now = Date.now();
 
   if (cso) {
-    const ongoing = cso.outfalls.filter((o) => o.state === "Ongoing");
-    const recent = cso.outfalls.filter((o) => o.state === "Recent");
-
-    if (ongoing.length > 0) {
+    const risk = derivePollutionRisk(cso, rainfall, waterQuality, now);
+    lines.push(`River Severn at Worcester: ${RISK_LEVEL_UI[risk.level].label}`);
+    risk.factors.forEach((f) =>
+      lines.push(`• ${f.label}: ${f.value}${f.detail ? ` (${f.detail})` : ""}`)
+    );
+    if (risk.lowAgainAt !== null) {
       lines.push(
-        `🚨 *Sewage spill in progress:* ${ongoing.length} outfall${ongoing.length === 1 ? "" : "s"} discharging`
+        `Likely back to Low in ${formatLowAgainIn(risk.lowAgainAt, now)} if it stays dry.`
       );
-      ongoing.forEach((o) => {
-        const title = o.locationName ?? o.watercourse;
-        const subtitle = o.locationName
-          ? formatOutfallSubtitle(o.watercourse, o.waypointName)
-          : o.waypointName;
-        lines.push(`• ${title} - ${subtitle}`);
-      });
-    } else if (recent.length > 0) {
-      lines.push(
-        `⚠️ *Recent sewage spill:* ${recent.length} outfall${recent.length === 1 ? "" : "s"}`
-      );
-      recent.forEach((o) => {
-        const title = o.locationName ?? o.watercourse;
-        const subtitle = o.locationName
-          ? formatOutfallSubtitle(o.watercourse, o.waypointName)
-          : o.waypointName;
-        lines.push(`• ${title} - ${subtitle}`);
-      });
-    } else {
-      lines.push("✅ *No sewage spills reported* in the Worcester catchment");
     }
   }
 
-  if (rainfall && rainfall.gauges.length > 0) {
-    lines.push("");
-    const worst24h = Math.max(...rainfall.gauges.map((g) => g.last24hTotalMm));
-    lines.push(`🌧️ *Rainfall (worst gauge, last 24h):* ${worst24h} mm`);
+  const latest = waterQuality?.samples[waterQuality.samples.length - 1];
+  const band = latest ? bandForSample(latest) : null;
+  if (latest && band) {
+    const ms = sampleTimeMs(latest);
+    lines.push(
+      `Latest sample: ${SAMPLE_BAND_UI[band].label} (${formatLondonDate(ms)}, ${formatDaysAgo(londonDaysAgo(ms, now))})`
+    );
   }
 
+  if (lines.length === 0) {
+    return `Check current River Severn conditions at Worcester on ${APP_NAME}.`;
+  }
+  lines.push("", `An estimate, not a water test. More on ${APP_NAME}.`);
   return lines.join("\n");
 };
 
@@ -107,6 +108,7 @@ const TopNavBar: React.FC = () => {
   const {
     cso,
     rainfall,
+    waterQuality,
     lastUpdated,
     isOffline,
     isRefreshing,
@@ -120,7 +122,7 @@ const TopNavBar: React.FC = () => {
   const { freshnessText, isStale } = useFreshness(lastUpdated);
 
   const handleShare = async () => {
-    const text = buildShareText(cso, rainfall);
+    const text = buildShareText(cso, rainfall, waterQuality);
     // Give recipients a way back to the app - the summary alone has no link.
     const url = window.location.origin;
     // The link goes in the text rather than share()'s url field: apps like

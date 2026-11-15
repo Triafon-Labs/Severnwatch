@@ -45,8 +45,8 @@ const STATE_DESCRIPTIONS: Record<CsoState, string> = {
 
 // What each of the headline card's levels means (see lib/pollutionRisk.ts).
 const RISK_DESCRIPTIONS: Record<PollutionRiskLevel, string> = {
-  high: `Water from a spill is estimated to be passing Worcester, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RECENT_DAYS} days.`,
-  raised: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, moderate or heavy rain is falling or due within a few hours, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RELEVANT_DAYS} days.`,
+  high: `A monitored outfall in Worcester itself (Bevere to Diglis) is discharging now, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RECENT_DAYS} days. Both are observed rather than estimated.`,
+  raised: `Water from a spill upstream is estimated to be passing Worcester or on its way down, a spill passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, moderate or heavy rain is falling or due within a few hours, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RELEVANT_DAYS} days.`,
   low: "No monitored spills expected to affect Worcester, no rain heavy enough to set them off, and no recent Poor sample. Not a guarantee the water is clean or safe - outfalls that aren't monitored, or whose monitors are offline, don't show up here.",
 };
 

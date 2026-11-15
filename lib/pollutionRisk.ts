@@ -28,9 +28,15 @@ import {
   sampleTimeMs,
   worstIndicator,
 } from "@/lib/waterQuality";
-import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
+import {
+  formatDaysAgo,
+  formatLondonDate,
+  londonDaysAgo,
+  londonDateParts,
+  londonWallClockToUtcMs,
+} from "@/lib/time";
 
-// A pollution risk for the reach, derived from two things:
+// A pollution risk for the reach, derived from:
 //
 // - Where each monitored spill's water is relative to it: on its way down,
 //   passing through, or gone by but still inside the 48 h tail
@@ -44,33 +50,54 @@ import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 //
 // Even the samples are snapshots days old, so the bottom of the scale is
 // "low", never "safe" - and the disclaimer says so.
+//
+// High is reserved for what was observed rather than estimated: an outfall
+// in the Worcester reach itself discharging right now (no travel time to
+// guess - the water is already there), or a Poor sample in the last
+// WATER_QUALITY_RECENT_DAYS. Anything that leans on the travel-time model -
+// upstream water passing, arriving, or gone by - tops out at Raised,
+// however many spills there are. That keeps red meaning "this is happening
+// here" rather than "the model thinks so", so it doesn't sit on the card
+// for most of a wet winter.
 export type PollutionRiskLevel = "high" | "raised" | "low";
 
 // Labels and colours for each level, shared by the card and the Conditions
 // Key so the two can't drift - the same arrangement as CSO_STATE_UI.
 export const RISK_LEVEL_UI: Record<
   PollutionRiskLevel,
-  { label: string; color: string; onColor: string }
+  {
+    label: string;
+    // The saturated status hue - the Conditions Key's dots and the scale
+    // strip under the hero.
+    color: string;
+    onColor: string;
+    // The palette role whose M3 container pair paints the hero, so the
+    // headline reads as a tonal panel rather than a slab of saturated red.
+    tonal: "error" | "warning" | "success";
+  }
 > = {
   high: {
     label: "High Risk",
     color: STATUS_COLORS.red,
     onColor: ON_STATUS_COLORS.red,
+    tonal: "error",
   },
   raised: {
     label: "Raised Risk",
     color: STATUS_COLORS.amber,
     onColor: ON_STATUS_COLORS.amber,
+    tonal: "warning",
   },
   low: {
     label: "Low Risk",
     color: STATUS_COLORS.darkGreen,
     onColor: ON_STATUS_COLORS.darkGreen,
+    tonal: "success",
   },
 };
 
 export type PollutionRiskFactorKey =
-  "passing" | "arriving" | "lingering" | "rain" | "sample";
+  "here" | "passing" | "arriving" | "lingering" | "rain" | "sample";
 
 // Split the way the card's tile reads, as Paddlecheck splits its reasons:
 // what it's about, the reading, and a line on when or where - "Arriving",
@@ -87,6 +114,12 @@ export interface PollutionRisk {
   level: PollutionRiskLevel;
   // Worst first; empty when the level is "low".
   factors: PollutionRiskFactor[];
+  // When the level is expected to be back to Low if nothing new happens -
+  // every spill's tail run out, any Poor sample aged out. Null when that
+  // can't be said: the level is already Low, a spill is still discharging
+  // (so has no end to count from), or rain is falling or due (which is
+  // likely to set more off).
+  lowAgainAt: number | null;
 }
 
 const WAYPOINTS_BY_NAME = new Map(CATCHMENT_WAYPOINTS.map((w) => [w.name, w]));
@@ -101,7 +134,7 @@ type PlumePhase = "arriving" | "passing" | "lingering";
 const plumeTiming = (
   outfall: CsoOutfall,
   now: number
-): { phase: PlumePhase; hoursUntil: number } | null => {
+): { phase: PlumePhase; hoursUntil: number; clearsAt: number } | null => {
   const waypoint = WAYPOINTS_BY_NAME.get(outfall.waypointName);
   if (!waypoint) return null;
   const travel = plumeTravelRangeFor(waypoint, outfall.distanceKm);
@@ -116,13 +149,17 @@ const plumeTiming = (
 
   const arrivesAt = startMs + travel.earliest * HOUR_MS;
   const goneBy = endMs + travel.latest * HOUR_MS;
+  // The end of the tail - when this spill stops counting at all.
+  const clearsAt = goneBy + SEWAGE_RECENT_SPILL_BASE_HOURS * HOUR_MS;
   if (now < arrivesAt) {
-    return { phase: "arriving", hoursUntil: (arrivesAt - now) / HOUR_MS };
+    return {
+      phase: "arriving",
+      hoursUntil: (arrivesAt - now) / HOUR_MS,
+      clearsAt,
+    };
   }
-  if (now <= goneBy) return { phase: "passing", hoursUntil: 0 };
-  if (now <= goneBy + SEWAGE_RECENT_SPILL_BASE_HOURS * HOUR_MS) {
-    return { phase: "lingering", hoursUntil: 0 };
-  }
+  if (now <= goneBy) return { phase: "passing", hoursUntil: 0, clearsAt };
+  if (now <= clearsAt) return { phase: "lingering", hoursUntil: 0, clearsAt };
   return null;
 };
 
@@ -200,7 +237,7 @@ const rainFactor = (
 const sampleFactor = (
   waterQuality: WaterQualityResponse,
   now: number
-): PollutionRiskFactor | null => {
+): (PollutionRiskFactor & { agesOutAt: number }) | null => {
   const latest = waterQuality.samples[waterQuality.samples.length - 1];
   if (!latest) return null;
   const band = bandForSample(latest);
@@ -222,7 +259,17 @@ const sampleFactor = (
   const over = CLASSIFIED_INDICATORS.filter(
     (k) => bandForCount(latest[k], INDICATORS[k]) === "poor"
   ).sort((a, b) => (a === worst ? -1 : b === worst ? 1 : 0));
+  // London midnight at the end of the last day it still counts.
+  const sampled = londonDateParts(sampleTimeMs(latest));
+  const agesOutAt = londonWallClockToUtcMs(
+    sampled.year,
+    sampled.month,
+    sampled.day + WATER_QUALITY_RELEVANT_DAYS + 1,
+    0,
+    0
+  );
   return {
+    agesOutAt,
     key: "sample",
     level,
     label: "Latest Sample",
@@ -247,15 +294,30 @@ export const derivePollutionRisk = (
   waterQuality: WaterQualityResponse | null = null,
   now: number = Date.now()
 ): PollutionRisk => {
+  let here = 0;
   let passing = 0;
   let lingering = 0;
   let arriving = 0;
   let soonest = Infinity;
+  // For lowAgainAt: the last moment any spill still counts, and whether one
+  // has no end yet.
+  let lastClear = -Infinity;
+  let stillDischarging = false;
 
   for (const outfall of cso.outfalls) {
     if (outfall.state !== "Ongoing" && outfall.state !== "Recent") continue;
+    const waypoint = WAYPOINTS_BY_NAME.get(outfall.waypointName);
+    // Discharging inside the reach: observed, not estimated, so it's the one
+    // spill case that makes the risk High (see the header comment).
+    if (outfall.state === "Ongoing" && waypoint?.isReach) {
+      here++;
+      stillDischarging = true;
+      continue;
+    }
     const timing = plumeTiming(outfall, now);
     if (!timing) continue;
+    if (outfall.state === "Ongoing") stillDischarging = true;
+    else lastClear = Math.max(lastClear, timing.clearsAt);
     if (timing.phase === "passing") passing++;
     else if (timing.phase === "lingering") lingering++;
     else {
@@ -265,10 +327,19 @@ export const derivePollutionRisk = (
   }
 
   const factors: PollutionRiskFactor[] = [];
+  if (here > 0) {
+    factors.push({
+      key: "here",
+      level: "high",
+      label: "In Worcester",
+      value: spills(here),
+      detail: "Discharging now",
+    });
+  }
   if (passing > 0) {
     factors.push({
       key: "passing",
-      level: "high",
+      level: "raised",
       label: "Passing Worcester",
       value: spills(passing),
       // A travel-time estimate, like "Due in ~3h" below, not an observation.
@@ -298,12 +369,29 @@ export const derivePollutionRisk = (
   if (rain) factors.push(rain);
 
   const sample = waterQuality ? sampleFactor(waterQuality, now) : null;
-  if (sample) factors.push(sample);
+  if (sample) {
+    const { agesOutAt, ...factor } = sample;
+    factors.push(factor);
+    lastClear = Math.max(lastClear, agesOutAt);
+  }
 
   // Worst first. The spill factors above are pushed in severity order, but
   // a sample can be High after a Raised spill, so sort rather than rely on
   // push order. Array sort is stable, so equal levels keep their order.
   factors.sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level]);
 
-  return { level: factors[0]?.level ?? "low", factors };
+  const level = factors[0]?.level ?? "low";
+  const lowAgainAt =
+    level === "low" || stillDischarging || rain || !Number.isFinite(lastClear)
+      ? null
+      : lastClear;
+
+  return { level, factors, lowAgainAt };
+};
+
+// "~14h" up to a day and a half, "~3 days" past it - the estimate is too
+// rough for hours to mean much at that range.
+export const formatLowAgainIn = (lowAgainAt: number, now: number): string => {
+  const hours = Math.max(1, Math.round((lowAgainAt - now) / HOUR_MS));
+  return hours <= 36 ? `~${hours}h` : `~${Math.round(hours / 24)} days`;
 };

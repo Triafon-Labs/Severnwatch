@@ -101,7 +101,7 @@ const londonDateFormat = new Intl.DateTimeFormat("en-GB", {
   hourCycle: "h23",
 });
 
-const londonDateParts = (ms: number) => {
+export const londonDateParts = (ms: number) => {
   const parts = londonDateFormat.formatToParts(ms);
   const get = (type: string) =>
     Number(parts.find((p) => p.type === type)?.value ?? NaN);

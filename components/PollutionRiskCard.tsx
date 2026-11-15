@@ -20,6 +20,7 @@ import ScheduleIcon from "@mui/icons-material/Schedule";
 import HistoryIcon from "@mui/icons-material/History";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
   PollutionRiskFactor,
@@ -27,7 +28,12 @@ import {
   PollutionRiskLevel,
   RISK_LEVEL_UI,
   derivePollutionRisk,
+  formatLowAgainIn,
 } from "@/lib/pollutionRisk";
+import { WaterQualitySample } from "@/types";
+import { bandForSample, sampleTimeMs } from "@/lib/waterQuality";
+import { formatDaysAgo, londonDaysAgo } from "@/lib/time";
+import SampleBandChip from "@/components/SampleBandChip";
 import {
   collapseMotion,
   m3Spring,
@@ -49,6 +55,7 @@ const RISK_ICONS: Record<PollutionRiskLevel, React.ElementType> = {
 };
 
 const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
+  here: PlaceOutlinedIcon,
   passing: WavesIcon,
   arriving: ScheduleIcon,
   lingering: HistoryIcon,
@@ -56,9 +63,16 @@ const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
   sample: ScienceOutlinedIcon,
 };
 
-// Matches Paddlecheck's PaddlingStatusHero: the label alone in the status
-// colour, with the scale as a strip underneath.
-const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
+// Paddlecheck's PaddlingStatusHero, with the scale as a strip underneath -
+// but on the level's tonal container pair rather than a saturated fill. The
+// headline is an estimate for most of a wet season, and a full-width slab of
+// red or amber shouted it louder than the evidence. The strip keeps the
+// saturated hues, so the level still reads at a glance. `outlook` is the
+// "back to Low" line, when there is one to give.
+const RiskHero: React.FC<{
+  level: PollutionRiskLevel;
+  outlook: string | null;
+}> = ({ level, outlook }) => {
   const ui = RISK_LEVEL_UI[level];
   const Icon = RISK_ICONS[level];
 
@@ -69,24 +83,33 @@ const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
           gap: { xs: 1.75, sm: 2.5 },
           p: { xs: 2, sm: 3 },
           borderRadius: "16px",
-          backgroundColor: ui.color,
-          color: ui.onColor,
-          transition: spring("background-color", m3Spring.effectsDefault),
+          backgroundColor: `${ui.tonal}.container`,
+          color: `${ui.tonal}.onContainer`,
+          transition: spring(
+            "background-color, color",
+            m3Spring.effectsDefault
+          ),
         }}
       >
         <Icon sx={{ fontSize: { xs: 40, sm: 56 }, flexShrink: 0 }} />
-        <Typography
-          variant="h3"
-          component="p"
-          sx={{
-            minWidth: 0,
-            fontWeight: 500,
-            lineHeight: 1.1,
-            fontSize: { xs: "1.625rem", sm: "2rem" },
-          }}
-        >
-          {ui.label}
-        </Typography>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="h3"
+            component="p"
+            sx={{
+              fontWeight: 500,
+              lineHeight: 1.1,
+              fontSize: { xs: "1.625rem", sm: "2rem" },
+            }}
+          >
+            {ui.label}
+          </Typography>
+          {outlook && (
+            <Typography variant="body2" sx={{ mt: 0.5, color: "inherit" }}>
+              {outlook}
+            </Typography>
+          )}
+        </Box>
       </InfoPanel>
 
       <Box
@@ -117,6 +140,41 @@ const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
           );
         })}
       </Box>
+    </Box>
+  );
+};
+
+// The newest sample's band and age, always on show under the headline: it's
+// the one direct measurement of the water, so the estimate above is read
+// against it rather than instead of it. The Latest Sample card has the
+// counts; this is the one-line version.
+const LatestSampleLine: React.FC<{
+  sample: WaterQualitySample;
+  now: number;
+}> = ({ sample, now }) => {
+  const band = bandForSample(sample);
+  const ms = sampleTimeMs(sample);
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 1,
+        mt: 2,
+      }}
+    >
+      <ScienceOutlinedIcon
+        aria-hidden
+        sx={{ fontSize: 20, color: "text.secondary" }}
+      />
+      <Typography variant="body2" color="text.secondary">
+        Latest sample
+      </Typography>
+      {band && <SampleBandChip band={band} />}
+      <Typography variant="body2" color="text.secondary">
+        · {formatDaysAgo(londonDaysAgo(ms, now))}
+      </Typography>
     </Box>
   );
 };
@@ -171,6 +229,9 @@ const PollutionRiskCard: React.FC = () => {
         : null,
     [cso, rainfall, waterQuality, now]
   );
+
+  const latestSample =
+    waterQuality?.samples[waterQuality.samples.length - 1] ?? null;
 
   return (
     <Card>
@@ -241,7 +302,20 @@ const PollutionRiskCard: React.FC = () => {
         {!showSkeleton && risk && (
           <Grow in appear {...springTransition()}>
             <Stack>
-              <RiskHero level={risk.level} />
+              <RiskHero
+                level={risk.level}
+                outlook={
+                  risk.lowAgainAt !== null
+                    ? `Likely back to Low in ${formatLowAgainIn(
+                        risk.lowAgainAt,
+                        now.getTime()
+                      )} if it stays dry`
+                    : null
+                }
+              />
+              {latestSample && (
+                <LatestSampleLine sample={latestSample} now={now.getTime()} />
+              )}
               <Collapse
                 in={risk.factors.length > 0}
                 unmountOnExit
