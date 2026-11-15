@@ -2,14 +2,13 @@ import { CsoOutfall, CsoResponse, CsoState } from "@/types";
 import {
   APP_NAME,
   SEWAGE_API_URL,
-  SEWAGE_RECENT_SPILL_BASE_HOURS,
   SEWAGE_MAX_RESULTS,
   CSO_SITE_OVERRIDES,
 } from "@/lib/config";
 import {
   nearestWaypoint,
   isExcludedLocality,
-  plumeTravelRangeFor,
+  recentCutoffHours,
   NearestWaypoint,
 } from "@/lib/catchment";
 import { formatWatercourse } from "@/lib/format";
@@ -99,17 +98,12 @@ export const getSewagePayload = async (
 
   const now = Date.now();
 
-  // How long a finished spill stays "Recent" depends on where it happened.
-  // A flat window retires an upstream spill on a fixed clock regardless of
-  // whether its water has arrived yet - and since a plume from Bewdley can
-  // take better than a day to reach the reach, a 24 h window dropped it
-  // from the app *before* the water got here, which is precisely backwards.
+  // How long a finished spill stays "Recent" depends on where it happened:
+  // its travel time to the reach plus the 48 h tail (recentCutoffHours). A
+  // flat window retires an upstream spill on a fixed clock regardless of
+  // whether its water has arrived yet, which is precisely backwards.
   const recentCutoffMsFor = (nearest: NearestWaypoint) =>
-    (SEWAGE_RECENT_SPILL_BASE_HOURS +
-      plumeTravelRangeFor(nearest.waypoint, nearest.distanceKm).latest) *
-    60 *
-    60 *
-    1000;
+    recentCutoffHours(nearest.waypoint, nearest.distanceKm) * 60 * 60 * 1000;
 
   const outfalls = features
     .map(({ attributes }) => {

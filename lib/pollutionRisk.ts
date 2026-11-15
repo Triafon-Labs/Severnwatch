@@ -6,15 +6,16 @@ import {
 } from "@/types";
 import {
   CATCHMENT_WAYPOINTS,
+  REACH_TRIBUTARY_CONFLUENCE_LAT,
   SEWAGE_RECENT_SPILL_BASE_HOURS,
+  WATER_QUALITY_SITE_LAT,
   WATER_QUALITY_RECENT_DAYS,
   WATER_QUALITY_RELEVANT_DAYS,
 } from "@/lib/config";
 import { ON_STATUS_COLORS, STATUS_COLORS } from "@/lib/statusColors";
-import { plumeTravelRangeFor } from "@/lib/catchment";
+import { plumeTravelRangeFor, recentCutoffHours } from "@/lib/catchment";
 import {
   HOURLY_HEAVY_MM,
-  HOURLY_MODERATE_MM,
   HOUR_MS,
   peakRateMmPerHour,
   sumRecentMm,
@@ -35,9 +36,8 @@ import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 // - Where each monitored spill's water is relative to it: on its way down,
 //   passing through, or gone by but still inside the 48 h tail
 //   (SEWAGE_RECENT_SPILL_BASE_HOURS).
-// - Rain falling, or about to fall, on the catchment at the rainfall chart's
-//   moderate or heavy intensity. Combined sewers start to overflow within
-//   hours of rain like that, usually before the spill feed shows it.
+// - Rain falling, or about to fall, on the catchment in enough quantity to
+//   set overflows off - see rainFactor for the thresholds and why.
 // - The newest citizen science sample, if it's recent and came back
 //   elevated or high (see sampleFactor below). It can only raise the risk:
 //   a clean sample from days ago says nothing about a spill since.
@@ -46,9 +46,11 @@ import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 // "low", never "safe" - and the disclaimer says so.
 //
 // High is reserved for what was observed rather than estimated: an outfall
-// in the Worcester reach itself discharging right now (no travel time to
-// guess - the water is already there), or a Poor sample in the last
-// WATER_QUALITY_RECENT_DAYS. Anything that leans on the travel-time model -
+// in the Worcester reach discharging right now at or above the Grandstand
+// Road sample site (no travel time to guess - the water is already there),
+// or a Poor sample in the last WATER_QUALITY_RECENT_DAYS. A reach outfall
+// discharging below the site (Diglis, Lower Wick) is Raised: its water
+// flows away from Pitchcroft and most of the city's riverside. Anything that leans on the travel-time model -
 // upstream water passing, arriving, or gone by - tops out at Raised,
 // however many spills there are. That keeps red meaning "this is happening
 // here" rather than "the model thinks so", so it doesn't sit on the card
@@ -91,7 +93,7 @@ export const RISK_LEVEL_UI: Record<
 };
 
 export type PollutionRiskFactorKey =
-  "here" | "passing" | "arriving" | "lingering" | "rain" | "sample";
+  "here" | "below" | "passing" | "arriving" | "lingering" | "rain" | "sample";
 
 // Split the way the card's tile reads, as Paddlecheck splits its reasons:
 // what it's about, the reading, and a line on when or where - "Arriving",
@@ -112,13 +114,25 @@ export interface PollutionRisk {
 
 const WAYPOINTS_BY_NAME = new Map(CATCHMENT_WAYPOINTS.map((w) => [w.name, w]));
 
+// Whether a reach outfall's spill enters the Severn at or above the sample
+// site - by the brook's confluence where it's on a known brook, else by the
+// outfall's own position (see WATER_QUALITY_SITE_LAT).
+const entersAboveSampleSite = (outfall: CsoOutfall): boolean => {
+  const watercourse = outfall.watercourse.toUpperCase();
+  const brook = Object.keys(REACH_TRIBUTARY_CONFLUENCE_LAT).find((name) =>
+    watercourse.includes(name)
+  );
+  const lat = brook ? REACH_TRIBUTARY_CONFLUENCE_LAT[brook] : outfall.latitude;
+  return lat >= WATER_QUALITY_SITE_LAT;
+};
+
 type PlumePhase = "arriving" | "passing" | "lingering";
 
 // The spill's water starts arriving at the earliest travel time and has
-// gone by at the latest, then lingers for the tail. Past that the spill is
-// dropped, which matches the sewage route's Recent cutoff - and also covers
-// a cached payload being read long after it was fetched, where the route
-// never got the chance to retire it.
+// gone by at the latest, then lingers for the 48 h tail. Past that the
+// spill is dropped - the same recentCutoffHours the sewage route
+// retires Recent with, which also covers a cached payload being read long
+// after it was fetched, where the route never got the chance to retire it.
 const plumeTiming = (
   outfall: CsoOutfall,
   now: number
@@ -137,37 +151,51 @@ const plumeTiming = (
 
   const arrivesAt = startMs + travel.earliest * HOUR_MS;
   const goneBy = endMs + travel.latest * HOUR_MS;
+  const dropAt =
+    endMs + recentCutoffHours(waypoint, outfall.distanceKm) * HOUR_MS;
   if (now < arrivesAt) {
     return { phase: "arriving", hoursUntil: (arrivesAt - now) / HOUR_MS };
   }
   if (now <= goneBy) return { phase: "passing", hoursUntil: 0 };
-  if (now <= goneBy + SEWAGE_RECENT_SPILL_BASE_HOURS * HOUR_MS) {
-    return { phase: "lingering", hoursUntil: 0 };
-  }
+  if (now <= dropAt) return { phase: "lingering", hoursUntil: 0 };
   return null;
 };
 
-// How far ahead the forecast counts as rain "about to fall". Open-Meteo's
-// hourly value is the total for the hour ending at its timestamp.
-const RAIN_LOOKAHEAD_HOURS = 3;
-
-const intensityLabel = (mmPerHour: number) =>
-  mmPerHour >= HOURLY_HEAVY_MM ? "Heavy" : "Moderate";
-
-// Measured rain at any gauge in the last hour, else forecast rain in the
-// next few hours, read against the chart's mm/hr bands. The EA's gauges
-// report in batches, so the forecast is often the only sight of rain that
-// is falling right now.
+// When rain counts towards the risk. Rain is only a leading indicator here:
+// once overflows spill, the feed shows it directly. So the bar is rain that
+// plausibly sets them off, not any rain at all.
 //
-// Heavy goes on the peak 15-minute rate, because a thunderstorm burst that
-// overwhelms a sewer in fifteen minutes is diluted to "moderate" once it's
-// averaged over the hour. Moderate goes on the hour's total: the gauges
-// count in 0.2 mm tips, so a single tip in fifteen minutes is already
-// 0.8 mm/hr and the 15-minute rate would call any drizzle moderate.
+// It used to be 0.5 mm/hr in a single hour - the bottom of the "moderate"
+// band, i.e. steady drizzle - which fires on a large share of UK winter days
+// and rarely means an overflow. There's no national figure for when CSOs
+// spill (it depends on the sewer and how wet the ground already is), so the
+// numbers below were checked against this catchment instead. On 15 Nov 2026
+// the first wave of spills (Worcester, Droitwich, Holt Fleet, Hartlebury)
+// started at 12:25-13:05, after 4-8 mm had fallen in the previous 2-3 hours
+// at rates of 2-4.5 mm/hr; the Kidderminster ones followed at ~15:15 with
+// 8-10 mm down. Replaying that day's gauges, these rules first fire at
+// 11:30 (a 1.6 mm quarter-hour at Worcester/Droitwich - a heavy burst),
+// about an hour before the first spill, then hold on the 6-hour total; the
+// old rule had fired from 10:00 on 0.8 mm an hour.
+//
+// - A total of RAIN_RISK_TOTAL_MM or more over RAIN_RISK_WINDOW_HOURS,
+//   measured at any gauge or forecast for the hours ahead.
+// - Or a heavy burst: HOURLY_HEAVY_MM (the Met Office's 4 mm/hr) or more,
+//   on the peak 15-minute rate for a gauge (a thunderstorm can overwhelm a
+//   sewer in fifteen minutes and be averaged away over the hour) or in any
+//   forecast hour.
+export const RAIN_RISK_TOTAL_MM = 5;
+export const RAIN_RISK_WINDOW_HOURS = 6;
+
+const formatMm = (mm: number) => `${Math.round(mm * 10) / 10} mm`;
+
+// Measured rain first, else the forecast. The EA's gauges report in
+// batches, so the forecast is often the only sight of rain falling now.
 const rainFactor = (
   rainfall: RainfallResponse,
   now: number
 ): PollutionRiskFactor | null => {
+  const windowMs = RAIN_RISK_WINDOW_HOURS * HOUR_MS;
   for (const gauge of rainfall.gauges) {
     if (peakRateMmPerHour(gauge, HOUR_MS, now) >= HOURLY_HEAVY_MM) {
       return {
@@ -179,37 +207,49 @@ const rainFactor = (
       };
     }
   }
-  for (const gauge of rainfall.gauges) {
-    if (sumRecentMm(gauge, HOUR_MS, 0, now) >= HOURLY_MODERATE_MM) {
-      return {
-        key: "rain",
-        level: "raised",
-        label: "Rain",
-        value: "Moderate",
-        detail: `At ${gauge.label}`,
-      };
-    }
+  const wettest = rainfall.gauges
+    .map((gauge) => ({ gauge, mm: sumRecentMm(gauge, windowMs, 0, now) }))
+    .sort((a, b) => b.mm - a.mm)[0];
+  if (wettest && wettest.mm >= RAIN_RISK_TOTAL_MM) {
+    return {
+      key: "rain",
+      level: "raised",
+      label: "Rain",
+      value: formatMm(wettest.mm),
+      detail: `Last ${RAIN_RISK_WINDOW_HOURS}h at ${wettest.gauge.label}`,
+    };
   }
 
-  const upcoming = rainfall.forecast
+  // Open-Meteo's hourly value is the total for the hour ending at its
+  // timestamp.
+  const ahead = rainfall.forecast
     .map((f) => ({ endsAt: Date.parse(f.dateTime), mm: f.valueMm }))
-    .filter(
-      (f) =>
-        f.endsAt > now &&
-        f.endsAt <= now + RAIN_LOOKAHEAD_HOURS * HOUR_MS &&
-        f.mm >= HOURLY_MODERATE_MM
-    );
-  if (upcoming.length === 0) return null;
-  const peak = Math.max(...upcoming.map((f) => f.mm));
-  const startsIn = (upcoming[0].endsAt - HOUR_MS - now) / HOUR_MS;
-  return {
-    key: "rain",
-    level: "raised",
-    label: "Rain",
-    value: intensityLabel(peak),
-    detail:
-      startsIn < 0.5 ? "Forecast now" : `Forecast in ~${Math.round(startsIn)}h`,
-  };
+    .filter((f) => f.endsAt > now && f.endsAt <= now + windowMs);
+  const heavyHour = ahead.find((f) => f.mm >= HOURLY_HEAVY_MM);
+  if (heavyHour) {
+    const startsIn = (heavyHour.endsAt - HOUR_MS - now) / HOUR_MS;
+    return {
+      key: "rain",
+      level: "raised",
+      label: "Rain",
+      value: "Heavy",
+      detail:
+        startsIn < 0.5
+          ? "Forecast now"
+          : `Forecast in ~${Math.round(startsIn)}h`,
+    };
+  }
+  const forecastMm = ahead.reduce((sum, f) => sum + f.mm, 0);
+  if (forecastMm >= RAIN_RISK_TOTAL_MM) {
+    return {
+      key: "rain",
+      level: "raised",
+      label: "Rain",
+      value: formatMm(forecastMm),
+      detail: `Forecast next ${RAIN_RISK_WINDOW_HOURS}h`,
+    };
+  }
+  return null;
 };
 
 // The newest sample, while it's recent enough to say something about the
@@ -269,6 +309,7 @@ export const derivePollutionRisk = (
   now: number = Date.now()
 ): PollutionRisk => {
   let here = 0;
+  let below = 0;
   let passing = 0;
   let lingering = 0;
   let arriving = 0;
@@ -277,10 +318,12 @@ export const derivePollutionRisk = (
   for (const outfall of cso.outfalls) {
     if (outfall.state !== "Ongoing" && outfall.state !== "Recent") continue;
     const waypoint = WAYPOINTS_BY_NAME.get(outfall.waypointName);
-    // Discharging inside the reach: observed, not estimated, so it's the one
-    // spill case that makes the risk High (see the header comment).
+    // Discharging inside the reach: observed, not estimated. Above the
+    // sample site it's the one spill case that makes the risk High; below
+    // it, Raised (see the header comment).
     if (outfall.state === "Ongoing" && waypoint?.isReach) {
-      here++;
+      if (entersAboveSampleSite(outfall)) here++;
+      else below++;
       continue;
     }
     const timing = plumeTiming(outfall, now);
@@ -300,6 +343,15 @@ export const derivePollutionRisk = (
       level: "high",
       label: "In Worcester",
       value: spills(here),
+      detail: "Discharging now",
+    });
+  }
+  if (below > 0) {
+    factors.push({
+      key: "below",
+      level: "raised",
+      label: "Below Pitchcroft",
+      value: spills(below),
       detail: "Discharging now",
     });
   }

@@ -21,6 +21,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
+import SouthOutlinedIcon from "@mui/icons-material/SouthOutlined";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
   PollutionRiskFactor,
@@ -55,6 +56,7 @@ const RISK_ICONS: Record<PollutionRiskLevel, React.ElementType> = {
 
 const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
   here: PlaceOutlinedIcon,
+  below: SouthOutlinedIcon,
   passing: WavesIcon,
   arriving: ScheduleIcon,
   lingering: HistoryIcon,

@@ -5,6 +5,7 @@ import {
   CatchmentWaypoint,
   PLUME_SPEED_KMH,
   RiverBranchId,
+  SEWAGE_RECENT_SPILL_BASE_HOURS,
 } from "@/lib/config";
 
 // Haversine distance in km between two lat/long points.
@@ -127,6 +128,18 @@ export const plumeTravelRangeFor = (
     latest: Math.ceil(waypoint.plumeTravelHours + spread),
   };
 };
+
+// How many hours after it stops a spill stays Recent: its latest travel
+// time to the reach plus the 48 h tail (see SEWAGE_RECENT_SPILL_BASE_HOURS).
+// Shared by the sewage route (which marks outfalls Recent) and the risk
+// (which stops counting them), so the list and the headline retire a spill
+// at the same moment.
+export const recentCutoffHours = (
+  waypoint: CatchmentWaypoint,
+  distanceKm: number
+): number =>
+  plumeTravelRangeFor(waypoint, distanceKm).latest +
+  SEWAGE_RECENT_SPILL_BASE_HOURS;
 
 // The longest travel time any in-scope outfall can be given - the furthest
 // waypoint plus its whole radius. Used where the app has to quote an upper

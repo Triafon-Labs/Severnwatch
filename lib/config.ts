@@ -35,9 +35,12 @@ export const SEWAGE_API_URL =
 
 // How long a spill stays "recent" *after its water has reached the reach* -
 // the tail on top of each outfall's latest travel time (see
-// plumeTravelRangeFor in lib/catchment.ts), not the whole window. A spill at Bewdley is therefore
-// surfaced far longer than one at Diglis, because its water arrives far
-// later.
+// recentCutoffHours in lib/catchment.ts), not the whole window. A spill at
+// Bewdley is therefore surfaced far longer than one at Diglis, because its
+// water arrives far later. Counting it from the stop instead, as SAS do,
+// would drop a Bewdley spill ~35 h sooner - but the travel times are too
+// short at summer low flow (see plumeTravelHours), and this tail is what
+// buys that margin back.
 //
 // 48 h rather than the 24 h this used to be. SAS's own Safer Seas alerts
 // flag an overflow for 48 h after it stops, and the field evidence doesn't
@@ -356,6 +359,28 @@ export const SAS_MAP_URL =
 // The one site the cards follow. An export that also covers other sites is
 // filtered down to this name.
 export const WATER_QUALITY_SITE_NAME = "Grandstand Road";
+
+// Where that site is on the river - latitude from the SAS export's sample
+// coordinates. The Severn runs north to south through Worcester, so within
+// the reach latitude stands in for "upstream of": a spill can only reach
+// the water at Pitchcroft if it enters the river at or above this line.
+// Only a spill discharging above it makes the risk High (lib/pollutionRisk.ts);
+// one entering below - Diglis, say - is downstream of the sample site, the
+// racecourse and most of the city's riverside, so it counts as Raised.
+export const WATER_QUALITY_SITE_LAT = 52.1956;
+
+// Brooks inside the reach whose outfalls sit well away from the Severn, so
+// an outfall's own latitude says nothing about where its spill meets the
+// river. Keyed by the feed's ReceivingWaterCourse (upper-cased, matched as a
+// substring); the value is the latitude of the confluence, from
+// OpenStreetMap. Barbourne Brook joins at Gheluvelt Park, above Pitchcroft;
+// Laughern Brook at Lower Wick and Duck Brook at Diglis, both below it. A
+// reach brook missing from here falls back to the outfall's own latitude.
+export const REACH_TRIBUTARY_CONFLUENCE_LAT: Record<string, number> = {
+  "BARBOURNE BROOK": 52.2076,
+  "LAUGHERN BROOK": 52.1714,
+  "DUCK BROOK": 52.1728,
+};
 
 // How a sample feeds the headline pollution risk. Testing is roughly
 // weekly, and a result is only known a day or so after the sample is taken,
