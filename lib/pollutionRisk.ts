@@ -116,10 +116,12 @@ export interface PollutionRisk {
   factors: PollutionRiskFactor[];
   // When the level is expected to be back to Low if nothing new happens -
   // every spill's tail run out, any Poor sample aged out. Null when that
-  // can't be said: the level is already Low, a spill is still discharging
-  // (so has no end to count from), or rain is falling or due (which is
-  // likely to set more off).
+  // can't be said: the level is already Low, or `lowAgainBlockedBy` says
+  // why not.
   lowAgainAt: number | null;
+  // Why there's no estimate: a spill still discharging has no end to count
+  // from, and rain falling or due is likely to set more off.
+  lowAgainBlockedBy: "discharging" | "rain" | null;
 }
 
 const WAYPOINTS_BY_NAME = new Map(CATCHMENT_WAYPOINTS.map((w) => [w.name, w]));
@@ -381,17 +383,44 @@ export const derivePollutionRisk = (
   factors.sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level]);
 
   const level = factors[0]?.level ?? "low";
+  const lowAgainBlockedBy =
+    level === "low"
+      ? null
+      : stillDischarging
+        ? "discharging"
+        : rain
+          ? "rain"
+          : null;
   const lowAgainAt =
-    level === "low" || stillDischarging || rain || !Number.isFinite(lastClear)
+    level === "low" || lowAgainBlockedBy || !Number.isFinite(lastClear)
       ? null
       : lastClear;
 
-  return { level, factors, lowAgainAt };
+  return { level, factors, lowAgainAt, lowAgainBlockedBy };
 };
 
 // "~14h" up to a day and a half, "~3 days" past it - the estimate is too
 // rough for hours to mean much at that range.
-export const formatLowAgainIn = (lowAgainAt: number, now: number): string => {
+const formatLowAgainIn = (lowAgainAt: number, now: number): string => {
   const hours = Math.max(1, Math.round((lowAgainAt - now) / HOUR_MS));
   return hours <= 36 ? `~${hours}h` : `~${Math.round(hours / 24)} days`;
+};
+
+// The line under the headline saying when things should improve - an
+// estimate when there is one, otherwise what it's waiting on. Every level
+// above Low gets one, so the card always points to a way out rather than
+// just a warning. Shared by the card and the share text.
+export const riskOutlook = (
+  risk: PollutionRisk,
+  now: number
+): string | null => {
+  if (risk.level === "low") return null;
+  if (risk.lowAgainBlockedBy === "discharging") {
+    return "Should start to ease once the spill stops";
+  }
+  if (risk.lowAgainBlockedBy === "rain") {
+    return "Should start to ease once the rain passes";
+  }
+  if (risk.lowAgainAt === null) return null;
+  return `Likely back to Low in ${formatLowAgainIn(risk.lowAgainAt, now)} if it stays dry`;
 };

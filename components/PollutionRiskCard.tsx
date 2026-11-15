@@ -28,7 +28,7 @@ import {
   PollutionRiskLevel,
   RISK_LEVEL_UI,
   derivePollutionRisk,
-  formatLowAgainIn,
+  riskOutlook,
 } from "@/lib/pollutionRisk";
 import { WaterQualitySample } from "@/types";
 import { bandForSample, sampleTimeMs } from "@/lib/waterQuality";
@@ -304,14 +304,7 @@ const PollutionRiskCard: React.FC = () => {
             <Stack>
               <RiskHero
                 level={risk.level}
-                outlook={
-                  risk.lowAgainAt !== null
-                    ? `Likely back to Low in ${formatLowAgainIn(
-                        risk.lowAgainAt,
-                        now.getTime()
-                      )} if it stays dry`
-                    : null
-                }
+                outlook={riskOutlook(risk, now.getTime())}
               />
               {latestSample && (
                 <LatestSampleLine sample={latestSample} now={now.getTime()} />

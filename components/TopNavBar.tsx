@@ -25,7 +25,7 @@ import { CsoResponse, RainfallResponse, WaterQualityResponse } from "@/types";
 import {
   RISK_LEVEL_UI,
   derivePollutionRisk,
-  formatLowAgainIn,
+  riskOutlook,
 } from "@/lib/pollutionRisk";
 import {
   SAMPLE_BAND_UI,
@@ -78,11 +78,8 @@ const buildShareText = (
     risk.factors.forEach((f) =>
       lines.push(`• ${f.label}: ${f.value}${f.detail ? ` (${f.detail})` : ""}`)
     );
-    if (risk.lowAgainAt !== null) {
-      lines.push(
-        `Likely back to Low in ${formatLowAgainIn(risk.lowAgainAt, now)} if it stays dry.`
-      );
-    }
+    const outlook = riskOutlook(risk, now);
+    if (outlook) lines.push(`${outlook}.`);
   }
 
   const latest = waterQuality?.samples[waterQuality.samples.length - 1];

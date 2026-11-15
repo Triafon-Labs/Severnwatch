@@ -19,7 +19,7 @@ export const APP_DESCRIPTION =
 // About, as in Paddlecheck. Bump DISCLAIMER_VERSION when the wording changes
 // materially, so everyone who accepted the old text is asked again.
 export const DISCLAIMER =
-  "Severnwatch is an unofficial hobby project, not a water test. Its pollution risk is an estimate from sewage spill reports, rainfall and volunteer samples, any of which can be missing, delayed or wrong. Low Risk doesn't mean the water is clean or safe to swim in. Always use your own judgement before going in or on the river.";
+  "Severnwatch is an unofficial guide. Its pollution risk is an estimate from spill reports, rainfall and volunteer samples, so it can't promise the water is clean. Please use your own judgement before going in or on the river.";
 export const DISCLAIMER_VERSION = "1";
 
 export const LOCATION_NAME = "Worcester";
