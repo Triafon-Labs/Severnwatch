@@ -10,4 +10,11 @@ export const STORAGE_KEYS = {
   RAINFALL_DATA: "severnwatch_rainfallData",
   WATER_QUALITY_DATA: "severnwatch_waterQualityData",
   SAMPLE_INDICATOR: "sampleHistoryIndicator",
+  // The DISCLAIMER_VERSION last accepted in the first-run pop-up.
+  DISCLAIMER_ACCEPTED: "disclaimerAccepted",
 } as const;
+
+// Set on <html> by the inline script in app/layout.tsx before first paint
+// when the disclaimer hasn't been accepted, so globals.css can blur the app
+// until DisclaimerDialog opens over it. Must match the selector there.
+export const DISCLAIMER_PENDING_ATTR = "data-disclaimer-pending";

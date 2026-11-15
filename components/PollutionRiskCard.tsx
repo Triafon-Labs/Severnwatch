@@ -40,12 +40,12 @@ import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 
 // The scale strip, best to worst, the way it reads left to right.
-const RISK_SCALE: PollutionRiskLevel[] = ["lower", "raised", "high"];
+const RISK_SCALE: PollutionRiskLevel[] = ["low", "raised", "high"];
 
 const RISK_ICONS: Record<PollutionRiskLevel, React.ElementType> = {
   high: ReportProblemIcon,
   raised: WarningAmberIcon,
-  lower: CheckCircleOutlineIcon,
+  low: CheckCircleOutlineIcon,
 };
 
 const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
@@ -176,7 +176,7 @@ const PollutionRiskCard: React.FC = () => {
     <Card>
       <CardContent>
         <Typography variant="h5" component="h2">
-          Water Quality Status
+          Pollution Risk
         </Typography>
         {/* When the spill and rainfall data were fetched - Paddlecheck's
             "Updated" line under its status card title. The banners above the

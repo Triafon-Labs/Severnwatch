@@ -15,6 +15,13 @@ export const APP_NAME = "Severnwatch";
 export const APP_DESCRIPTION =
   "River Severn water quality and rainfall conditions at Worcester";
 
+// Shown in the first-run pop-up (DisclaimerDialog) and in Settings -> Info ->
+// About, as in Paddlecheck. Bump DISCLAIMER_VERSION when the wording changes
+// materially, so everyone who accepted the old text is asked again.
+export const DISCLAIMER =
+  "Severnwatch is an unofficial hobby project, not a water test. Its pollution risk is an estimate from sewage spill reports, rainfall and volunteer samples, any of which can be missing, delayed or wrong. Low Risk doesn't mean the water is clean or safe to swim in. Always use your own judgement before going in or on the river.";
+export const DISCLAIMER_VERSION = "1";
+
 export const LOCATION_NAME = "Worcester";
 export const LATITUDE = 52.2;
 export const LONGITUDE = -2.2;

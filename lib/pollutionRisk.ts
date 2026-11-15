@@ -43,8 +43,8 @@ import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 //   a clean sample from days ago says nothing about a spill since.
 //
 // Even the samples are snapshots days old, so the bottom of the scale is
-// "lower", never "safe".
-export type PollutionRiskLevel = "high" | "raised" | "lower";
+// "low", never "safe" - and the disclaimer says so.
+export type PollutionRiskLevel = "high" | "raised" | "low";
 
 // Labels and colours for each level, shared by the card and the Conditions
 // Key so the two can't drift - the same arrangement as CSO_STATE_UI.
@@ -62,8 +62,8 @@ export const RISK_LEVEL_UI: Record<
     color: STATUS_COLORS.amber,
     onColor: ON_STATUS_COLORS.amber,
   },
-  lower: {
-    label: "Lower Risk",
+  low: {
+    label: "Low Risk",
     color: STATUS_COLORS.darkGreen,
     onColor: ON_STATUS_COLORS.darkGreen,
   },
@@ -85,7 +85,7 @@ export interface PollutionRiskFactor {
 
 export interface PollutionRisk {
   level: PollutionRiskLevel;
-  // Worst first; empty when the level is "lower".
+  // Worst first; empty when the level is "low".
   factors: PollutionRiskFactor[];
 }
 
@@ -236,7 +236,7 @@ const sampleFactor = (
 const LEVEL_RANK: Record<PollutionRiskLevel, number> = {
   high: 2,
   raised: 1,
-  lower: 0,
+  low: 0,
 };
 
 const spills = (n: number) => (n === 1 ? "1 spill" : `${n} spills`);
@@ -271,6 +271,8 @@ export const derivePollutionRisk = (
       level: "high",
       label: "Passing Worcester",
       value: spills(passing),
+      // A travel-time estimate, like "Due in ~3h" below, not an observation.
+      detail: "Estimated",
     });
   }
   if (arriving > 0) {
@@ -303,5 +305,5 @@ export const derivePollutionRisk = (
   // push order. Array sort is stable, so equal levels keep their order.
   factors.sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level]);
 
-  return { level: factors[0]?.level ?? "lower", factors };
+  return { level: factors[0]?.level ?? "low", factors };
 };

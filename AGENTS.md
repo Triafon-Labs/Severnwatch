@@ -115,6 +115,7 @@ app/
 components/
   TopNavBar.tsx              App bar – share, settings, refresh, stale/offline banners
   SettingsModal.tsx          Bottom sheet – theme, links, conditions key, deep dive, version
+  DisclaimerDialog.tsx       First-run pop-up – must be accepted once per DISCLAIMER_VERSION (as in Paddlecheck)
   ConditionsKey.tsx          Legend for the status colours, map markers and chart bands
   PollutionRiskCard.tsx      Headline pollution risk from spills, rainfall + latest sample, with the "Updated" line
   CsoListCard.tsx            Live/recent spills, then the network as a river diagram
@@ -137,11 +138,11 @@ components/
   ServiceWorkerRegistration.tsx  Registers public/sw.js in production
 
 lib/
-  config.ts             Catchment waypoints + river branches, gauge IDs, endpoints, links
+  config.ts             Catchment waypoints + river branches, gauge IDs, endpoints, links, disclaimer
   hooks.ts              useSevernData – all fetching, caching, offline state
   SevernDataContext.tsx React Context wrapping the hook
   csoStatus.ts          CSO state → label/colour/severity, in one place
-  pollutionRisk.ts      Derived high/raised/lower risk from spill timing, rainfall + latest sample
+  pollutionRisk.ts      Derived high/raised/low risk from spill timing, rainfall + latest sample
   waterQuality.ts       Sample bands against the bathing water limits, formatting, stats
   waterQualityCsv.ts    Server-only: reads + validates the SAS CSV export(s), merges by Survey ID
   waterQualityStore.ts  Server-only: uploaded exports in Vercel Blob (or a local folder off Vercel)
@@ -250,7 +251,7 @@ skeletons clearing means what's on screen just came from the network; a poll
 would blank the page under whoever was reading it.
 
 Freshness is communicated by the "Updated HH:MM · n min ago" line under the
-Water Quality Status title (`lib/useFreshness.ts`, as in Paddlecheck),
+Pollution Risk title (`lib/useFreshness.ts`, as in Paddlecheck),
 the "As of" caption under the rainfall chart (the age of the newest gauge
 reading, which the EA typically receives only once or twice a day), and a
 banner above the app bar. That banner says "Live update failed" only when the
@@ -272,14 +273,15 @@ shared with the status card's "Updated" line).
 
 Canonical names live in `lib/storageKeys.ts`.
 
-| Key                            | Value                                                     |
-| ------------------------------ | --------------------------------------------------------- |
-| `themeMode`                    | `"light"` \| `"dark"` \| `"system"` (read/written by MUI) |
-| `rainfallRange`                | `"forecast"` \| `"1h"` \| `"8h"` \| `"24h"` \| `"7d"`     |
-| `severnwatch_csoData`          | Last successful `/api/sewage` response                    |
-| `severnwatch_rainfallData`     | Last successful `/api/rainfall` response                  |
-| `severnwatch_waterQualityData` | Last successful `/api/water-quality` response             |
-| `sampleHistoryIndicator`       | `"eColi"` \| `"enterococci"`                              |
+| Key                            | Value                                                      |
+| ------------------------------ | ---------------------------------------------------------- |
+| `themeMode`                    | `"light"` \| `"dark"` \| `"system"` (read/written by MUI)  |
+| `rainfallRange`                | `"forecast"` \| `"1h"` \| `"8h"` \| `"24h"` \| `"7d"`      |
+| `severnwatch_csoData`          | Last successful `/api/sewage` response                     |
+| `severnwatch_rainfallData`     | Last successful `/api/rainfall` response                   |
+| `severnwatch_waterQualityData` | Last successful `/api/water-quality` response              |
+| `sampleHistoryIndicator`       | `"eColi"` \| `"enterococci"`                               |
+| `disclaimerAccepted`           | `DISCLAIMER_VERSION` last accepted in the first-run pop-up |
 
 ---
 

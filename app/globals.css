@@ -20,6 +20,14 @@ body {
   margin: 0;
 }
 
+/* First-time visitor, before DisclaimerDialog has opened (set by the inline
+   script in app/layout.tsx): keep the app unreadable until it's accepted. */
+html[data-disclaimer-pending] .app-frame {
+  filter: blur(8px) brightness(0.3);
+  pointer-events: none;
+  user-select: none;
+}
+
 a {
   color: inherit;
   text-decoration: none;
