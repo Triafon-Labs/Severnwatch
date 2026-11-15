@@ -28,7 +28,6 @@ import {
   PollutionRiskLevel,
   RISK_LEVEL_UI,
   derivePollutionRisk,
-  riskOutlook,
 } from "@/lib/pollutionRisk";
 import { WaterQualitySample } from "@/types";
 import { bandForSample, sampleTimeMs } from "@/lib/waterQuality";
@@ -67,12 +66,8 @@ const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
 // but on the level's tonal container pair rather than a saturated fill. The
 // headline is an estimate for most of a wet season, and a full-width slab of
 // red or amber shouted it louder than the evidence. The strip keeps the
-// saturated hues, so the level still reads at a glance. `outlook` is the
-// "back to Low" line, when there is one to give.
-const RiskHero: React.FC<{
-  level: PollutionRiskLevel;
-  outlook: string | null;
-}> = ({ level, outlook }) => {
+// saturated hues, so the level still reads at a glance.
+const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
   const ui = RISK_LEVEL_UI[level];
   const Icon = RISK_ICONS[level];
 
@@ -92,24 +87,18 @@ const RiskHero: React.FC<{
         }}
       >
         <Icon sx={{ fontSize: { xs: 40, sm: 56 }, flexShrink: 0 }} />
-        <Box sx={{ minWidth: 0 }}>
-          <Typography
-            variant="h3"
-            component="p"
-            sx={{
-              fontWeight: 500,
-              lineHeight: 1.1,
-              fontSize: { xs: "1.625rem", sm: "2rem" },
-            }}
-          >
-            {ui.label}
-          </Typography>
-          {outlook && (
-            <Typography variant="body2" sx={{ mt: 0.5, color: "inherit" }}>
-              {outlook}
-            </Typography>
-          )}
-        </Box>
+        <Typography
+          variant="h3"
+          component="p"
+          sx={{
+            minWidth: 0,
+            fontWeight: 500,
+            lineHeight: 1.1,
+            fontSize: { xs: "1.625rem", sm: "2rem" },
+          }}
+        >
+          {ui.label}
+        </Typography>
       </InfoPanel>
 
       <Box
@@ -302,10 +291,7 @@ const PollutionRiskCard: React.FC = () => {
         {!showSkeleton && risk && (
           <Grow in appear {...springTransition()}>
             <Stack>
-              <RiskHero
-                level={risk.level}
-                outlook={riskOutlook(risk, now.getTime())}
-              />
+              <RiskHero level={risk.level} />
               {latestSample && (
                 <LatestSampleLine sample={latestSample} now={now.getTime()} />
               )}

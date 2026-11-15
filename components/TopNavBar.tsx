@@ -22,11 +22,7 @@ import { useFreshness } from "@/lib/useFreshness";
 import { collapseMotion } from "@/lib/m3-palette";
 import { APP_NAME } from "@/lib/config";
 import { CsoResponse, RainfallResponse, WaterQualityResponse } from "@/types";
-import {
-  RISK_LEVEL_UI,
-  derivePollutionRisk,
-  riskOutlook,
-} from "@/lib/pollutionRisk";
+import { RISK_LEVEL_UI, derivePollutionRisk } from "@/lib/pollutionRisk";
 import {
   SAMPLE_BAND_UI,
   bandForSample,
@@ -78,8 +74,6 @@ const buildShareText = (
     risk.factors.forEach((f) =>
       lines.push(`• ${f.label}: ${f.value}${f.detail ? ` (${f.detail})` : ""}`)
     );
-    const outlook = riskOutlook(risk, now);
-    if (outlook) lines.push(`${outlook}.`);
   }
 
   const latest = waterQuality?.samples[waterQuality.samples.length - 1];
