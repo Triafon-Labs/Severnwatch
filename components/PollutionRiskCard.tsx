@@ -16,8 +16,6 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import WavesIcon from "@mui/icons-material/Waves";
-import ScheduleIcon from "@mui/icons-material/Schedule";
-import HistoryIcon from "@mui/icons-material/History";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
@@ -28,6 +26,7 @@ import {
   PollutionRiskLevel,
   RISK_LEVEL_UI,
   derivePollutionRisk,
+  formatSpillTime,
 } from "@/lib/pollutionRisk";
 import {
   collapseMotion,
@@ -51,11 +50,10 @@ const RISK_ICONS: Record<PollutionRiskLevel, React.ElementType> = {
 
 const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
   here: PlaceOutlinedIcon,
-  passing: WavesIcon,
-  arriving: ScheduleIcon,
-  lingering: HistoryIcon,
+  recent: WavesIcon,
   rain: WaterDropIcon,
   sample: ScienceOutlinedIcon,
+  offline: CloudOffIcon,
 };
 
 // Paddlecheck's PaddlingStatusHero, with the scale as a strip underneath -
@@ -139,15 +137,18 @@ const ContributingFactors: React.FC<{ factors: PollutionRiskFactor[] }> = ({
       Contributing Factors
     </Typography>
     <Box sx={{ ...tileGridSx, mt: 1 }}>
-      {factors.map(({ key, label, value, detail }) => {
+      {factors.map(({ key, label, value, detail, spillMinutes }) => {
         const Icon = FACTOR_ICONS[key];
+        const spillTime = spillMinutes
+          ? `${formatSpillTime(spillMinutes)} total`
+          : null;
         return (
           <StatTile
             key={key}
             icon={<Icon />}
             label={label}
             value={value}
-            detail={detail}
+            detail={[detail, spillTime].filter(Boolean).join(" · ")}
           />
         );
       })}
@@ -168,8 +169,7 @@ const PollutionRiskCard: React.FC = () => {
   } = useSevernContext();
   const { freshnessText } = useFreshness(lastUpdated);
   const showSkeleton = loading || (isRefreshing && !isOffline);
-  // Ticks so "due in ~N h" counts down, and a spill moves from due to
-  // passing, between fetches.
+  // Ticks so a spill starts and stops counting on time between fetches.
   const now = useNowTicking();
 
   const risk = useMemo(

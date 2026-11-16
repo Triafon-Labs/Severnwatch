@@ -5,6 +5,7 @@ import {
   PollutionRiskLevel,
   RISK_LEVEL_UI,
   derivePollutionRisk,
+  formatSpillTime,
 } from "@/lib/pollutionRisk";
 import {
   SAMPLE_BAND_UI,
@@ -36,15 +37,17 @@ const lcFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 // One factor tile as a sentence. The sample factor is left out: the sample
 // gets its own line below, whatever its band.
 const factorLine = (f: PollutionRiskFactor): string | null => {
+  // "4 spills (13h in total)" / "1 spill (40 min)" - how long they ran.
+  const count = f.spillMinutes
+    ? `${f.value} (${formatSpillTime(f.spillMinutes)}${f.value === "1 spill" ? "" : " in total"})`
+    : f.value;
   switch (f.key) {
     case "here":
-      return `🚰 ${f.value} discharging in Worcester right now`;
-    case "passing":
-      return `🌊 ${f.value} from upstream passing Worcester now (estimated)`;
-    case "arriving":
-      return `🌊 ${f.value} from upstream ${lcFirst(f.detail ?? "on the way")}`;
-    case "lingering":
-      return `🌊 ${f.value} passed Worcester ${lcFirst(f.detail ?? "recently")}`;
+      return `🚰 ${count} discharging in Worcester right now`;
+    case "recent":
+      return `🌊 ${count} recently, which may still affect Worcester`;
+    case "offline":
+      return `❔ ${f.value} offline in Worcester, so spills there can't be seen`;
     case "rain":
       return f.value === "Heavy"
         ? `🌧️ Heavy rain ${lcFirst(f.detail ?? "")}`.trim()
@@ -73,8 +76,14 @@ export const buildShareText = (
       .filter((l): l is string => !!l);
     if (reasons.length > 0) {
       lines.push(...reasons);
-    } else if (risk.level === "low") {
-      lines.push("No sewage spills reaching Worcester and no heavy rain");
+    }
+    // Said even beside an offline monitor: it's still what the data shows.
+    if (risk.level === "low") {
+      lines.splice(
+        1,
+        0,
+        "No sewage spills reaching Worcester and no heavy rain"
+      );
     }
   }
 

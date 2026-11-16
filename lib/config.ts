@@ -262,6 +262,20 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
   },
 
   // --- River Salwarpe, joining the Severn at Hawford ---
+  // The Salwarpe above Droitwich, and Hen Brook which joins it there. These
+  // sat outside the Droitwich circle although they are nearer the reach by
+  // river than Bewdley, on a far smaller river. The radius is kept tight so
+  // it stops short of Bromsgrove (see CATCHMENT_EXCLUDED_LOCALITIES).
+  {
+    name: "Wychbold/Stoke Prior",
+    label: "Wychbold & Stoke Prior",
+    lat: 52.293,
+    lon: -2.118,
+    radiusKm: 2.5,
+    branch: "salwarpe",
+    downstreamOrder: 0,
+    plumeTravelHours: 22,
+  },
   {
     name: "Droitwich/Salwarpe (Hawford)",
     label: "Droitwich & Salwarpe",
@@ -269,7 +283,7 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
     lon: -2.198,
     radiusKm: 5,
     branch: "salwarpe",
-    downstreamOrder: 0,
+    downstreamOrder: 1,
     plumeTravelHours: 6,
   },
 ];
@@ -280,11 +294,19 @@ export const CATCHMENT_WAYPOINTS: CatchmentWaypoint[] = [
 export const CATCHMENT_EXCLUDED_LOCALITIES = ["bromsgrove"];
 
 // Watercourses that drain away from or outside the Worcester reach corridor
-// (e.g. Bow Brook drains south to the Avon; River Teme joins below Worcester;
-// Stoulton, Madresfield, Whiteacres, Cradley brooks drain elsewhere).
+// (e.g. Bow Brook drains south to the Avon, and Crowle Brook into it; River
+// Teme joins below Worcester, and Laughern Brook into it; Duck Brook and
+// Careys Brook join the Severn below Diglis weir; Stoulton, Madresfield,
+// Whiteacres, Cradley brooks drain elsewhere). The ones near Worcester
+// matter most: inside a reach circle, a spill on them would read as
+// discharging in Worcester and make the risk High.
 export const CATCHMENT_EXCLUDED_WATERCOURSES = [
   "BOW BROOK",
+  "CROWLE BROOK",
   "TEME",
+  "LAUGHERN",
+  "DUCK BROOK",
+  "CAREYS BROOK",
   "STOULTON",
   "MADRESFIELD",
   "WHITEACRES",

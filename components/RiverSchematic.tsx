@@ -27,6 +27,7 @@ import {
 } from "@/lib/riverSchematic";
 import { collapseMotion, m3Spring, spring } from "@/lib/m3-palette";
 import CsoOutfallRow from "@/components/CsoOutfallRow";
+import { useNowTicking } from "@/lib/useNowTicking";
 
 // The CSO monitoring network drawn as a transit diagram: the Severn as a
 // trunk line running downstream from Bewdley to Worcester, the Stour and
@@ -197,9 +198,10 @@ const StationDot: React.FC<{ row: StationRow }> = ({ row }) => {
 const ClearMonitorsGroup: React.FC<{
   stationKey: string;
   clearOutfalls: CsoOutfall[];
+  now: number;
   expanded: boolean;
   onToggle: () => void;
-}> = ({ clearOutfalls, expanded, onToggle }) => {
+}> = ({ clearOutfalls, now, expanded, onToggle }) => {
   const count = clearOutfalls.length;
   if (count === 0) return null;
 
@@ -255,7 +257,7 @@ const ClearMonitorsGroup: React.FC<{
       >
         <Stack spacing={1} sx={{ pt: 0.5 }}>
           {clearOutfalls.map((outfall) => (
-            <CsoOutfallRow key={outfall.id} outfall={outfall} />
+            <CsoOutfallRow key={outfall.id} outfall={outfall} now={now} />
           ))}
         </Stack>
       </Collapse>
@@ -271,6 +273,15 @@ const StationHeader: React.FC<{
   const { waypoint, outfalls, state } = row.station;
   const count = outfalls.length;
   const notable = state !== null && CSO_NOTABLE_STATES.includes(state);
+  const spilled = outfalls.filter((o) =>
+    CSO_NOTABLE_STATES.includes(o.state)
+  ).length;
+  const monitors =
+    count === 0
+      ? "No monitors"
+      : spilled > 0
+        ? `${spilled} of ${count} spilled`
+        : `${count} monitor${count === 1 ? "" : "s"}`;
 
   const body = (
     <>
@@ -279,9 +290,7 @@ const StationHeader: React.FC<{
           {waypoint.label}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {count === 0
-            ? "No monitors"
-            : `${count} monitor${count === 1 ? "" : "s"}`}
+          {monitors}
         </Typography>
       </Box>
       {notable && (
@@ -324,9 +333,7 @@ const StationHeader: React.FC<{
     <ButtonBase
       onClick={onToggle}
       aria-expanded={expanded}
-      aria-label={`${waypoint.label}, ${count} monitor${
-        count === 1 ? "" : "s"
-      }`}
+      aria-label={`${waypoint.label}, ${monitors}`}
       sx={{ ...layout, ...stateLayerSx }}
     >
       {body}
@@ -342,6 +349,8 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
     () => new Set()
   );
   const rows = useMemo(() => buildRiverSchematic(outfalls), [outfalls]);
+  // Ticks so a row's "21h ago" keeps up between fetches.
+  const now = useNowTicking().getTime();
 
   const toggleExpanded = (key: string) => {
     setExpandedKeys((prev) => {
@@ -448,12 +457,17 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
               >
                 <Stack spacing={1} sx={{ pb: 1.5, px: 1 }}>
                   {nonClearOutfalls.map((outfall) => (
-                    <CsoOutfallRow key={outfall.id} outfall={outfall} />
+                    <CsoOutfallRow
+                      key={outfall.id}
+                      outfall={outfall}
+                      now={now}
+                    />
                   ))}
                   {clearOutfalls.length > 0 && (
                     <ClearMonitorsGroup
                       stationKey={row.key}
                       clearOutfalls={clearOutfalls}
+                      now={now}
                       expanded={isClearExpanded}
                       onToggle={() => toggleClearExpanded(row.key)}
                     />

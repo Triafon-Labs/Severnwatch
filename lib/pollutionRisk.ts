@@ -6,7 +6,6 @@ import {
 } from "@/types";
 import {
   CATCHMENT_WAYPOINTS,
-  SEWAGE_RECENT_SPILL_BASE_HOURS,
   WATER_QUALITY_RECENT_DAYS,
   WATER_QUALITY_RELEVANT_DAYS,
 } from "@/lib/config";
@@ -39,6 +38,12 @@ import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 // - The newest citizen science sample, if it's recent and came back
 //   elevated or high (see sampleFactor below). It can only raise the risk:
 //   a clean sample from days ago says nothing about a spill since.
+//
+// A monitor in the Worcester reach that is offline changes no level - it's
+// an absence of information, not evidence - but it is listed as a factor,
+// so a Low reached with a blind spot in the reach doesn't read as a clean
+// one (the same reasoning as CSO_STATE_ORDER putting Offline above "Not
+// discharging").
 //
 // Even the samples are snapshots days old, so the bottom of the scale is
 // "low", never "safe" - and the disclaimer says so.
@@ -89,7 +94,7 @@ export const RISK_LEVEL_UI: Record<
 };
 
 export type PollutionRiskFactorKey =
-  "here" | "passing" | "arriving" | "lingering" | "rain" | "sample";
+  "here" | "recent" | "rain" | "sample" | "offline";
 
 // Split the way the card's tile reads, as Paddlecheck splits its reasons:
 // what it's about, the reading, and a line on when or where - "Arriving",
@@ -100,11 +105,15 @@ export interface PollutionRiskFactor {
   label: string;
   value: string;
   detail?: string;
+  // Spill factors only: how long those overflows spilled for in total (so
+  // far, for ones still going), where the feed gives the times. A count
+  // alone puts a ten-minute spill level with a ten-hour one.
+  spillMinutes?: number;
 }
 
 export interface PollutionRisk {
   level: PollutionRiskLevel;
-  // Worst first; empty when the level is "low".
+  // Worst first. At "low" the only factor there can be is offline monitors.
   factors: PollutionRiskFactor[];
 }
 
@@ -143,6 +152,26 @@ const plumeTiming = (
   if (now <= goneBy) return { phase: "passing", hoursUntil: 0 };
   if (now <= dropAt) return { phase: "lingering", hoursUntil: 0 };
   return null;
+};
+
+// Where one outfall's spill is relative to the reach. Null when it isn't spilling and hasn't lately, or
+// its water has gone by and the 48 h tail has run out.
+export type SpillPhase = "here" | PlumePhase;
+
+export const spillPhase = (
+  outfall: CsoOutfall,
+  now: number
+): { phase: SpillPhase; hoursUntil: number } | null => {
+  if (outfall.state !== "Ongoing" && outfall.state !== "Recent") return null;
+  // Discharging inside the reach: observed, not estimated, so it's the one
+  // spill case that makes the risk High (see the header comment).
+  if (
+    outfall.state === "Ongoing" &&
+    WAYPOINTS_BY_NAME.get(outfall.waypointName)?.isReach
+  ) {
+    return { phase: "here", hoursUntil: 0 };
+  }
+  return plumeTiming(outfall, now);
 };
 
 // When rain counts towards the risk. Rain is only a leading indicator here:
@@ -286,6 +315,24 @@ const LEVEL_RANK: Record<PollutionRiskLevel, number> = {
 
 const spills = (n: number) => (n === 1 ? "1 spill" : `${n} spills`);
 
+// How long an outfall's spill has run: to now if it's still going, else to
+// its end. Zero when the feed gives no start.
+const spillMinutes = (outfall: CsoOutfall, now: number): number => {
+  if (!outfall.startISO) return 0;
+  const end =
+    outfall.state === "Ongoing" || !outfall.endISO
+      ? now
+      : Date.parse(outfall.endISO);
+  return Math.max(0, (end - Date.parse(outfall.startISO)) / 60000);
+};
+
+// "40 min" / "13h" - a total across several spills, so to the hour is as
+// fine as it's worth reading.
+export const formatSpillTime = (minutes: number): string =>
+  minutes < 60
+    ? `${Math.max(1, Math.round(minutes))} min`
+    : `${Math.round(minutes / 60)}h`;
+
 export const derivePollutionRisk = (
   cso: CsoResponse,
   rainfall: RainfallResponse | null,
@@ -296,24 +343,29 @@ export const derivePollutionRisk = (
   let passing = 0;
   let lingering = 0;
   let arriving = 0;
-  let soonest = Infinity;
+  let offline = 0;
+  // Total spill time behind each count above, from the outfalls whose
+  // times the feed gives.
+  const minutes = { here: 0, passing: 0, lingering: 0, arriving: 0 };
 
   for (const outfall of cso.outfalls) {
-    if (outfall.state !== "Ongoing" && outfall.state !== "Recent") continue;
     const waypoint = WAYPOINTS_BY_NAME.get(outfall.waypointName);
-    // Discharging inside the reach: observed, not estimated, so it's the one
-    // spill case that makes the risk High (see the header comment).
-    if (outfall.state === "Ongoing" && waypoint?.isReach) {
+    if (outfall.state === "Offline" && waypoint?.isReach) offline++;
+    const where = spillPhase(outfall, now);
+    if (!where) continue;
+    const spilled = spillMinutes(outfall, now);
+    if (where.phase === "here") {
       here++;
-      continue;
-    }
-    const timing = plumeTiming(outfall, now);
-    if (!timing) continue;
-    if (timing.phase === "passing") passing++;
-    else if (timing.phase === "lingering") lingering++;
-    else {
+      minutes.here += spilled;
+    } else if (where.phase === "passing") {
+      passing++;
+      minutes.passing += spilled;
+    } else if (where.phase === "lingering") {
+      lingering++;
+      minutes.lingering += spilled;
+    } else {
       arriving++;
-      soonest = Math.min(soonest, timing.hoursUntil);
+      minutes.arriving += spilled;
     }
   }
 
@@ -325,34 +377,25 @@ export const derivePollutionRisk = (
       label: "In Worcester",
       value: spills(here),
       detail: "Discharging now",
+      spillMinutes: minutes.here || undefined,
     });
   }
-  if (passing > 0) {
+  // One tile for every other spill still counted - upstream, or finished
+  // in the reach - whichever way the
+  // travel-time model places its water. The phases decide when a spill
+  // starts and stops counting; shown as separate "arriving / passing /
+  // passed" tiles they claimed to know which spill's water was where, which
+  // is more than the model can say.
+  const recent = passing + arriving + lingering;
+  if (recent > 0) {
     factors.push({
-      key: "passing",
+      key: "recent",
       level: "raised",
-      label: "Passing Worcester",
-      value: spills(passing),
-      // A travel-time estimate, like "Due in ~3h" below, not an observation.
-      detail: "Estimated",
-    });
-  }
-  if (arriving > 0) {
-    factors.push({
-      key: "arriving",
-      level: "raised",
-      label: "Arriving",
-      value: spills(arriving),
-      detail: `Due in ~${Math.max(1, Math.round(soonest))}h`,
-    });
-  }
-  if (lingering > 0) {
-    factors.push({
-      key: "lingering",
-      level: "raised",
-      label: "Passed By",
-      value: spills(lingering),
-      detail: `In the last ${SEWAGE_RECENT_SPILL_BASE_HOURS}h`,
+      label: "Recent Spills",
+      value: spills(recent),
+      detail: "May still affect Worcester",
+      spillMinutes:
+        minutes.passing + minutes.arriving + minutes.lingering || undefined,
     });
   }
 
@@ -361,6 +404,16 @@ export const derivePollutionRisk = (
 
   const sample = waterQuality ? sampleFactor(waterQuality, now) : null;
   if (sample) factors.push(sample);
+
+  if (offline > 0) {
+    factors.push({
+      key: "offline",
+      level: "low",
+      label: "Offline",
+      value: offline === 1 ? "1 monitor" : `${offline} monitors`,
+      detail: "In Worcester, so spills there can't be seen",
+    });
+  }
 
   // Worst first. The spill factors above are pushed in severity order, but
   // a sample can be High after a Raised spill, so sort rather than rely on

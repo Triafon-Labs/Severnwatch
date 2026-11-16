@@ -1,34 +1,60 @@
 "use client";
 
-import { Chip, Stack, Typography } from "@mui/material";
+import { Chip, Link, Stack, Typography } from "@mui/material";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
-import { format } from "date-fns";
 import { CsoOutfall } from "@/types";
-import { formatDuration, formatOutfallSubtitle } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
-import { getRelativeTimeString } from "@/lib/time";
+import { formatLondonDate, getLondonHHMM, londonDaysAgo } from "@/lib/time";
 import InfoPanel from "@/components/InfoPanel";
 
-// One monitored outfall, as a labelled row. Shared by the CSO card's
-// "discharging now / recent" groups and by the river schematic, where the
-// same row appears when a stop is expanded - so an outfall reads identically
-// wherever you meet it.
+// One monitored outfall, as a labelled row under its stop on the river
+// schematic. The stop's own name is left off: the row sits beneath it.
+
+// "18:05" today, "Sun 18:05" within the week, "Sun 8 Nov, 18:05" before
+// that - in London time, and short enough to share a line with "21 hours
+// ago".
+const shortWhen = (iso: string, now: number): string => {
+  const ms = Date.parse(iso);
+  const days = londonDaysAgo(ms, now);
+  const time = getLondonHHMM(new Date(ms));
+  if (days <= 0) return time;
+  if (days >= 7) return formatLondonDate(ms, { withTime: true });
+  const weekday = new Date(ms).toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+  });
+  return `${weekday} ${time}`;
+};
+
+// "45 min ago" / "21h ago" / "2d ago" - to sit after the clock time.
+const shortAgo = (iso: string, now: number): string => {
+  const mins = Math.max(0, Math.floor((now - Date.parse(iso)) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
+};
+
+const mapUrl = (o: CsoOutfall) =>
+  `https://www.google.com/maps/search/?api=1&query=${o.latitude},${o.longitude}`;
 
 const getTimingDetails = (
-  o: CsoOutfall
+  o: CsoOutfall,
+  now: number
 ): { primaryTiming: string | null; durationText: string | null } => {
   const dateSince = (iso: string | null, prefix: string) =>
-    iso ? `${prefix} ${format(new Date(iso), "dd/MM/yyyy")}` : null;
+    iso
+      ? `${prefix} ${formatLondonDate(Date.parse(iso), { withWeekday: false, withYear: true })}`
+      : null;
 
   let primaryTiming: string | null = null;
   switch (o.state) {
     case "Ongoing": {
       if (o.startISO) {
-        const relative = getRelativeTimeString(o.startISO);
-        const dateTimeStr = format(new Date(o.startISO), "dd/MM/yyyy HH:mm");
-        primaryTiming = `Started ${relative} · ${dateTimeStr}`;
+        primaryTiming = `Started ${shortWhen(o.startISO, now)} · ${shortAgo(o.startISO, now)}`;
       } else {
         primaryTiming = null;
       }
@@ -36,9 +62,7 @@ const getTimingDetails = (
     }
     case "Recent": {
       if (o.endISO) {
-        const relative = getRelativeTimeString(o.endISO);
-        const dateTimeStr = format(new Date(o.endISO), "dd/MM/yyyy HH:mm");
-        primaryTiming = `Ended ${relative} · ${dateTimeStr}`;
+        primaryTiming = `Ended ${shortWhen(o.endISO, now)} · ${shortAgo(o.endISO, now)}`;
       } else {
         primaryTiming = null;
       }
@@ -85,30 +109,46 @@ const MetaLine: React.FC<{
   </Stack>
 );
 
-const CsoOutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
-  const { primaryTiming, durationText } = getTimingDetails(o);
+const CsoOutfallRow: React.FC<{ outfall: CsoOutfall; now: number }> = ({
+  outfall: o,
+  now,
+}) => {
+  const { primaryTiming, durationText } = getTimingDetails(o, now);
   const title = o.locationName ?? o.watercourse;
-  const subtitle = o.locationName
-    ? formatOutfallSubtitle(o.watercourse, o.waypointName)
-    : o.waypointName;
 
   return (
-    <InfoPanel
-      sx={{
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: 1.5,
-      }}
-    >
-      <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
-        <Typography
-          variant="body2"
-          sx={{ fontWeight: 600, overflowWrap: "anywhere" }}
+    // The chip shares a line with the title only, so the detail lines
+    // below get the row's full width instead of wrapping beside it.
+    <InfoPanel sx={{ display: "block" }}>
+      <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{ alignItems: "flex-start", justifyContent: "space-between" }}
         >
-          {title}
-        </Typography>
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, overflowWrap: "anywhere", minWidth: 0 }}
+          >
+            {title}
+          </Typography>
+          <Chip
+            label={CSO_STATE_UI[o.state].label}
+            size="small"
+            sx={{ ...statusChipSx(o.state), flexShrink: 0, mt: 0.125 }}
+          />
+        </Stack>
         <MetaLine icon={<LocationOnOutlinedIcon sx={{ fontSize: 16 }} />}>
-          {subtitle}
+          {o.locationName && `${o.watercourse} · `}
+          <Link
+            href={mapUrl(o)}
+            target="_blank"
+            rel="noopener noreferrer"
+            color="inherit"
+            aria-label={`${title} on a map (opens in a new tab)`}
+          >
+            Map
+          </Link>
         </MetaLine>
         {primaryTiming && (
           <MetaLine icon={<HistoryIcon sx={{ fontSize: 16 }} />}>
@@ -121,11 +161,6 @@ const CsoOutfallRow: React.FC<{ outfall: CsoOutfall }> = ({ outfall: o }) => {
           </MetaLine>
         )}
       </Stack>
-      <Chip
-        label={CSO_STATE_UI[o.state].label}
-        size="small"
-        sx={{ ...statusChipSx(o.state), flexShrink: 0, mt: 0.125 }}
-      />
     </InfoPanel>
   );
 };
