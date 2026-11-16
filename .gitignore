@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local uploads from /upload when no Blob store is connected
 /data/water-quality/uploads/
+
+# local risk history from /api/risk-history/record when no Blob store is connected
+/data/risk-history/

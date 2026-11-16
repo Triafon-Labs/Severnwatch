@@ -142,6 +142,13 @@ const londonDayNumber = (ms: number): number => {
   return Date.UTC(p.year, p.month - 1, p.day) / (24 * 60 * 60 * 1000);
 };
 
+// "2026-11-16" - the London calendar day an instant falls on. Sorts as text.
+export const londonDayKey = (ms: number): string => {
+  const p = londonDateParts(ms);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+};
+
 // Whole London calendar days from `ms` to `now` - 0 for earlier today.
 export const londonDaysAgo = (ms: number, now: Date | number): number =>
   londonDayNumber(typeof now === "number" ? now : now.getTime()) -

@@ -92,3 +92,20 @@ jobs:
           fi
 
           echo "All upstream sources healthy"
+
+      # Keeps the hourly record of what the app said (lib/riskHistory.ts),
+      # for the Risk vs Samples chart. The route records once per clock hour
+      # and ignores the other three calls, so running it on every ping just
+      # gives each hour four chances against GitHub's late and skipped
+      # schedules. It always answers 200 - "recorded": false with a reason
+      # when there's no Blob store yet or a feed is down - so this step only
+      # reports; a missed snapshot is a gap in a chart, not an outage.
+      - name: Record the risk history
+        run: |
+          result=$(curl -s --max-time 60 "${SITE_URL}/api/risk-history/record" || true)
+          recorded=$(echo "$result" | jq -r '.recorded // "unknown"' 2>/dev/null || echo "unknown")
+          reason=$(echo "$result" | jq -r '.reason // ""' 2>/dev/null || true)
+          echo "Recorded: $recorded $reason"
+          if [ "$reason" = "error" ] || [ "$recorded" = "unknown" ]; then
+            echo "::warning::Risk history snapshot was not recorded"
+          fi
