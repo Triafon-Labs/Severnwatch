@@ -173,12 +173,21 @@ export interface RiskHistoryMonth {
   days: Record<string, DayRecord>; // by London date, "2026-11-16"
 }
 
-// One London calendar day, as the history chart draws it.
-export interface RiskHistoryDay extends DayRecord {
+// One London calendar day, as the history chart reads it. The two halves
+// come from different places and reach back different distances, so either
+// can be missing.
+export interface RiskHistoryDay {
   date: string; // "2026-11-16"
+  // Open-Meteo's modelled rain for Worcester (lib/rainHistory.ts) - not the
+  // gauges' rainMm kept in DayRecord. Null if the archive had nothing.
+  rainMm: number | null;
+  // From the app's own record (DayRecord). Null for a day it didn't record:
+  // every day before recording began, since the spill feed has no history.
+  spillHours: number | null;
+  spillOutfalls: number | null;
 }
 
 export interface RiskHistoryResponse {
-  days: RiskHistoryDay[]; // oldest first; empty until recording has begun
+  days: RiskHistoryDay[]; // oldest first
   asOf: string;
 }

@@ -176,14 +176,21 @@ export const parseMonth = (text: string | null): RiskHistoryMonth => {
   }
 };
 
-// Months of day records (oldest month first) into the chart's days, oldest
-// first. A day can sit in two files - the first days of a month are still
-// being filled in when the next begins - and merges the same way.
+// The chart's days, oldest first: the archive's rain for every day it
+// covers, with the recorded spills beside it where there are any. Months of
+// day records come oldest first; a day can sit in two files - the first
+// days of a month are still being filled in when the next begins - and
+// merges the same way as on recording.
 export const collectDays = (
+  rain: Record<string, number>,
   months: Record<string, DayRecord>[]
 ): RiskHistoryDay[] => {
-  const all = months.reduce(mergeDayRecords, {});
-  return Object.entries(all)
-    .map(([date, record]) => ({ date, ...record }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const recorded = months.reduce(mergeDayRecords, {});
+  const dates = new Set([...Object.keys(rain), ...Object.keys(recorded)]);
+  return [...dates].sort().map((date) => ({
+    date,
+    rainMm: date in rain ? round1(rain[date]) : null,
+    spillHours: recorded[date]?.spillHours ?? null,
+    spillOutfalls: recorded[date]?.spillOutfalls ?? null,
+  }));
 };

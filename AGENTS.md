@@ -106,7 +106,7 @@ app/
       live/             Same, no cache
     water-quality/      Committed + uploaded SAS CSVs, static; rebuilt on each upload
       upload/           POST: passcode-checked upload of one export (validates, stores, revalidates)
-    risk-history/       Each recorded day's rain and spills, cached 3 h (lib/riskHistory.ts)
+    risk-history/       Rain (Open-Meteo archive) and recorded spills by day, cached 3 h
       record/           Records a snapshot and the day records once per clock hour to the Blob store; called by keep-alive
   upload/               The tester's upload page (from Settings → Info → For Testers; noindex)
   layout.tsx            Root layout – ThemeRegistry, data provider, safe-area frame
@@ -128,7 +128,7 @@ components/
   LatestSampleCard.tsx       Newest Grandstand Road sample – counts, tier, tester's note, conditions
   SampleHistoryCard.tsx      Every sample – indicator toggle, picked sample with ‹ › stepping, tier counts, how the limits work
   SampleHistoryChart.tsx     Recharts history of one indicator in tier bands; tap/drag picks a sample (no tooltip)
-  RiskHistoryCard.tsx        "Rain vs Water Quality" – scatter of each sample's bacteria against the rain or spills before it; hidden until recording begins
+  RiskHistoryCard.tsx        "Rain vs Water Quality" – scatter of each sample's bacteria against the rain or spills before it
   SampleDetails.tsx          One sample's counts, note and conditions – Latest Sample and the picked sample
   SampleBandChip.tsx         A sample's Excellent/Good/Poor band as a status chip
   UploadForm.tsx             The /upload page's form – passcode, file, the check's result
@@ -149,6 +149,7 @@ lib/
   riskHistory.ts        Pure: the hourly snapshot of what the app said, and each day's rain and spills
   riskHistoryStore.ts   Server-only: one JSON file a month in Vercel Blob (or a local folder off Vercel)
   useRiskHistory.ts     Client hook: fetches /api/risk-history once for the card
+  rainHistory.ts        Server-only: daily rain for Worcester from Open-Meteo's archive, for the history chart
   riverFlow.ts          Server-only: Bewdley flow, recorded with each snapshot (not used by the risk)
   shareText.ts          What the share button sends – the risk, its reasons and the latest sample
   waterQuality.ts       Sample bands against the bathing water limits, formatting, stats
@@ -205,6 +206,7 @@ docs/                   Reference documents
 | Outfall place names           | Nominatim reverse geocoding                                                                | Only for Ongoing/Recent, capped by `SEWAGE_MAX_RESULTS` |
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) | 15-min readings, three gauges                           |
 | Rainfall forecast             | Open-Meteo `api.open-meteo.com/v1/forecast`                                                | Single point for Worcester, not per-gauge               |
+| Past rainfall                 | Open-Meteo `archive-api.open-meteo.com/v1/archive`                                         | Modelled daily totals, for the history chart only       |
 | Citizen science water quality | SAS CSV export, uploaded via `/upload` (Vercel Blob) + committed baseline                  | No API; uploaded by hand. Static, rebuilt per upload    |
 
 ---
@@ -295,16 +297,23 @@ is safe only because this route is the one writer:
   (`mergeDayRecords`), because gauge readings arrive hours late and a spill's
   length is only known once it ends.
 
-`/api/risk-history` reads the months back by name (never a list - that is a
-metered Blob operation) and returns the day records. `RiskHistoryCard` asks
-one question of them - is there a link between rain or spills and poor water
-quality? - as a scatter: a dot per sample, rain (or hours of spilling, by a
-toggle) over its own day and the three before along the bottom, its bacteria
-as a multiple of the Good limit up the side (log scale, the worse of the two
-indicators). Two tiles give the same answer as counts of Poor samples after
-more and after less. A sample joins only once all four days were recorded. With no store connected the record route answers `recorded: false`,
-the history is empty, and the card renders nothing. Off Vercel both use the
-gitignored `data/risk-history/` folder.
+`/api/risk-history` returns one `RiskHistoryDay` per London day from two
+sources: rain from Open-Meteo's archive for the last `RAIN_HISTORY_DAYS`
+(`lib/rainHistory.ts` - modelled, not the gauges, because it has no gaps or
+lag and is the same source for every sample), and spills from the day
+records, read back by month name (never a list - that is a metered Blob
+operation). Either can be missing: with no store connected the days carry
+rain alone.
+
+`RiskHistoryCard` asks one question of them - is there a link between rain
+or spills and poor water quality? - as a scatter: a dot per sample, rain (or
+hours of spilling, by a toggle) over its own day and the three before along
+the bottom, its bacteria as a multiple of the Good limit up the side (log
+scale, the worse of the two indicators). Two tiles give the same answer as
+counts of Poor samples after more and after less. A sample is placed only
+when all four days are known, so the Rain view has every sample from the
+start and the Spills view fills in from when recording begins. Off Vercel
+the record uses the gitignored `data/risk-history/` folder.
 
 ---
 
