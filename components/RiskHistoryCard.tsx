@@ -1,348 +1,364 @@
 "use client";
 
-import { useMemo } from "react";
-import { Box, Card, CardContent, Stack, Typography } from "@mui/material";
-import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
+import { useMemo, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Stack,
+  ToggleButton,
+  Typography,
+} from "@mui/material";
+import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import WbSunnyOutlinedIcon from "@mui/icons-material/WbSunnyOutlined";
 import { RiskHistoryDay } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import { useRiskHistory } from "@/lib/useRiskHistory";
-import { CSO_STATE_UI } from "@/lib/csoStatus";
 import {
+  INDICATORS,
   SAMPLE_BAND_UI,
   SampleBand,
   bandForSample,
   formatCount,
   sampleTimeMs,
+  worstIndicator,
 } from "@/lib/waterQuality";
 import { formatLondonDate, londonDayKey } from "@/lib/time";
 import { DAY_MS } from "@/lib/rainfallAnalysis";
+import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
+import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 
-// Rain, spills and sample results on the same run of days, so the three can
-// be read against each other: did the rain set spills off, and did the
-// samples that followed come back worse.
+// One question: is there a link between rain or sewage spills and poor
+// water quality? Answered the way that question is - a scatter. Each dot is
+// a sample: how much rain (or spilling) came in the days before it along
+// the bottom, how much bacteria it found up the side. If there is a link the
+// dots climb to the right; if there isn't, they sit level.
 //
-// Three rows of bars drawn alike, one step per day. What they show is
-// measured - the gauges' rain, the monitors' spill time, the lab's counts -
-// not the app's own estimate of the risk. The rain and spill days are
-// recorded by the app as they happen (lib/riskHistory.ts), so the card
-// renders nothing until recording has begun.
+// Two tiles under it say the same thing in counts, for anyone who doesn't
+// read charts: of the samples after more rain or spilling, how many were
+// Poor, against those after less.
+//
+// Everything plotted is measured - the gauges' rain, the monitors' spill
+// time, the lab's counts - not the app's estimate. The rain and spill days
+// are recorded by the app as they happen (lib/riskHistory.ts), so a sample
+// only joins once the days before it were recorded, and the card renders
+// nothing until recording has begun.
 
-// How many days the rows show, newest on the right.
-const WINDOW_DAYS = 56;
-const ROW_HEIGHT = 40;
+// A sample is set against its own day and this many before it. Not a week:
+// what fell six days ago has long gone past, and would only blur the
+// picture. Roughly a spill's travel time down plus the 48 h it lingers.
+const DAYS_BEFORE = 3;
 
-// A sample is held against spills on its own day and this many before it.
-const SPILL_LOOKBACK_DAYS = 3;
+const PLOT_HEIGHT = 200;
+const DOT_SIZE = 14;
 
-// The rain row always reaches at least this, so a week of drizzle doesn't
-// fill the row the way a storm would.
-const MIN_RAIN_SCALE_MM = 10;
+// Up the side: the sample's bacteria as a multiple of the Good limit, for
+// whichever of E. coli and enterococci is further over - the reading that
+// decides its band, so every Poor sample sits in the Poor zone. (Plotting
+// E. coli alone left a sample that failed on enterococci looking clean.)
+// On a log scale, a hundredth of the limit to a hundred times it: on a
+// linear one every ordinary sample would sit on the floor beside a bad one.
+const RATIO_FLOOR = 0.01;
+const RATIO_CEILING = 100;
+const RATIO_TICKS: { ratio: number; label: string }[] = [
+  { ratio: 100, label: "100×" },
+  { ratio: 10, label: "10×" },
+  { ratio: 1, label: "Limit" },
+  { ratio: 0.1, label: "1/10" },
+  { ratio: 0.01, label: "1/100" },
+];
 
-// E. coli is drawn on a log scale between these counts (cfu/100 ml): the
-// range runs from under 10 to tens of thousands, and on a linear one every
-// ordinary sample would be a sliver beside one bad one.
-const COUNT_FLOOR = 10;
-const COUNT_CEILING = 10000;
+// The bottom scale always reaches at least this, so a few dry samples
+// don't spread across the chart as if they differed.
+const MIN_SCALE = { rain: 10, spills: 5 };
 
-// "2026-11-16" for each of the last `count` London days, oldest first. Noon
-// UTC is the same calendar day in London all year, so stepping by 24 hours
-// from it never skips or repeats one across a clock change.
-const lastDayKeys = (count: number): string[] => {
-  const todayNoon = Date.parse(`${londonDayKey(Date.now())}T12:00:00Z`);
-  return Array.from({ length: count }, (_, i) =>
-    londonDayKey(todayNoon - (count - 1 - i) * DAY_MS)
-  );
+type Measure = "rain" | "spills";
+
+const MEASURE_UI: Record<
+  Measure,
+  { toggle: string; axis: string; unit: string }
+> = {
+  rain: { toggle: "Rain", axis: "Rain", unit: " mm" },
+  spills: { toggle: "Sewage Spills", axis: "Spilling", unit: "h" },
 };
 
 const keyToMs = (key: string) => Date.parse(`${key}T12:00:00Z`);
 
-const dayLabel = (key: string) =>
-  formatLondonDate(keyToMs(key), { withWeekday: false });
+const round1 = (n: number) => Math.round(n * 10) / 10;
 
-interface Bar {
-  // 0-1 of the row's height; null for a day with nothing to draw.
-  fraction: number | null;
-  colour?: string;
-  title?: string;
+// Where a multiple of the limit sits up the plot, 0 (floor) to 1 (ceiling).
+const ratioFraction = (ratio: number) =>
+  Math.log10(
+    Math.min(RATIO_CEILING, Math.max(RATIO_FLOOR, ratio)) / RATIO_FLOOR
+  ) / Math.log10(RATIO_CEILING / RATIO_FLOOR);
+
+interface Point {
+  id: string;
+  when: string; // "Sun 8 Nov"
+  band: SampleBand;
+  ratio: number; // the worse indicator, as a multiple of its Good limit
+  countText: string; // "Enterococci 520"
+  rain: number; // mm over the days before
+  spills: number; // hours of spilling over the days before
 }
-
-// One row: its name, its scale, then a bar per day on a faint track.
-const BarRow: React.FC<{
-  label: string;
-  scale: string;
-  keys: string[];
-  bars: Map<string, Bar>;
-  colour: string;
-}> = ({ label, scale, keys, bars, colour }) => (
-  <Box>
-    <Stack
-      direction="row"
-      sx={{ justifyContent: "space-between", alignItems: "baseline", mb: 0.5 }}
-    >
-      <Typography variant="subtitle2" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        {scale}
-      </Typography>
-    </Stack>
-    <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${keys.length}, minmax(0, 1fr))`,
-        columnGap: "2px",
-        height: ROW_HEIGHT,
-      }}
-    >
-      {keys.map((key) => {
-        const bar = bars.get(key);
-        return (
-          <Box
-            key={key}
-            title={bar?.title}
-            sx={{
-              display: "flex",
-              alignItems: "flex-end",
-              borderRadius: "2px",
-              bgcolor: "surfaces.containerHigh",
-              overflow: "hidden",
-            }}
-          >
-            {bar && bar.fraction !== null && (
-              <Box
-                sx={{
-                  width: "100%",
-                  // Anything recorded gets at least a visible sliver.
-                  height: `${Math.max(8, Math.round(bar.fraction * 100))}%`,
-                  borderRadius: "2px",
-                  backgroundColor: bar.colour ?? colour,
-                }}
-              />
-            )}
-          </Box>
-        );
-      })}
-    </Box>
-  </Box>
-);
-
-const LegendItem: React.FC<{
-  colour: string;
-  children: React.ReactNode;
-}> = ({ colour, children }) => (
-  <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-    <Box
-      sx={{
-        width: 10,
-        height: 10,
-        flexShrink: 0,
-        borderRadius: "2px",
-        backgroundColor: colour,
-      }}
-    />
-    <Typography variant="caption" color="text.secondary">
-      {children}
-    </Typography>
-  </Stack>
-);
 
 const RiskHistoryCard: React.FC = () => {
   const days = useRiskHistory();
   const { waterQuality } = useSevernContext();
+  const [measure, setMeasure] = useState<Measure>("rain");
 
-  const view = useMemo(() => {
+  const points = useMemo(() => {
     if (days.length === 0) return null;
-    const keys = lastDayKeys(WINDOW_DAYS);
-    const shown = new Set(keys);
     const byDate = new Map<string, RiskHistoryDay>(
       days.map((d) => [d.date, d])
     );
-    const since = days[0].date;
-
-    const inWindow = days.filter((d) => shown.has(d.date));
-    const maxRain = Math.max(
-      MIN_RAIN_SCALE_MM,
-      ...inWindow.map((d) => d.rainMm ?? 0)
-    );
-    const maxSpill = Math.max(1, ...inWindow.map((d) => d.spillHours));
-
-    const rain = new Map<string, Bar>();
-    const spills = new Map<string, Bar>();
-    for (const d of inWindow) {
-      const when = dayLabel(d.date);
-      if (d.rainMm !== null && d.rainMm > 0) {
-        rain.set(d.date, {
-          fraction: d.rainMm / maxRain,
-          title: `${when}: ${d.rainMm} mm`,
-        });
-      }
-      if (d.spillHours > 0) {
-        spills.set(d.date, {
-          fraction: d.spillHours / maxSpill,
-          title: `${when}: ${d.spillHours}h of spilling from ${d.spillOutfalls} overflow${d.spillOutfalls === 1 ? "" : "s"}`,
-        });
-      }
-    }
-
-    // The newest sample on each day since recording began.
-    const samples = new Map<string, Bar>();
-    const sampleBands = new Map<string, SampleBand>();
+    const result: Point[] = [];
     for (const sample of waterQuality?.samples ?? []) {
       const band = bandForSample(sample);
-      const key = londonDayKey(sampleTimeMs(sample));
-      if (!band || key < since) continue;
-      sampleBands.set(key, band);
-      const count = sample.eColi?.value ?? COUNT_FLOOR;
-      const clamped = Math.min(COUNT_CEILING, Math.max(COUNT_FLOOR, count));
-      samples.set(key, {
-        fraction:
-          Math.log10(clamped / COUNT_FLOOR) /
-          Math.log10(COUNT_CEILING / COUNT_FLOOR),
-        colour: SAMPLE_BAND_UI[band].color,
-        title: `${dayLabel(key)}: ${SAMPLE_BAND_UI[band].label}, E. coli ${formatCount(sample.eColi)}`,
+      const worst = worstIndicator(sample);
+      const count = worst && sample[worst];
+      if (!band || !worst || !count) continue;
+      const ms = sampleTimeMs(sample);
+      const sampleDay = keyToMs(londonDayKey(ms));
+      const before: RiskHistoryDay[] = [];
+      for (let i = 0; i <= DAYS_BEFORE; i++) {
+        const day = byDate.get(londonDayKey(sampleDay - i * DAY_MS));
+        if (day) before.push(day);
+      }
+      // Only samples whose whole run-up was recorded: a part-recorded one
+      // would be plotted as drier than it was.
+      if (before.length <= DAYS_BEFORE) continue;
+      result.push({
+        id: sample.id,
+        when: formatLondonDate(ms),
+        band,
+        ratio: count.value / INDICATORS[worst].limits.good,
+        countText: `${INDICATORS[worst].shortLabel} ${formatCount(count)}`,
+        rain: round1(before.reduce((sum, d) => sum + (d.rainMm ?? 0), 0)),
+        spills: round1(before.reduce((sum, d) => sum + d.spillHours, 0)),
       });
     }
-
-    // Whether any overflow spilled on a sample's day or the few before it.
-    const spilledBefore = (key: string) => {
-      for (let i = 0; i <= SPILL_LOOKBACK_DAYS; i++) {
-        const day = byDate.get(londonDayKey(keyToMs(key) - i * DAY_MS));
-        if (day && day.spillHours > 0) return true;
-      }
-      return false;
-    };
-    const all = [...sampleBands];
-    const poor = all.filter(([, band]) => band === "poor");
-    const clean = all.filter(([, band]) => band !== "poor");
-
-    return {
-      keys,
-      since,
-      rain,
-      spills,
-      samples,
-      maxRain,
-      maxSpill,
-      sampleCount: all.length,
-      poor: poor.length,
-      poorAfterSpill: poor.filter(([key]) => spilledBefore(key)).length,
-      clean: clean.length,
-      cleanNoSpill: clean.filter(([key]) => !spilledBefore(key)).length,
-    };
+    return result;
   }, [days, waterQuality]);
 
-  if (!view) return null;
+  if (!points) return null;
 
-  const since = dayLabel(view.since);
+  const ui = MEASURE_UI[measure];
+  const since = formatLondonDate(keyToMs(days[0].date), {
+    withWeekday: false,
+  });
+  const max = Math.max(MIN_SCALE[measure], ...points.map((p) => p[measure]));
+
+  // The same answer in counts: the samples split into those after more of
+  // it and those after less. Spills split on any at all; rain at the middle
+  // sample, so both halves have something in them.
+  const sorted = [...points].sort((a, b) => a[measure] - b[measure]);
+  const cut =
+    measure === "spills"
+      ? 0
+      : sorted.length > 1
+        ? sorted[Math.ceil(sorted.length / 2) - 1].rain
+        : 0;
+  const more = points.filter((p) => p[measure] > cut);
+  const less = points.filter((p) => p[measure] <= cut);
+  const poorOf = (group: Point[]) =>
+    group.length === 0
+      ? "None yet"
+      : `${group.filter((p) => p.band === "poor").length} of ${group.length} Poor`;
 
   return (
     <Card>
       <CardContent>
         <Typography variant="h5" component="h2">
-          Rain, Spills and Samples
+          Rain vs Water Quality
         </Typography>
         <Typography
           variant="body2"
           color="text.secondary"
           sx={{ mt: 0.25, mb: 2 }}
         >
-          Day by day · recording since {since}
+          Each dot is a sample, set against the {DAYS_BEFORE} days before it ·
+          recording since {since}
         </Typography>
 
-        <Stack
-          spacing={1.5}
-          role="img"
-          aria-label={`Daily rain, hours of sewage spills and sample results since ${since}`}
-        >
-          <BarRow
-            label="Rain"
-            scale={`up to ${Math.round(view.maxRain)} mm a day`}
-            keys={view.keys}
-            bars={view.rain}
-            colour="primary.main"
-          />
-          <BarRow
-            label="Spills"
-            scale={`up to ${Math.round(view.maxSpill)}h a day`}
-            keys={view.keys}
-            bars={view.spills}
-            colour={CSO_STATE_UI.Recent.color}
-          />
-          <Box>
-            <BarRow
-              label="Samples"
-              scale="E. coli, taller is more"
-              keys={view.keys}
-              bars={view.samples}
-              colour={SAMPLE_BAND_UI.excellent.color}
-            />
-            <Stack
-              direction="row"
-              sx={{ justifyContent: "space-between", mt: 0.5 }}
+        {points.length === 0 ? (
+          <InfoPanel>
+            <Typography variant="body2" color="text.secondary">
+              No samples to plot yet. Each one joins the chart once the{" "}
+              {DAYS_BEFORE} days before it have been recorded.
+            </Typography>
+          </InfoPanel>
+        ) : (
+          <Stack spacing={2}>
+            <SlidingToggleButtonGroup
+              value={measure}
+              exclusive
+              fullWidth
+              size="small"
+              aria-label="Compare the samples with"
+              onChange={(_, v: Measure | null) => v && setMeasure(v)}
             >
-              <Typography variant="caption" color="text.secondary">
-                {dayLabel(view.keys[0])}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Today
-              </Typography>
-            </Stack>
-          </Box>
-        </Stack>
+              {(Object.keys(MEASURE_UI) as Measure[]).map((key) => (
+                <ToggleButton key={key} value={key} sx={{ fontSize: 12 }}>
+                  {MEASURE_UI[key].toggle}
+                </ToggleButton>
+              ))}
+            </SlidingToggleButtonGroup>
 
-        <Stack direction="row" sx={{ flexWrap: "wrap", columnGap: 1.5, mt: 1 }}>
-          <LegendItem colour={SAMPLE_BAND_UI.excellent.color}>
-            Excellent
-          </LegendItem>
-          <LegendItem colour={SAMPLE_BAND_UI.good.color}>Good</LegendItem>
-          <LegendItem colour={SAMPLE_BAND_UI.poor.color}>Poor</LegendItem>
-        </Stack>
+            <Box
+              role="img"
+              aria-label={`Bacteria in each of ${points.length} samples against ${ui.axis.toLowerCase()} in the ${DAYS_BEFORE} days before. ${poorOf(more)} after more, ${poorOf(less)} after less.`}
+            >
+              <Box sx={{ display: "flex" }}>
+                {/* Count scale, on the plot's own lines. */}
+                <Box
+                  aria-hidden
+                  sx={{
+                    position: "relative",
+                    width: 44,
+                    flexShrink: 0,
+                    height: PLOT_HEIGHT,
+                  }}
+                >
+                  {RATIO_TICKS.map((tick) => (
+                    <Typography
+                      key={tick.ratio}
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        position: "absolute",
+                        right: 6,
+                        bottom: `${ratioFraction(tick.ratio) * 100}%`,
+                        transform: "translateY(50%)",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {tick.label}
+                    </Typography>
+                  ))}
+                </Box>
 
-        {/* How the samples lined up with the spills before them. */}
-        <Box sx={{ ...tileGridSx, mt: 2 }}>
-          {view.sampleCount === 0 ? (
-            <StatTile
-              icon={<ScienceOutlinedIcon />}
-              label="Samples"
-              value="None yet"
-              detail="Since recording began"
-            />
-          ) : (
-            <>
+                <Box
+                  sx={{
+                    position: "relative",
+                    flex: 1,
+                    height: PLOT_HEIGHT,
+                    borderLeft: "1px solid",
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    // Room for half a dot at the right-hand end.
+                    mr: `${DOT_SIZE / 2}px`,
+                  }}
+                >
+                  {/* The Poor zone: everything over the Good limit. */}
+                  <Box
+                    aria-hidden
+                    sx={{
+                      position: "absolute",
+                      left: 0,
+                      right: `-${DOT_SIZE / 2}px`,
+                      top: 0,
+                      bottom: `${ratioFraction(1) * 100}%`,
+                      bgcolor: "error.container",
+                      opacity: 0.5,
+                      borderBottom: "1px dashed",
+                      borderColor: "error.main",
+                    }}
+                  />
+                  <Typography
+                    aria-hidden
+                    variant="caption"
+                    sx={{
+                      position: "absolute",
+                      left: 6,
+                      top: 4,
+                      color: "error.main",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Poor
+                  </Typography>
+
+                  {points.map((p) => (
+                    <Box
+                      key={p.id}
+                      title={`${p.when}: ${p.countText}, ${p[measure]}${ui.unit} before`}
+                      sx={{
+                        position: "absolute",
+                        left: `${(p[measure] / max) * 100}%`,
+                        bottom: `${ratioFraction(p.ratio) * 100}%`,
+                        width: DOT_SIZE,
+                        height: DOT_SIZE,
+                        transform: "translate(-50%, 50%)",
+                        borderRadius: "50%",
+                        backgroundColor: SAMPLE_BAND_UI[p.band].color,
+                        // A ring in the card's own colour, so dots that
+                        // land on each other stay countable.
+                        border: "2px solid",
+                        borderColor: "background.paper",
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              {/* Bottom scale. */}
+              <Stack
+                aria-hidden
+                direction="row"
+                sx={{
+                  justifyContent: "space-between",
+                  pl: "44px",
+                  mt: 0.5,
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  0
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {ui.axis} in the {DAYS_BEFORE} days before →
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {Math.round(max)}
+                  {ui.unit}
+                </Typography>
+              </Stack>
+              <Typography
+                aria-hidden
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", mt: 0.5 }}
+              >
+                ↑ Bacteria against the Good limit. A link shows as dots climbing
+                to the right.
+              </Typography>
+            </Box>
+
+            <Box sx={tileGridSx}>
               <StatTile
-                icon={<WarningAmberIcon />}
-                label="Poor Samples"
-                value={
-                  view.poor === 0
-                    ? "None yet"
-                    : `${view.poorAfterSpill} of ${view.poor}`
-                }
+                icon={<WaterDropIcon />}
+                label={measure === "rain" ? "Wetter Half" : "After Spills"}
+                value={poorOf(more)}
                 detail={
-                  view.poor === 0
-                    ? "Since recording began"
-                    : `After a spill in the ${SPILL_LOOKBACK_DAYS} days before`
+                  measure === "rain"
+                    ? `Over ${cut} mm before`
+                    : "Some spilling before"
                 }
               />
               <StatTile
-                icon={<CheckCircleOutlineIcon />}
-                label="Clean Samples"
-                value={
-                  view.clean === 0
-                    ? "None yet"
-                    : `${view.cleanNoSpill} of ${view.clean}`
-                }
+                icon={<WbSunnyOutlinedIcon />}
+                label={measure === "rain" ? "Drier Half" : "No Spills"}
+                value={poorOf(less)}
                 detail={
-                  view.clean === 0
-                    ? "Since recording began"
-                    : `With no spill in the ${SPILL_LOOKBACK_DAYS} days before`
+                  measure === "rain"
+                    ? `${cut} mm or less before`
+                    : "No spilling before"
                 }
               />
-            </>
-          )}
-        </Box>
+            </Box>
+          </Stack>
+        )}
       </CardContent>
     </Card>
   );

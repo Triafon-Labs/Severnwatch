@@ -128,7 +128,7 @@ components/
   LatestSampleCard.tsx       Newest Grandstand Road sample – counts, tier, tester's note, conditions
   SampleHistoryCard.tsx      Every sample – indicator toggle, picked sample with ‹ › stepping, tier counts, how the limits work
   SampleHistoryChart.tsx     Recharts history of one indicator in tier bands; tap/drag picks a sample (no tooltip)
-  RiskHistoryCard.tsx        "Rain, Spills and Samples" – three rows of daily bars on the same days; hidden until recording begins
+  RiskHistoryCard.tsx        "Rain vs Water Quality" – scatter of each sample's bacteria against the rain or spills before it; hidden until recording begins
   SampleDetails.tsx          One sample's counts, note and conditions – Latest Sample and the picked sample
   SampleBandChip.tsx         A sample's Excellent/Good/Poor band as a status chip
   UploadForm.tsx             The /upload page's form – passcode, file, the check's result
@@ -296,10 +296,13 @@ is safe only because this route is the one writer:
   length is only known once it ends.
 
 `/api/risk-history` reads the months back by name (never a list - that is a
-metered Blob operation) and returns the day records. `RiskHistoryCard` draws
-them as three rows of daily bars - rain, spills, and the samples' E. coli on
-a log scale - and counts how samples lined up with spills in the three days
-before. With no store connected the record route answers `recorded: false`,
+metered Blob operation) and returns the day records. `RiskHistoryCard` asks
+one question of them - is there a link between rain or spills and poor water
+quality? - as a scatter: a dot per sample, rain (or hours of spilling, by a
+toggle) over its own day and the three before along the bottom, its bacteria
+as a multiple of the Good limit up the side (log scale, the worse of the two
+indicators). Two tiles give the same answer as counts of Poor samples after
+more and after less. A sample joins only once all four days were recorded. With no store connected the record route answers `recorded: false`,
 the history is empty, and the card renders nothing. Off Vercel both use the
 gitignored `data/risk-history/` folder.
 

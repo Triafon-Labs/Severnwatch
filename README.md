@@ -44,7 +44,7 @@ npm run dev
 
 No environment variables are needed for local development. Uploading sample results through `/upload` on the live site needs a Vercel Blob store and an `UPLOAD_PASSCODE`; see [`data/water-quality/README.md`](data/water-quality/README.md).
 
-The same Blob store also keeps the app's risk history: once it is connected, the site records each day's rain and spills and what it said each hour (as `risk-history/YYYY-MM.json`), and a "Rain, Spills and Samples" card appears showing them against the sample results. It needs no passcode or other setting.
+The same Blob store also keeps the app's risk history: once it is connected, the site records each day's rain and spills and what it said each hour (as `risk-history/YYYY-MM.json`), and a "Rain vs Water Quality" card appears, plotting each sample against the rain and spills before it. It needs no passcode or other setting.
 
 ## Commits and Releases
 
