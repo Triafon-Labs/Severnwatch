@@ -30,10 +30,6 @@ import {
   RISK_LEVEL_UI,
   derivePollutionRisk,
 } from "@/lib/pollutionRisk";
-import { WaterQualitySample } from "@/types";
-import { bandForSample, sampleTimeMs } from "@/lib/waterQuality";
-import { formatDaysAgo, londonDaysAgo } from "@/lib/time";
-import SampleBandChip from "@/components/SampleBandChip";
 import {
   collapseMotion,
   m3Spring,
@@ -135,41 +131,6 @@ const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
   );
 };
 
-// The newest sample's band and age, always on show under the headline: it's
-// the one direct measurement of the water, so the estimate above is read
-// against it rather than instead of it. The Latest Sample card has the
-// counts; this is the one-line version.
-const LatestSampleLine: React.FC<{
-  sample: WaterQualitySample;
-  now: number;
-}> = ({ sample, now }) => {
-  const band = bandForSample(sample);
-  const ms = sampleTimeMs(sample);
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: 1,
-        mt: 2,
-      }}
-    >
-      <ScienceOutlinedIcon
-        aria-hidden
-        sx={{ fontSize: 20, color: "text.secondary" }}
-      />
-      <Typography variant="body2" color="text.secondary">
-        Latest sample
-      </Typography>
-      {band && <SampleBandChip band={band} />}
-      <Typography variant="body2" color="text.secondary">
-        · {formatDaysAgo(londonDaysAgo(ms, now))}
-      </Typography>
-    </Box>
-  );
-};
-
 // Paddlecheck's Contributing Factors: the shared tile, two across, with an
 // odd last one spanning the row.
 const ContributingFactors: React.FC<{ factors: PollutionRiskFactor[] }> = ({
@@ -220,9 +181,6 @@ const PollutionRiskCard: React.FC = () => {
         : null,
     [cso, rainfall, waterQuality, now]
   );
-
-  const latestSample =
-    waterQuality?.samples[waterQuality.samples.length - 1] ?? null;
 
   return (
     <Card>
@@ -294,9 +252,6 @@ const PollutionRiskCard: React.FC = () => {
           <Grow in appear {...springTransition()}>
             <Stack>
               <RiskHero level={risk.level} />
-              {latestSample && (
-                <LatestSampleLine sample={latestSample} now={now.getTime()} />
-              )}
               <Collapse
                 in={risk.factors.length > 0}
                 unmountOnExit
