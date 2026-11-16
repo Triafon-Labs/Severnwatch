@@ -154,12 +154,28 @@ export interface RiskSnapshot {
   flowBewdley: number | null;
 }
 
-// One London calendar day of snapshots, as the history chart draws it.
-export interface RiskHistoryDay {
+// One London calendar day of rain and spills, as measured. Kept beside the
+// snapshots and rewritten as the day fills in: the EA's gauges report in
+// batches hours late, and a spill's length is only known once it ends, so
+// each recording can only add to a day (see mergeDayRecords).
+export interface DayRecord {
+  // Mean of the gauges' totals for the day, mm. Null before any reading.
+  rainMm: number | null;
+  // Hours of spilling that day, summed across the catchment's overflows.
+  spillHours: number;
+  // How many overflows spilled at some point in the day.
+  spillOutfalls: number;
+}
+
+// A month's file in the store.
+export interface RiskHistoryMonth {
+  snapshots: RiskSnapshot[]; // oldest first, one per clock hour
+  days: Record<string, DayRecord>; // by London date, "2026-11-16"
+}
+
+// One London calendar day, as the history chart draws it.
+export interface RiskHistoryDay extends DayRecord {
   date: string; // "2026-11-16"
-  worst: RiskLevel; // the worst modelLevel recorded that day
-  // Snapshots at each modelLevel - roughly hours, less any missed.
-  counts: Record<RiskLevel, number>;
 }
 
 export interface RiskHistoryResponse {

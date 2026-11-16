@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { RiskHistoryResponse, RiskSnapshot } from "@/types";
-import { parseSnapshots, summariseDays } from "@/lib/riskHistory";
+import { DayRecord, RiskHistoryResponse } from "@/types";
+import { collectDays, parseMonth } from "@/lib/riskHistory";
 import {
   historyAvailable,
   monthKey,
@@ -8,7 +8,7 @@ import {
   readMonth,
 } from "@/lib/riskHistoryStore";
 
-// The recorded risk, a day at a time, for the history chart. Empty until
+// Each recorded day's rain and spills, for the history chart. Empty until
 // recording has begun (or with no store connected), which the card reads as
 // "don't show yet".
 //
@@ -21,7 +21,7 @@ export const revalidate = 10800;
 const MAX_MONTHS = 13;
 
 export async function GET() {
-  const snapshots: RiskSnapshot[] = [];
+  const months: Record<string, DayRecord>[] = [];
   try {
     if (historyAvailable()) {
       // Newest month backwards, stopping at the first month with nothing in
@@ -30,10 +30,10 @@ export async function GET() {
       // there.)
       let key = monthKey(Date.now());
       for (let i = 0; i < MAX_MONTHS; i++) {
-        const month = parseSnapshots(await readMonth(key));
+        const month = parseMonth(await readMonth(key));
         // The current month can be empty in its first hour.
-        if (month.length === 0 && i > 0) break;
-        snapshots.unshift(...month);
+        if (month.snapshots.length === 0 && i > 0) break;
+        months.unshift(month.days);
         key = previousMonthKey(key);
       }
     }
@@ -42,7 +42,7 @@ export async function GET() {
   }
 
   const body: RiskHistoryResponse = {
-    days: summariseDays(snapshots),
+    days: collectDays(months),
     asOf: new Date().toISOString(),
   };
   return NextResponse.json(body);
