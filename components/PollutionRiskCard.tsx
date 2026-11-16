@@ -28,6 +28,7 @@ import {
   PollutionRiskLevel,
   RISK_LEVEL_UI,
   derivePollutionRisk,
+  formatSpillTime,
 } from "@/lib/pollutionRisk";
 import {
   collapseMotion,
@@ -56,6 +57,7 @@ const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
   lingering: HistoryIcon,
   rain: WaterDropIcon,
   sample: ScienceOutlinedIcon,
+  offline: CloudOffIcon,
 };
 
 // Paddlecheck's PaddlingStatusHero, with the scale as a strip underneath -
@@ -139,15 +141,18 @@ const ContributingFactors: React.FC<{ factors: PollutionRiskFactor[] }> = ({
       Contributing Factors
     </Typography>
     <Box sx={{ ...tileGridSx, mt: 1 }}>
-      {factors.map(({ key, label, value, detail }) => {
+      {factors.map(({ key, label, value, detail, spillMinutes }) => {
         const Icon = FACTOR_ICONS[key];
+        const spillTime = spillMinutes
+          ? `${formatSpillTime(spillMinutes)} total`
+          : null;
         return (
           <StatTile
             key={key}
             icon={<Icon />}
             label={label}
             value={value}
-            detail={detail}
+            detail={[detail, spillTime].filter(Boolean).join(" · ")}
           />
         );
       })}
