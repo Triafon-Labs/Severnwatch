@@ -18,8 +18,16 @@ const CsoListCard: React.FC = () => {
   return (
     <Card>
       <CardContent>
-        <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
-          CSO Monitoring Map
+        <Typography variant="h5" component="h2">
+          Sewage Overflows
+        </Typography>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mt: 0.25, mb: 2 }}
+        >
+          The river flows down the page to Worcester. Each stop shows roughly
+          how long its water takes to get there.
         </Typography>
 
         {showSkeleton && <RiverSchematicSkeleton />}

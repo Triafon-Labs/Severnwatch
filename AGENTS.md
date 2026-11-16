@@ -118,9 +118,9 @@ components/
   DisclaimerDialog.tsx       First-run pop-up – must be accepted once per DISCLAIMER_VERSION (as in Paddlecheck)
   ConditionsKey.tsx          Legend for the status colours, map markers and chart bands
   PollutionRiskCard.tsx      Headline pollution risk from spills, rainfall + latest sample, with the "Updated" line
-  CsoListCard.tsx            Live/recent spills, then the network as a river diagram
+  CsoListCard.tsx            "Sewage Overflows" – the network as a river diagram
   RiverSchematic.tsx         Transit-map view of the catchment, stops in downstream order
-  CsoOutfallRow.tsx          One outfall as a labelled row, shared by both of the above
+  CsoOutfallRow.tsx          One outfall as a row under its stop – where its spill is, times, map link
   RainfallCard.tsx           Gauge stats, chart, change tiles
   RainfallChart.tsx          Recharts intensity/daily/forecast views
   LatestSampleCard.tsx       Newest Grandstand Road sample – counts, tier, tester's note, conditions

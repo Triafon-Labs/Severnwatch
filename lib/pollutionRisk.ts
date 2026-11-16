@@ -155,6 +155,58 @@ const plumeTiming = (
   return null;
 };
 
+// Where one outfall's spill is relative to the reach, for the risk below
+// and for the river diagram, so a stop's badge and the headline's factors
+// are the same reading. Null when it isn't spilling and hasn't lately, or
+// its water has gone by and the 48 h tail has run out.
+export type SpillPhase = "here" | PlumePhase;
+
+export const spillPhase = (
+  outfall: CsoOutfall,
+  now: number
+): { phase: SpillPhase; hoursUntil: number } | null => {
+  if (outfall.state !== "Ongoing" && outfall.state !== "Recent") return null;
+  // Discharging inside the reach: observed, not estimated, so it's the one
+  // spill case that makes the risk High (see the header comment).
+  if (
+    outfall.state === "Ongoing" &&
+    WAYPOINTS_BY_NAME.get(outfall.waypointName)?.isReach
+  ) {
+    return { phase: "here", hoursUntil: 0 };
+  }
+  return plumeTiming(outfall, now);
+};
+
+// Worst first - the order the factors are listed in.
+export const SPILL_PHASE_ORDER: SpillPhase[] = [
+  "here",
+  "passing",
+  "arriving",
+  "lingering",
+];
+
+// A phase in words: `short` for a stop's badge on the river diagram, `long`
+// for the line on one outfall's row.
+export const spillPhaseText = (
+  phase: SpillPhase,
+  hoursUntil: number
+): { short: string; long: string } => {
+  const due = `~${Math.max(1, Math.round(hoursUntil))}h`;
+  switch (phase) {
+    case "here":
+      return { short: "Spilling", long: "Spilling into the reach now" };
+    case "passing":
+      return { short: "Passing", long: "Passing Worcester (est.)" };
+    case "arriving":
+      return {
+        short: `Due ${due}`,
+        long: `Reaches Worcester in ${due} (est.)`,
+      };
+    case "lingering":
+      return { short: "Passed", long: "Passed Worcester (est.)" };
+  }
+};
+
 // When rain counts towards the risk. Rain is only a leading indicator here:
 // once overflows spill, the feed shows it directly. So the bar is rain that
 // plausibly sets them off, not any rain at all.
@@ -333,27 +385,22 @@ export const derivePollutionRisk = (
   for (const outfall of cso.outfalls) {
     const waypoint = WAYPOINTS_BY_NAME.get(outfall.waypointName);
     if (outfall.state === "Offline" && waypoint?.isReach) offline++;
-    if (outfall.state !== "Ongoing" && outfall.state !== "Recent") continue;
+    const where = spillPhase(outfall, now);
+    if (!where) continue;
     const spilled = spillMinutes(outfall, now);
-    // Discharging inside the reach: observed, not estimated, so it's the one
-    // spill case that makes the risk High (see the header comment).
-    if (outfall.state === "Ongoing" && waypoint?.isReach) {
+    if (where.phase === "here") {
       here++;
       minutes.here += spilled;
-      continue;
-    }
-    const timing = plumeTiming(outfall, now);
-    if (!timing) continue;
-    if (timing.phase === "passing") {
+    } else if (where.phase === "passing") {
       passing++;
       minutes.passing += spilled;
-    } else if (timing.phase === "lingering") {
+    } else if (where.phase === "lingering") {
       lingering++;
       minutes.lingering += spilled;
     } else {
       arriving++;
       minutes.arriving += spilled;
-      soonest = Math.min(soonest, timing.hoursUntil);
+      soonest = Math.min(soonest, where.hoursUntil);
     }
   }
 
