@@ -1,13 +1,11 @@
 "use client";
 
 import { Chip, Link, Stack, Typography } from "@mui/material";
-import WavesIcon from "@mui/icons-material/Waves";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 import { CsoOutfall } from "@/types";
 import { formatDuration } from "@/lib/format";
-import { spillPhase, spillPhaseText } from "@/lib/pollutionRisk";
 import { CSO_STATE_UI, statusChipSx } from "@/lib/csoStatus";
 import { formatLondonDate, getLondonHHMM, londonDaysAgo } from "@/lib/time";
 import InfoPanel from "@/components/InfoPanel";
@@ -117,9 +115,6 @@ const CsoOutfallRow: React.FC<{ outfall: CsoOutfall; now: number }> = ({
 }) => {
   const { primaryTiming, durationText } = getTimingDetails(o, now);
   const title = o.locationName ?? o.watercourse;
-  // Where the spill's water is - the same reading the Pollution Risk card
-  // counts it under.
-  const where = spillPhase(o, now);
 
   return (
     // The chip shares a line with the title only, so the detail lines
@@ -155,11 +150,6 @@ const CsoOutfallRow: React.FC<{ outfall: CsoOutfall; now: number }> = ({
             Map
           </Link>
         </MetaLine>
-        {where && (
-          <MetaLine icon={<WavesIcon sx={{ fontSize: 16 }} />}>
-            {spillPhaseText(where.phase, where.hoursUntil).long}
-          </MetaLine>
-        )}
         {primaryTiming && (
           <MetaLine icon={<HistoryIcon sx={{ fontSize: 16 }} />}>
             {primaryTiming}

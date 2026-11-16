@@ -155,9 +155,7 @@ const plumeTiming = (
   return null;
 };
 
-// Where one outfall's spill is relative to the reach, for the risk below
-// and for the river diagram, so a stop's badge and the headline's factors
-// are the same reading. Null when it isn't spilling and hasn't lately, or
+// Where one outfall's spill is relative to the reach. Null when it isn't spilling and hasn't lately, or
 // its water has gone by and the 48 h tail has run out.
 export type SpillPhase = "here" | PlumePhase;
 
@@ -175,36 +173,6 @@ export const spillPhase = (
     return { phase: "here", hoursUntil: 0 };
   }
   return plumeTiming(outfall, now);
-};
-
-// Worst first - the order the factors are listed in.
-export const SPILL_PHASE_ORDER: SpillPhase[] = [
-  "here",
-  "passing",
-  "arriving",
-  "lingering",
-];
-
-// A phase in words: `short` for a stop's badge on the river diagram, `long`
-// for the line on one outfall's row.
-export const spillPhaseText = (
-  phase: SpillPhase,
-  hoursUntil: number
-): { short: string; long: string } => {
-  const due = `~${Math.max(1, Math.round(hoursUntil))}h`;
-  switch (phase) {
-    case "here":
-      return { short: "Spilling", long: "Spilling into the reach now" };
-    case "passing":
-      return { short: "Passing", long: "Passing Worcester (est.)" };
-    case "arriving":
-      return {
-        short: `Due ${due}`,
-        long: `Reaches Worcester in ${due} (est.)`,
-      };
-    case "lingering":
-      return { short: "Passed", long: "Passed Worcester (est.)" };
-  }
 };
 
 // When rain counts towards the risk. Rain is only a leading indicator here:

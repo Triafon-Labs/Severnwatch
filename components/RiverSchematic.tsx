@@ -27,11 +27,6 @@ import {
 } from "@/lib/riverSchematic";
 import { collapseMotion, m3Spring, spring } from "@/lib/m3-palette";
 import CsoOutfallRow from "@/components/CsoOutfallRow";
-import {
-  SPILL_PHASE_ORDER,
-  spillPhase,
-  spillPhaseText,
-} from "@/lib/pollutionRisk";
 import { useNowTicking } from "@/lib/useNowTicking";
 
 // The CSO monitoring network drawn as a transit diagram: the Severn as a
@@ -270,29 +265,11 @@ const ClearMonitorsGroup: React.FC<{
   );
 };
 
-// The stop's badge: where its spills' water is, by the worst-placed one
-// (soonest, where several are still on their way) - the Pollution Risk
-// card's own words, so the two can be matched up. Null when nothing at the
-// stop is spilling or has lately.
-const stopPhaseLabel = (outfalls: CsoOutfall[], now: number): string | null => {
-  const phases = outfalls
-    .map((o) => spillPhase(o, now))
-    .filter((p) => p !== null)
-    .sort(
-      (a, b) =>
-        SPILL_PHASE_ORDER.indexOf(a.phase) -
-          SPILL_PHASE_ORDER.indexOf(b.phase) || a.hoursUntil - b.hoursUntil
-    );
-  const worst = phases[0];
-  return worst ? spillPhaseText(worst.phase, worst.hoursUntil).short : null;
-};
-
 const StationHeader: React.FC<{
   row: StationRow;
-  now: number;
   expanded: boolean;
   onToggle: () => void;
-}> = ({ row, now, expanded, onToggle }) => {
+}> = ({ row, expanded, onToggle }) => {
   const { waypoint, outfalls, state } = row.station;
   const count = outfalls.length;
   const notable = state !== null && CSO_NOTABLE_STATES.includes(state);
@@ -323,7 +300,7 @@ const StationHeader: React.FC<{
       </Box>
       {notable && (
         <Chip
-          label={stopPhaseLabel(outfalls, now) ?? CSO_STATE_UI[state].label}
+          label={CSO_STATE_UI[state].label}
           size="small"
           sx={{ ...statusChipSx(state), flexShrink: 0 }}
         />
@@ -377,7 +354,7 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
     () => new Set()
   );
   const rows = useMemo(() => buildRiverSchematic(outfalls), [outfalls]);
-  // Ticks so "Due in ~3h" counts down between fetches, as on the risk card.
+  // Ticks so a row's "21h ago" keeps up between fetches.
   const now = useNowTicking().getTime();
 
   const toggleExpanded = (key: string) => {
@@ -474,7 +451,6 @@ const RiverSchematic: React.FC<{ outfalls: CsoOutfall[] }> = ({ outfalls }) => {
             <>
               <StationHeader
                 row={row}
-                now={now}
                 expanded={isExpanded}
                 onToggle={() => toggleExpanded(row.key)}
               />
