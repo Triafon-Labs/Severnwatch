@@ -44,12 +44,8 @@ const factorLine = (f: PollutionRiskFactor): string | null => {
   switch (f.key) {
     case "here":
       return `🚰 ${count} discharging in Worcester right now`;
-    case "passing":
-      return `🌊 ${count} from upstream passing Worcester now (estimated)`;
-    case "arriving":
-      return `🌊 ${count} from upstream ${lcFirst(f.detail ?? "on the way")}`;
-    case "lingering":
-      return `🌊 ${count} passed Worcester ${lcFirst(f.detail ?? "recently")}`;
+    case "recent":
+      return `🌊 ${count} recently, which may still affect Worcester`;
     case "offline":
       return `❔ ${f.value} offline in Worcester, so spills there can't be seen`;
     case "rain":

@@ -6,7 +6,6 @@ import {
 } from "@/types";
 import {
   CATCHMENT_WAYPOINTS,
-  SEWAGE_RECENT_SPILL_BASE_HOURS,
   WATER_QUALITY_RECENT_DAYS,
   WATER_QUALITY_RELEVANT_DAYS,
 } from "@/lib/config";
@@ -95,7 +94,7 @@ export const RISK_LEVEL_UI: Record<
 };
 
 export type PollutionRiskFactorKey =
-  "here" | "passing" | "arriving" | "lingering" | "rain" | "sample" | "offline";
+  "here" | "recent" | "rain" | "sample" | "offline";
 
 // Split the way the card's tile reads, as Paddlecheck splits its reasons:
 // what it's about, the reading, and a line on when or where - "Arriving",
@@ -344,7 +343,6 @@ export const derivePollutionRisk = (
   let passing = 0;
   let lingering = 0;
   let arriving = 0;
-  let soonest = Infinity;
   let offline = 0;
   // Total spill time behind each count above, from the outfalls whose
   // times the feed gives.
@@ -368,7 +366,6 @@ export const derivePollutionRisk = (
     } else {
       arriving++;
       minutes.arriving += spilled;
-      soonest = Math.min(soonest, where.hoursUntil);
     }
   }
 
@@ -383,35 +380,22 @@ export const derivePollutionRisk = (
       spillMinutes: minutes.here || undefined,
     });
   }
-  if (passing > 0) {
+  // One tile for every other spill still counted - upstream, or finished
+  // in the reach - whichever way the
+  // travel-time model places its water. The phases decide when a spill
+  // starts and stops counting; shown as separate "arriving / passing /
+  // passed" tiles they claimed to know which spill's water was where, which
+  // is more than the model can say.
+  const recent = passing + arriving + lingering;
+  if (recent > 0) {
     factors.push({
-      key: "passing",
+      key: "recent",
       level: "raised",
-      label: "Passing Worcester",
-      value: spills(passing),
-      // A travel-time estimate, like "Due in ~3h" below, not an observation.
-      detail: "Estimated",
-      spillMinutes: minutes.passing || undefined,
-    });
-  }
-  if (arriving > 0) {
-    factors.push({
-      key: "arriving",
-      level: "raised",
-      label: "Arriving",
-      value: spills(arriving),
-      detail: `Due in ~${Math.max(1, Math.round(soonest))}h`,
-      spillMinutes: minutes.arriving || undefined,
-    });
-  }
-  if (lingering > 0) {
-    factors.push({
-      key: "lingering",
-      level: "raised",
-      label: "Passed By",
-      value: spills(lingering),
-      detail: `In the last ${SEWAGE_RECENT_SPILL_BASE_HOURS}h`,
-      spillMinutes: minutes.lingering || undefined,
+      label: "Recent Spills",
+      value: spills(recent),
+      detail: "May still affect Worcester",
+      spillMinutes:
+        minutes.passing + minutes.arriving + minutes.lingering || undefined,
     });
   }
 

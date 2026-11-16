@@ -26,8 +26,7 @@ const CsoListCard: React.FC = () => {
           color="text.secondary"
           sx={{ mt: 0.25, mb: 2 }}
         >
-          The river flows down the page to Worcester. Each stop shows roughly
-          how long its water takes to get there.
+          The river flows down the page to Worcester.
         </Typography>
 
         {showSkeleton && <RiverSchematicSkeleton />}

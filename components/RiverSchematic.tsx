@@ -282,11 +282,6 @@ const StationHeader: React.FC<{
       : spilled > 0
         ? `${spilled} of ${count} spilled`
         : `${count} monitor${count === 1 ? "" : "s"}`;
-  // Rough travel time down to the reach - the same estimate the risk uses.
-  const upstream =
-    waypoint.plumeTravelHours > 0
-      ? `~${waypoint.plumeTravelHours}h away`
-      : null;
 
   const body = (
     <>
@@ -295,7 +290,7 @@ const StationHeader: React.FC<{
           {waypoint.label}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {[monitors, upstream].filter(Boolean).join(" · ")}
+          {monitors}
         </Typography>
       </Box>
       {notable && (
