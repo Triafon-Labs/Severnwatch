@@ -44,6 +44,8 @@ npm run dev
 
 No environment variables are needed for local development. Uploading sample results through `/upload` on the live site needs a Vercel Blob store and an `UPLOAD_PASSCODE`; see [`data/water-quality/README.md`](data/water-quality/README.md).
 
+The same Blob store also keeps the app's risk history: once it is connected, the site records what it said each hour (as `risk-history/YYYY-MM.json`), and a "Risk vs Samples" card appears comparing that with the sample results. It needs no passcode or other setting.
+
 ## Commits and Releases
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/) and are enforced by a `commit-msg` hook. Merging to `main` triggers `auto-tag.yml`, which bumps the version, writes `CHANGELOG.md` and pushes a `severnwatch-vX.Y.Z` tag — `feat:` for a minor bump, `fix:`/`perf:`/`refactor:` for a patch.

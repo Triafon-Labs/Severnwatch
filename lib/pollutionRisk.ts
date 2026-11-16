@@ -2,6 +2,7 @@ import {
   CsoOutfall,
   CsoResponse,
   RainfallResponse,
+  RiskLevel,
   WaterQualityResponse,
 } from "@/types";
 import {
@@ -56,7 +57,7 @@ import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 // out at Raised, however many spills there are. That keeps red meaning
 // "this is happening here" rather than "the model thinks so", so it doesn't
 // sit on the card for most of a wet winter.
-export type PollutionRiskLevel = "high" | "raised" | "low";
+export type PollutionRiskLevel = RiskLevel;
 
 // Labels and colours for each level, shared by the card and the Conditions
 // Key so the two can't drift - the same arrangement as CSO_STATE_UI.
@@ -105,6 +106,9 @@ export interface PollutionRiskFactor {
   label: string;
   value: string;
   detail?: string;
+  // How many spills or monitors the factor stands for, where it's a count -
+  // the figure in `value`, for the history record (lib/riskHistory.ts).
+  count?: number;
   // Spill factors only: how long those overflows spilled for in total (so
   // far, for ones still going), where the feed gives the times. A count
   // alone puts a ten-minute spill level with a ten-hour one.
@@ -376,6 +380,7 @@ export const derivePollutionRisk = (
       level: "high",
       label: "In Worcester",
       value: spills(here),
+      count: here,
       detail: "Discharging now",
       spillMinutes: minutes.here || undefined,
     });
@@ -393,6 +398,7 @@ export const derivePollutionRisk = (
       level: "raised",
       label: "Recent Spills",
       value: spills(recent),
+      count: recent,
       detail: "May still affect Worcester",
       spillMinutes:
         minutes.passing + minutes.arriving + minutes.lingering || undefined,
@@ -411,6 +417,7 @@ export const derivePollutionRisk = (
       level: "low",
       label: "Offline",
       value: offline === 1 ? "1 monitor" : `${offline} monitors`,
+      count: offline,
       detail: "In Worcester, so spills there can't be seen",
     });
   }

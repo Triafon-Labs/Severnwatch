@@ -125,3 +125,44 @@ export type UploadResponse =
       latestSampledAt: string | null;
     }
   | { ok: false; error: string }; // written for the tester, shown as-is
+
+// --- Risk history (lib/riskHistory.ts) ---
+
+export type RiskLevel = "high" | "raised" | "low";
+
+// What the app said at one moment, kept hourly in the Blob store. Field
+// names are spelled out rather than abbreviated: a month is ~100 KB either
+// way, and the files are meant to be read by a person later.
+export interface RiskSnapshot {
+  at: string; // ISO time the snapshot was taken
+  // The headline the Pollution Risk card showed.
+  level: RiskLevel;
+  // The same, worked out from spills and rain alone - without the latest
+  // sample, which can itself raise the headline. This is the one to hold
+  // against later samples: `level` after a Poor sample is High because of
+  // that sample, which would be marking the model's homework with its own
+  // answer.
+  modelLevel: RiskLevel;
+  spillsInReach: number; // discharging in the Worcester reach
+  recentSpills: number; // every other spill still counted
+  spillMinutes: number; // total time those overflows ran
+  offlineInReach: number;
+  rainRisk: boolean; // the rain factor was on
+  rainMm6h: number | null; // wettest gauge, last 6 hours
+  // River Severn at Bewdley, m3/s. Not used by the risk today - kept so
+  // travel times can later be checked against flow.
+  flowBewdley: number | null;
+}
+
+// One London calendar day of snapshots, as the history chart draws it.
+export interface RiskHistoryDay {
+  date: string; // "2026-11-16"
+  worst: RiskLevel; // the worst modelLevel recorded that day
+  // Snapshots at each modelLevel - roughly hours, less any missed.
+  counts: Record<RiskLevel, number>;
+}
+
+export interface RiskHistoryResponse {
+  days: RiskHistoryDay[]; // oldest first; empty until recording has begun
+  asOf: string;
+}

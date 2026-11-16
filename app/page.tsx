@@ -4,6 +4,7 @@ import CsoListCard from "@/components/CsoListCard";
 import RainfallCard from "@/components/RainfallCard";
 import LatestSampleCard from "@/components/LatestSampleCard";
 import SampleHistoryCard from "@/components/SampleHistoryCard";
+import RiskHistoryCard from "@/components/RiskHistoryCard";
 
 export default function HomePage() {
   return (
@@ -16,7 +17,8 @@ export default function HomePage() {
     // actually measured, the spills that are the main live cause, then the
     // rain that drives them - so each card explains the one above it, and the
     // risk card's spill and rain factors point at two cards that sit
-    // together. The sample history is the deepest read, so it goes last.
+    // together. The sample history is the deepest read, so it goes last,
+    // with the record of how the risk compared to the samples after it.
     //
     // Kept fixed rather than reordered by the data (e.g. dropping a stale
     // sample down the page): cards that move around are harder to find than
@@ -28,6 +30,8 @@ export default function HomePage() {
         <CsoListCard />
         <RainfallCard />
         <SampleHistoryCard />
+        {/* Appears once the risk history has a first day recorded. */}
+        <RiskHistoryCard />
       </Stack>
     </Container>
   );
