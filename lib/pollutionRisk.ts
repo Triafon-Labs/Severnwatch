@@ -6,9 +6,7 @@ import {
 } from "@/types";
 import {
   CATCHMENT_WAYPOINTS,
-  REACH_TRIBUTARY_CONFLUENCE_LAT,
   SEWAGE_RECENT_SPILL_BASE_HOURS,
-  WATER_QUALITY_SITE_LAT,
   WATER_QUALITY_RECENT_DAYS,
   WATER_QUALITY_RELEVANT_DAYS,
 } from "@/lib/config";
@@ -46,15 +44,13 @@ import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
 // "low", never "safe" - and the disclaimer says so.
 //
 // High is reserved for what was observed rather than estimated: an outfall
-// in the Worcester reach discharging right now at or above the Grandstand
-// Road sample site (no travel time to guess - the water is already there),
-// or a Poor sample in the last WATER_QUALITY_RECENT_DAYS. A reach outfall
-// discharging below the site (Diglis, Lower Wick) is Raised: its water
-// flows away from Pitchcroft and most of the city's riverside. Anything that leans on the travel-time model -
-// upstream water passing, arriving, or gone by - tops out at Raised,
-// however many spills there are. That keeps red meaning "this is happening
-// here" rather than "the model thinks so", so it doesn't sit on the card
-// for most of a wet winter.
+// in the Worcester reach (Bevere to Diglis) discharging right now - no
+// travel time to guess, the water is already where people are - or a Poor
+// sample in the last WATER_QUALITY_RECENT_DAYS. Anything that leans on the
+// travel-time model - upstream water passing, arriving, or gone by - tops
+// out at Raised, however many spills there are. That keeps red meaning
+// "this is happening here" rather than "the model thinks so", so it doesn't
+// sit on the card for most of a wet winter.
 export type PollutionRiskLevel = "high" | "raised" | "low";
 
 // Labels and colours for each level, shared by the card and the Conditions
@@ -93,7 +89,7 @@ export const RISK_LEVEL_UI: Record<
 };
 
 export type PollutionRiskFactorKey =
-  "here" | "below" | "passing" | "arriving" | "lingering" | "rain" | "sample";
+  "here" | "passing" | "arriving" | "lingering" | "rain" | "sample";
 
 // Split the way the card's tile reads, as Paddlecheck splits its reasons:
 // what it's about, the reading, and a line on when or where - "Arriving",
@@ -113,18 +109,6 @@ export interface PollutionRisk {
 }
 
 const WAYPOINTS_BY_NAME = new Map(CATCHMENT_WAYPOINTS.map((w) => [w.name, w]));
-
-// Whether a reach outfall's spill enters the Severn at or above the sample
-// site - by the brook's confluence where it's on a known brook, else by the
-// outfall's own position (see WATER_QUALITY_SITE_LAT).
-const entersAboveSampleSite = (outfall: CsoOutfall): boolean => {
-  const watercourse = outfall.watercourse.toUpperCase();
-  const brook = Object.keys(REACH_TRIBUTARY_CONFLUENCE_LAT).find((name) =>
-    watercourse.includes(name)
-  );
-  const lat = brook ? REACH_TRIBUTARY_CONFLUENCE_LAT[brook] : outfall.latitude;
-  return lat >= WATER_QUALITY_SITE_LAT;
-};
 
 type PlumePhase = "arriving" | "passing" | "lingering";
 
@@ -309,7 +293,6 @@ export const derivePollutionRisk = (
   now: number = Date.now()
 ): PollutionRisk => {
   let here = 0;
-  let below = 0;
   let passing = 0;
   let lingering = 0;
   let arriving = 0;
@@ -318,12 +301,10 @@ export const derivePollutionRisk = (
   for (const outfall of cso.outfalls) {
     if (outfall.state !== "Ongoing" && outfall.state !== "Recent") continue;
     const waypoint = WAYPOINTS_BY_NAME.get(outfall.waypointName);
-    // Discharging inside the reach: observed, not estimated. Above the
-    // sample site it's the one spill case that makes the risk High; below
-    // it, Raised (see the header comment).
+    // Discharging inside the reach: observed, not estimated, so it's the one
+    // spill case that makes the risk High (see the header comment).
     if (outfall.state === "Ongoing" && waypoint?.isReach) {
-      if (entersAboveSampleSite(outfall)) here++;
-      else below++;
+      here++;
       continue;
     }
     const timing = plumeTiming(outfall, now);
@@ -343,15 +324,6 @@ export const derivePollutionRisk = (
       level: "high",
       label: "In Worcester",
       value: spills(here),
-      detail: "Discharging now",
-    });
-  }
-  if (below > 0) {
-    factors.push({
-      key: "below",
-      level: "raised",
-      label: "Below Pitchcroft",
-      value: spills(below),
       detail: "Discharging now",
     });
   }

@@ -360,28 +360,6 @@ export const SAS_MAP_URL =
 // filtered down to this name.
 export const WATER_QUALITY_SITE_NAME = "Grandstand Road";
 
-// Where that site is on the river - latitude from the SAS export's sample
-// coordinates. The Severn runs north to south through Worcester, so within
-// the reach latitude stands in for "upstream of": a spill can only reach
-// the water at Pitchcroft if it enters the river at or above this line.
-// Only a spill discharging above it makes the risk High (lib/pollutionRisk.ts);
-// one entering below - Diglis, say - is downstream of the sample site, the
-// racecourse and most of the city's riverside, so it counts as Raised.
-export const WATER_QUALITY_SITE_LAT = 52.1956;
-
-// Brooks inside the reach whose outfalls sit well away from the Severn, so
-// an outfall's own latitude says nothing about where its spill meets the
-// river. Keyed by the feed's ReceivingWaterCourse (upper-cased, matched as a
-// substring); the value is the latitude of the confluence, from
-// OpenStreetMap. Barbourne Brook joins at Gheluvelt Park, above Pitchcroft;
-// Laughern Brook at Lower Wick and Duck Brook at Diglis, both below it. A
-// reach brook missing from here falls back to the outfall's own latitude.
-export const REACH_TRIBUTARY_CONFLUENCE_LAT: Record<string, number> = {
-  "BARBOURNE BROOK": 52.2076,
-  "LAUGHERN BROOK": 52.1714,
-  "DUCK BROOK": 52.1728,
-};
-
 // How a sample feeds the headline pollution risk. Testing is roughly
 // weekly, and a result is only known a day or so after the sample is taken,
 // so a sample is never "live" - these keep an old result from outweighing
