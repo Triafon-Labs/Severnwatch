@@ -24,6 +24,7 @@
     "@mui/icons-material": "^9.5.0",
     "@mui/material": "^9.5.0",
     "@vercel/blob": "^2.8.2",
+    "@vercel/speed-insights": "^2.1.0",
     "date-fns": "^4.4.0",
     "next": "^16.4.5",
     "react": "^19.3.1",
