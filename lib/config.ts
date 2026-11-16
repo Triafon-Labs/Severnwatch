@@ -15,6 +15,13 @@ export const APP_NAME = "Severnwatch";
 export const APP_DESCRIPTION =
   "River Severn water quality and rainfall conditions at Worcester";
 
+// Shown in the first-run pop-up (DisclaimerDialog) and in Settings -> Info ->
+// About, as in Paddlecheck. Bump DISCLAIMER_VERSION when the wording changes
+// materially, so everyone who accepted the old text is asked again.
+export const DISCLAIMER =
+  "Severnwatch is an unofficial guide. Its pollution risk is an estimate from spill reports, rainfall and volunteer samples, so it can't promise the water is clean. Please use your own judgement before going in or on the river.";
+export const DISCLAIMER_VERSION = "1";
+
 export const LOCATION_NAME = "Worcester";
 export const LATITUDE = 52.2;
 export const LONGITUDE = -2.2;
@@ -28,9 +35,12 @@ export const SEWAGE_API_URL =
 
 // How long a spill stays "recent" *after its water has reached the reach* -
 // the tail on top of each outfall's latest travel time (see
-// plumeTravelRangeFor in lib/catchment.ts), not the whole window. A spill at Bewdley is therefore
-// surfaced far longer than one at Diglis, because its water arrives far
-// later.
+// recentCutoffHours in lib/catchment.ts), not the whole window. A spill at
+// Bewdley is therefore surfaced far longer than one at Diglis, because its
+// water arrives far later. Counting it from the stop instead, as SAS do,
+// would drop a Bewdley spill ~35 h sooner - but the travel times are too
+// short at summer low flow (see plumeTravelHours), and this tail is what
+// buys that margin back.
 //
 // 48 h rather than the 24 h this used to be. SAS's own Safer Seas alerts
 // flag an overflow for 48 h after it stops, and the field evidence doesn't

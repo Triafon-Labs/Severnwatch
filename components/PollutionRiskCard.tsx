@@ -20,6 +20,7 @@ import ScheduleIcon from "@mui/icons-material/Schedule";
 import HistoryIcon from "@mui/icons-material/History";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import {
   PollutionRiskFactor,
@@ -40,15 +41,16 @@ import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 
 // The scale strip, best to worst, the way it reads left to right.
-const RISK_SCALE: PollutionRiskLevel[] = ["lower", "raised", "high"];
+const RISK_SCALE: PollutionRiskLevel[] = ["low", "raised", "high"];
 
 const RISK_ICONS: Record<PollutionRiskLevel, React.ElementType> = {
   high: ReportProblemIcon,
   raised: WarningAmberIcon,
-  lower: CheckCircleOutlineIcon,
+  low: CheckCircleOutlineIcon,
 };
 
 const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
+  here: PlaceOutlinedIcon,
   passing: WavesIcon,
   arriving: ScheduleIcon,
   lingering: HistoryIcon,
@@ -56,8 +58,11 @@ const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
   sample: ScienceOutlinedIcon,
 };
 
-// Matches Paddlecheck's PaddlingStatusHero: the label alone in the status
-// colour, with the scale as a strip underneath.
+// Paddlecheck's PaddlingStatusHero, with the scale as a strip underneath -
+// but on the level's tonal container pair rather than a saturated fill. The
+// headline is an estimate for most of a wet season, and a full-width slab of
+// red or amber shouted it louder than the evidence. The strip keeps the
+// saturated hues, so the level still reads at a glance.
 const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
   const ui = RISK_LEVEL_UI[level];
   const Icon = RISK_ICONS[level];
@@ -69,9 +74,12 @@ const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
           gap: { xs: 1.75, sm: 2.5 },
           p: { xs: 2, sm: 3 },
           borderRadius: "16px",
-          backgroundColor: ui.color,
-          color: ui.onColor,
-          transition: spring("background-color", m3Spring.effectsDefault),
+          backgroundColor: `${ui.tonal}.container`,
+          color: `${ui.tonal}.onContainer`,
+          transition: spring(
+            "background-color, color",
+            m3Spring.effectsDefault
+          ),
         }}
       >
         <Icon sx={{ fontSize: { xs: 40, sm: 56 }, flexShrink: 0 }} />
@@ -176,7 +184,7 @@ const PollutionRiskCard: React.FC = () => {
     <Card>
       <CardContent>
         <Typography variant="h5" component="h2">
-          Water Quality Status
+          Pollution Risk
         </Typography>
         {/* When the spill and rainfall data were fetched - Paddlecheck's
             "Updated" line under its status card title. The banners above the

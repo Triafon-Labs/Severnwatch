@@ -26,7 +26,7 @@ import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 import { WaterQualityDeepDive } from "@/components/WaterQualityInfoContent";
 import ConditionsKey from "@/components/ConditionsKey";
 import { useAppTheme, ThemeMode } from "@/lib/ThemeContext";
-import { APP_NAME, USEFUL_LINKS } from "@/lib/config";
+import { APP_NAME, DISCLAIMER, USEFUL_LINKS } from "@/lib/config";
 import { m3Duration, m3Easing, m3Spring, spring } from "@/lib/m3-palette";
 
 interface SettingsModalProps {
@@ -395,9 +395,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
             color="text.secondary"
             sx={{ mt: 2, display: "block" }}
           >
-            This is a hobby project, so there might be mistakes. Always check
-            conditions yourself and use your own judgement before entering the
-            water.
+            {DISCLAIMER}
           </Typography>
           {/* Required by the sources' licences, as in Paddlecheck. The
               Environment Agency's Open Government Licence asks for this exact

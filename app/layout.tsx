@@ -4,9 +4,10 @@ import localFont from "next/font/local";
 import ThemeRegistry from "@/components/ThemeRegistry";
 import TopNavBar from "@/components/TopNavBar";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import DisclaimerDialog from "@/components/DisclaimerDialog";
 import { SevernDataProvider } from "@/lib/SevernDataContext";
-import { APP_DESCRIPTION, APP_NAME } from "@/lib/config";
-import { STORAGE_KEYS } from "@/lib/storageKeys";
+import { APP_DESCRIPTION, APP_NAME, DISCLAIMER_VERSION } from "@/lib/config";
+import { DISCLAIMER_PENDING_ATTR, STORAGE_KEYS } from "@/lib/storageKeys";
 import { Box } from "@mui/material";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 
@@ -82,6 +83,15 @@ export default function RootLayout({
           defaultMode="system"
           modeStorageKey={STORAGE_KEYS.THEME_MODE}
         />
+        {/* Marks a first-time visitor before the body paints, so globals.css
+            can blur the app until DisclaimerDialog opens over it after
+            hydration. Without this the risk level would be readable for a
+            moment first. Storage that throws counts as not accepted. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem(${JSON.stringify(STORAGE_KEYS.DISCLAIMER_ACCEPTED)})!==${JSON.stringify(DISCLAIMER_VERSION)})document.documentElement.setAttribute(${JSON.stringify(DISCLAIMER_PENDING_ATTR)},"")}catch(e){document.documentElement.setAttribute(${JSON.stringify(DISCLAIMER_PENDING_ATTR)},"")}`,
+          }}
+        />
       </head>
       <body>
         <ServiceWorkerRegistration />
@@ -100,6 +110,7 @@ export default function RootLayout({
                 both what the AppBar inherits and what themeColor declares, so
                 they read as part of the page. */}
             <Box
+              className="app-frame"
               sx={{
                 display: "flex",
                 flexDirection: "column",
@@ -133,6 +144,7 @@ export default function RootLayout({
                 {children}
               </Box>
             </Box>
+            <DisclaimerDialog />
           </SevernDataProvider>
         </ThemeRegistry>
       </body>

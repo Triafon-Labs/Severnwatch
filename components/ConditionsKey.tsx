@@ -17,13 +17,18 @@ import {
   WATER_QUALITY_RELEVANT_DAYS,
 } from "@/lib/config";
 import { MAX_PLUME_TRAVEL_HOURS } from "@/lib/catchment";
-import { PollutionRiskLevel, RISK_LEVEL_UI } from "@/lib/pollutionRisk";
+import {
+  PollutionRiskLevel,
+  RAIN_RISK_TOTAL_MM,
+  RAIN_RISK_WINDOW_HOURS,
+  RISK_LEVEL_UI,
+} from "@/lib/pollutionRisk";
 import { HOURLY_HEAVY_MM, HOURLY_MODERATE_MM } from "@/lib/rainfallAnalysis";
 import { SERIES_COLORS } from "@/lib/chartColors";
 import { useResolvedColorScheme } from "@/lib/ThemeContext";
 
 // The longest a finished spill stays "Recent": the base window plus the
-// furthest outfall's travel time to the reach (see the sewage route).
+// furthest outfall's travel time to the reach (see recentCutoffHours).
 const MAX_RECENT_HOURS =
   SEWAGE_RECENT_SPILL_BASE_HOURS + MAX_PLUME_TRAVEL_HOURS;
 
@@ -45,13 +50,12 @@ const STATE_DESCRIPTIONS: Record<CsoState, string> = {
 
 // What each of the headline card's levels means (see lib/pollutionRisk.ts).
 const RISK_DESCRIPTIONS: Record<PollutionRiskLevel, string> = {
-  high: `Water from a spill is estimated to be passing Worcester, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RECENT_DAYS} days.`,
-  raised: `A spill is on its way down or passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, moderate or heavy rain is falling or due within a few hours, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RELEVANT_DAYS} days.`,
-  lower:
-    "No monitored spills affecting Worcester and no recent Poor sample. Not a guarantee the water is clean.",
+  high: `A monitored outfall in Worcester (Bevere to Diglis) is discharging now, or a Poor sample (over the Good limit) was taken in the last ${WATER_QUALITY_RECENT_DAYS} days. Both are observed rather than estimated.`,
+  raised: `Water from a spill upstream is estimated to be passing Worcester or on its way down, a spill passed in the last ${SEWAGE_RECENT_SPILL_BASE_HOURS} hours, ${RAIN_RISK_TOTAL_MM} mm or more of rain has fallen or is forecast over ${RAIN_RISK_WINDOW_HOURS} hours (or a heavy burst of ${HOURLY_HEAVY_MM} mm/hr), or a Poor sample was taken in the last ${WATER_QUALITY_RELEVANT_DAYS} days.`,
+  low: "No monitored spills expected to affect Worcester, no rain heavy enough to set them off, and no recent Poor sample. Not a guarantee the water is clean or safe - outfalls that aren't monitored, or whose monitors are offline, don't show up here.",
 };
 
-const RISK_ORDER: PollutionRiskLevel[] = ["high", "raised", "lower"];
+const RISK_ORDER: PollutionRiskLevel[] = ["high", "raised", "low"];
 
 const SectionHeading: React.FC<{
   children: React.ReactNode;
