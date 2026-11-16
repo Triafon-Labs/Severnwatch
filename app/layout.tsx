@@ -10,6 +10,7 @@ import { APP_DESCRIPTION, APP_NAME, DISCLAIMER_VERSION } from "@/lib/config";
 import { DISCLAIMER_PENDING_ATTR, STORAGE_KEYS } from "@/lib/storageKeys";
 import { Box } from "@mui/material";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
+import { Analytics } from "@vercel/analytics/next";
 
 // Exposed as a CSS variable rather than a class, because the theme's type
 // scale has to name the family (MUI writes font-family onto every Typography
@@ -147,6 +148,7 @@ export default function RootLayout({
             <DisclaimerDialog />
           </SevernDataProvider>
         </ThemeRegistry>
+        <Analytics />
       </body>
     </html>
   );
