@@ -113,7 +113,7 @@ app/
   manifest.ts           PWA web manifest
 
 components/
-  TopNavBar.tsx              App bar – share, settings, refresh, stale/offline banners
+  TopNavBar.tsx              App bar – share (text from lib/shareText.ts), settings, refresh, stale/offline banners
   SettingsModal.tsx          Bottom sheet – theme, links, conditions key, deep dive, version
   DisclaimerDialog.tsx       First-run pop-up – must be accepted once per DISCLAIMER_VERSION (as in Paddlecheck)
   ConditionsKey.tsx          Legend for the status colours, map markers and chart bands
@@ -143,6 +143,7 @@ lib/
   SevernDataContext.tsx React Context wrapping the hook
   csoStatus.ts          CSO state → label/colour/severity, in one place
   pollutionRisk.ts      Derived high/raised/low risk from spill timing, rainfall + latest sample
+  shareText.ts          What the share button sends – the risk, its reasons and the latest sample
   waterQuality.ts       Sample bands against the bathing water limits, formatting, stats
   waterQualityCsv.ts    Server-only: reads + validates the SAS CSV export(s), merges by Survey ID
   waterQualityStore.ts  Server-only: uploaded exports in Vercel Blob (or a local folder off Vercel)

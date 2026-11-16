@@ -21,14 +21,7 @@ import { OFFLINE_NO_CACHE_ERROR } from "@/lib/hooks";
 import { useFreshness } from "@/lib/useFreshness";
 import { collapseMotion } from "@/lib/m3-palette";
 import { APP_NAME } from "@/lib/config";
-import { CsoResponse, RainfallResponse, WaterQualityResponse } from "@/types";
-import { RISK_LEVEL_UI, derivePollutionRisk } from "@/lib/pollutionRisk";
-import {
-  SAMPLE_BAND_UI,
-  bandForSample,
-  sampleTimeMs,
-} from "@/lib/waterQuality";
-import { formatDaysAgo, formatLondonDate, londonDaysAgo } from "@/lib/time";
+import { buildShareText } from "@/lib/shareText";
 
 // Filled with the saturated accent rather than the tonal container pair.
 // The container roles would be the more orthodox M3 reading of a persistent
@@ -55,42 +48,6 @@ const StatusBanner: React.FC<{
     {children}
   </Box>
 );
-
-// The same message as the Pollution Risk card - its level, why, and the
-// latest sample - so a shared link doesn't read louder (or more reassuring)
-// than the app it points to. No emoji: a siren on a Raised estimate was the
-// most alarming thing the app put out.
-const buildShareText = (
-  cso: CsoResponse | null,
-  rainfall: RainfallResponse | null,
-  waterQuality: WaterQualityResponse | null
-): string => {
-  const lines: string[] = [];
-  const now = Date.now();
-
-  if (cso) {
-    const risk = derivePollutionRisk(cso, rainfall, waterQuality, now);
-    lines.push(`River Severn at Worcester: ${RISK_LEVEL_UI[risk.level].label}`);
-    risk.factors.forEach((f) =>
-      lines.push(`• ${f.label}: ${f.value}${f.detail ? ` (${f.detail})` : ""}`)
-    );
-  }
-
-  const latest = waterQuality?.samples[waterQuality.samples.length - 1];
-  const band = latest ? bandForSample(latest) : null;
-  if (latest && band) {
-    const ms = sampleTimeMs(latest);
-    lines.push(
-      `Latest sample: ${SAMPLE_BAND_UI[band].label} (${formatLondonDate(ms)}, ${formatDaysAgo(londonDaysAgo(ms, now))})`
-    );
-  }
-
-  if (lines.length === 0) {
-    return `Check current River Severn conditions at Worcester on ${APP_NAME}.`;
-  }
-  lines.push("", `An estimate, not a water test. More on ${APP_NAME}.`);
-  return lines.join("\n");
-};
 
 const TopNavBar: React.FC = () => {
   const scrolled = useScrollTrigger({ disableHysteresis: true, threshold: 8 });
