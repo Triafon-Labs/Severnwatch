@@ -10,6 +10,7 @@ import { APP_DESCRIPTION, APP_NAME, DISCLAIMER_VERSION } from "@/lib/config";
 import { DISCLAIMER_PENDING_ATTR, STORAGE_KEYS } from "@/lib/storageKeys";
 import { Box } from "@mui/material";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 
 // Exposed as a CSS variable rather than a class, because the theme's type
@@ -148,6 +149,7 @@ export default function RootLayout({
             <DisclaimerDialog />
           </SevernDataProvider>
         </ThemeRegistry>
+        <SpeedInsights />
         <Analytics />
       </body>
     </html>
