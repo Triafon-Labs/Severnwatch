@@ -309,8 +309,10 @@ rain alone.
 or spills and poor water quality? - as a scatter: a dot per sample, rain (or
 hours of spilling, by a toggle) over its own day and the three before along
 the bottom, its bacteria as a multiple of the Good limit up the side (log
-scale, the worse of the two indicators). Two tiles give the same answer as
-counts of Poor samples after more and after less. A sample is placed only
+scale, the worse of the two indicators). Tapping a dot shows its sample.
+Two tiles give the same answer as counts of Poor samples after a wet spell
+(or any spilling) and after less - or, below `MIN_POOR_TO_COMPARE` Poor
+samples, a line saying there are too few to judge. A sample is placed only
 when all four days are known, so the Rain view has every sample from the
 start and the Spills view fills in from when recording begins. Off Vercel
 the record uses the gitignored `data/risk-history/` folder.

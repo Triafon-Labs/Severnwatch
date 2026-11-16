@@ -9,12 +9,14 @@ import {
   ToggleButton,
   Typography,
 } from "@mui/material";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import WbSunnyOutlinedIcon from "@mui/icons-material/WbSunnyOutlined";
 import { RiskHistoryDay } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
 import { useRiskHistory } from "@/lib/useRiskHistory";
 import {
+  CLASSIFIED_INDICATORS,
   INDICATORS,
   SAMPLE_BAND_UI,
   SampleBand,
@@ -26,6 +28,7 @@ import {
 import { formatLondonDate, londonDayKey } from "@/lib/time";
 import { DAY_MS } from "@/lib/rainfallAnalysis";
 import InfoPanel from "@/components/InfoPanel";
+import SampleBandChip from "@/components/SampleBandChip";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 
@@ -35,9 +38,11 @@ import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 // the bottom, how much bacteria it found up the side. If there is a link the
 // dots climb to the right; if there isn't, they sit level.
 //
-// Two tiles under it say the same thing in counts, for anyone who doesn't
-// read charts: of the samples after more rain or spilling, how many were
-// Poor, against those after less.
+// Tapping a dot shows which sample it is. Under that, the same answer in
+// counts for anyone who doesn't read charts - of the samples after a wet
+// spell or any spilling, how many were Poor, against the rest - or, while
+// there are too few Poor samples for counts to mean anything, a line saying
+// so.
 //
 // None of it is the app's own risk estimate. The rain is Open-Meteo's
 // modelled figure for Worcester (lib/rainHistory.ts), which reaches back
@@ -70,6 +75,16 @@ const RATIO_TICKS: { ratio: number; label: string }[] = [
   { ratio: 0.01, label: "1/100" },
 ];
 
+// The tiles split the samples at this much rain over the days before: a
+// properly wet spell against the rest. A fixed line rather than the middle
+// sample, which in a dry run put "wetter" at a couple of millimetres.
+const WET_SPELL_MM = 10;
+
+// Below this many Poor samples the card says there are too few to judge,
+// rather than showing counts: "1 of 13 Poor after rain, 0 of 13 without"
+// reads as a finding and is one sample.
+const MIN_POOR_TO_COMPARE = 3;
+
 // The bottom scale always reaches at least this, so a few dry samples
 // don't spread across the chart as if they differed.
 const MIN_SCALE = { rain: 10, spills: 5 };
@@ -99,7 +114,8 @@ interface Point {
   when: string; // "Sun 8 Nov"
   band: SampleBand;
   ratio: number; // the worse indicator, as a multiple of its Good limit
-  countText: string; // "Enterococci 520"
+  countText: string; // "Enterococci 520" - the worse indicator
+  allCounts: string; // "E. coli 100 · Enterococci 60"
   // Over the sample's day and the days before; null if any of those days
   // is missing, since a part-known run-up would plot as a drier one.
   rain: number | null; // mm
@@ -110,6 +126,8 @@ const RiskHistoryCard: React.FC = () => {
   const days = useRiskHistory();
   const { waterQuality } = useSevernContext();
   const [measure, setMeasure] = useState<Measure>("rain");
+  // The dot picked by a tap; the newest sample until one is.
+  const [pickedId, setPickedId] = useState<string | null>(null);
 
   const allPoints = useMemo(() => {
     if (days.length === 0) return null;
@@ -141,6 +159,9 @@ const RiskHistoryCard: React.FC = () => {
         band,
         ratio: count.value / INDICATORS[worst].limits.good,
         countText: `${INDICATORS[worst].shortLabel} ${formatCount(count)}`,
+        allCounts: CLASSIFIED_INDICATORS.map(
+          (key) => `${INDICATORS[key].shortLabel} ${formatCount(sample[key])}`
+        ).join(" · "),
         rain: total((d) => d.rainMm),
         spills: total((d) => d.spillHours),
       });
@@ -164,17 +185,14 @@ const RiskHistoryCard: React.FC = () => {
   const max = Math.max(MIN_SCALE[measure], ...points.map((p) => p.x));
 
   // The same answer in counts: the samples split into those after more of
-  // it and those after less. Spills split on any at all; rain at the middle
-  // sample, so both halves have something in them.
-  const sorted = [...points].sort((a, b) => a.x - b.x);
-  const cut =
-    measure === "spills"
-      ? 0
-      : sorted.length > 1
-        ? sorted[Math.ceil(sorted.length / 2) - 1].x
-        : 0;
+  // it and those after less - any spilling at all, or a wet spell of rain.
+  const cut = measure === "spills" ? 0 : WET_SPELL_MM;
   const more = points.filter((p) => p.x > cut);
   const less = points.filter((p) => p.x <= cut);
+  const poorCount = points.filter((p) => p.band === "poor").length;
+  // Samples arrive oldest first, so the last is the newest.
+  const picked =
+    points.find((p) => p.id === pickedId) ?? points[points.length - 1];
   const poorOf = (group: Point[]) =>
     group.length === 0
       ? "None yet"
@@ -184,7 +202,7 @@ const RiskHistoryCard: React.FC = () => {
     <Card>
       <CardContent>
         <Typography variant="h5" component="h2">
-          Rain vs Water Quality
+          {measure === "rain" ? "Rain" : "Spills"} vs Water Quality
         </Typography>
         <Typography
           variant="body2"
@@ -223,7 +241,7 @@ const RiskHistoryCard: React.FC = () => {
           ) : (
             <>
               <Box
-                role="img"
+                role="group"
                 aria-label={`Bacteria in each of ${points.length} samples against ${ui.axis.toLowerCase()} in the ${DAYS_BEFORE} days before. ${poorOf(more)} after more, ${poorOf(less)} after less.`}
               >
                 <Box sx={{ display: "flex" }}>
@@ -296,26 +314,51 @@ const RiskHistoryCard: React.FC = () => {
                       Poor
                     </Typography>
 
-                    {points.map((p) => (
-                      <Box
-                        key={p.id}
-                        title={`${p.when}: ${p.countText}, ${p.x}${ui.unit} before`}
-                        sx={{
-                          position: "absolute",
-                          left: `${(p.x / max) * 100}%`,
-                          bottom: `${ratioFraction(p.ratio) * 100}%`,
-                          width: DOT_SIZE,
-                          height: DOT_SIZE,
-                          transform: "translate(-50%, 50%)",
-                          borderRadius: "50%",
-                          backgroundColor: SAMPLE_BAND_UI[p.band].color,
-                          // A ring in the card's own colour, so dots that
-                          // land on each other stay countable.
-                          border: "2px solid",
-                          borderColor: "background.paper",
-                        }}
-                      />
-                    ))}
+                    {points.map((p) => {
+                      const isPicked = p.id === picked?.id;
+                      return (
+                        <Box
+                          key={p.id}
+                          component="button"
+                          type="button"
+                          onClick={() => setPickedId(p.id)}
+                          aria-pressed={isPicked}
+                          aria-label={`${p.when}: ${SAMPLE_BAND_UI[p.band].label}, ${p.x}${ui.unit} before`}
+                          sx={{
+                            position: "absolute",
+                            left: `${(p.x / max) * 100}%`,
+                            bottom: `${ratioFraction(p.ratio) * 100}%`,
+                            width: DOT_SIZE,
+                            height: DOT_SIZE,
+                            p: 0,
+                            transform: "translate(-50%, 50%)",
+                            borderRadius: "50%",
+                            backgroundColor: SAMPLE_BAND_UI[p.band].color,
+                            // A ring in the card's own colour, so dots that
+                            // land on each other stay countable.
+                            border: "2px solid",
+                            borderColor: "background.paper",
+                            cursor: "pointer",
+                            // The picked dot wears a second ring and sits
+                            // on top of its neighbours.
+                            outline: isPicked ? "2px solid" : "none",
+                            outlineColor: "text.primary",
+                            zIndex: isPicked ? 1 : 0,
+                            // A finger-sized target around a 14px dot.
+                            "&::after": {
+                              content: '""',
+                              position: "absolute",
+                              inset: -10,
+                            },
+                            "&:focus-visible": {
+                              outline: "2px solid",
+                              outlineColor: "primary.main",
+                              outlineOffset: 2,
+                            },
+                          }}
+                        />
+                      );
+                    })}
                   </Box>
                 </Box>
 
@@ -346,36 +389,94 @@ const RiskHistoryCard: React.FC = () => {
                   color="text.secondary"
                   sx={{ display: "block", mt: 0.5 }}
                 >
-                  ↑ Bacteria against the Good limit. A link shows as dots
-                  climbing to the right.{" "}
+                  Up the side is the sample&apos;s bacteria compared with the
+                  Good limit: 10× is ten times over it, 1/10 is a tenth of it. A
+                  link shows as dots climbing to the right.{" "}
                   {measure === "rain"
                     ? "Rain is Open-Meteo's estimate for Worcester, not a gauge reading."
                     : `Spills are hours of spilling added up across the monitored overflows${spillsSince ? `, recorded since ${spillsSince}` : ""}.`}
                 </Typography>
               </Box>
 
-              <Box sx={tileGridSx}>
-                <StatTile
-                  icon={<WaterDropIcon />}
-                  label={measure === "rain" ? "Wetter Half" : "After Spills"}
-                  value={poorOf(more)}
-                  detail={
-                    measure === "rain"
-                      ? `Over ${cut} mm before`
-                      : "Some spilling before"
-                  }
-                />
-                <StatTile
-                  icon={<WbSunnyOutlinedIcon />}
-                  label={measure === "rain" ? "Drier Half" : "No Spills"}
-                  value={poorOf(less)}
-                  detail={
-                    measure === "rain"
-                      ? `${cut} mm or less before`
-                      : "No spilling before"
-                  }
-                />
-              </Box>
+              {/* The dot that was tapped. */}
+              {picked && (
+                <InfoPanel sx={{ display: "block" }}>
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {picked.when}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block" }}
+                      >
+                        {picked.allCounts}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block" }}
+                      >
+                        {measure === "rain"
+                          ? `${picked.x} mm of rain`
+                          : `${picked.x}h of spilling`}{" "}
+                        in the {DAYS_BEFORE} days before
+                      </Typography>
+                    </Box>
+                    <SampleBandChip band={picked.band} />
+                  </Stack>
+                </InfoPanel>
+              )}
+
+              {poorCount < MIN_POOR_TO_COMPARE ? (
+                <InfoPanel align="flex-start">
+                  <HourglassEmptyIcon
+                    sx={{ flexShrink: 0, color: "text.secondary" }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {poorCount === 0
+                      ? `None of the ${points.length} samples was Poor,`
+                      : `Only ${poorCount} of the ${points.length} samples ${poorCount === 1 ? "was" : "were"} Poor,`}{" "}
+                    which is too few to show a link either way. That is not the
+                    same as showing there isn&apos;t one.
+                  </Typography>
+                </InfoPanel>
+              ) : (
+                <Box sx={tileGridSx}>
+                  <StatTile
+                    icon={<WaterDropIcon />}
+                    label={
+                      measure === "rain" ? "After Wet Spells" : "After Spills"
+                    }
+                    value={poorOf(more)}
+                    detail={
+                      measure === "rain"
+                        ? `Over ${cut} mm before`
+                        : "Some spilling before"
+                    }
+                  />
+                  <StatTile
+                    icon={<WbSunnyOutlinedIcon />}
+                    label={
+                      measure === "rain" ? "After Dry Spells" : "No Spills"
+                    }
+                    value={poorOf(less)}
+                    detail={
+                      measure === "rain"
+                        ? `${cut} mm or less before`
+                        : "No spilling before"
+                    }
+                  />
+                </Box>
+              )}
             </>
           )}
         </Stack>
