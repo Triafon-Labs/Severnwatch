@@ -93,8 +93,8 @@ jobs:
 
           echo "All upstream sources healthy"
 
-      # Keeps the hourly record of what the app said (lib/riskHistory.ts),
-      # for the Risk vs Samples chart. The route records once per clock hour
+      # Keeps the app's history - each day's rain and spills, and what it said
+      # each hour (lib/riskHistory.ts) - for the Rain vs Water Quality chart. The route records once per clock hour
       # and ignores the other three calls, so running it on every ping just
       # gives each hour four chances against GitHub's late and skipped
       # schedules. It always answers 200 - "recorded": false with a reason

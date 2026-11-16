@@ -44,7 +44,7 @@ npm run dev
 
 No environment variables are needed for local development. Uploading sample results through `/upload` on the live site needs a Vercel Blob store and an `UPLOAD_PASSCODE`; see [`data/water-quality/README.md`](data/water-quality/README.md).
 
-The same Blob store also keeps the app's risk history: once it is connected, the site records what it said each hour (as `risk-history/YYYY-MM.json`), and a "Risk vs Samples" card appears comparing that with the sample results. It needs no passcode or other setting.
+The "Rain vs Water Quality" card plots each sample against the rain before it using Open-Meteo's historical data, which needs no setup. Its Sewage Spills view needs the same Blob store: once it is connected, the site records each day's spills and what it said each hour (as `risk-history/YYYY-MM.json`). It needs no passcode or other setting.
 
 ## Commits and Releases
 

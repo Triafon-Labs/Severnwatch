@@ -359,6 +359,19 @@ export const API_ENDPOINTS = {
 export const OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 export const RAINFALL_FORECAST_HOURS = 48;
 
+// --- Past rainfall (Open-Meteo archive) ---
+// Daily rain for the same Worcester point, going back as far as the samples
+// do, for the Rain vs Water Quality chart. A weather model's estimate for
+// the area rather than what a gauge caught - on a given day the two can
+// differ by several mm - but it has no gaps, no reporting lag and needs
+// nothing stored, where the EA gauges' own history runs two to three weeks
+// behind. It is also the one source for every sample, old and new, so no
+// dot on the chart sits on a different footing from another.
+export const OPEN_METEO_ARCHIVE_URL =
+  "https://archive-api.open-meteo.com/v1/archive";
+// How far back the chart can place a sample.
+export const RAIN_HISTORY_DAYS = 400;
+
 // --- Severn Trent public storm overflow map (attribution link) ---
 export const SEVERN_TRENT_MAP_URL =
   "https://www.stwater.co.uk/in-my-area/storm-overflow-map/";

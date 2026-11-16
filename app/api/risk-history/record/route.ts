@@ -1,7 +1,13 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { CsoResponse, RainfallResponse, WaterQualityResponse } from "@/types";
-import { buildSnapshot, hourKey, parseSnapshots } from "@/lib/riskHistory";
+import {
+  buildDayRecords,
+  buildSnapshot,
+  hourKey,
+  mergeDayRecords,
+  parseMonth,
+} from "@/lib/riskHistory";
 import {
   historyAvailable,
   monthKey,
@@ -11,7 +17,8 @@ import {
 import { fetchBewdleyFlow } from "@/lib/riverFlow";
 import { londonDayKey } from "@/lib/time";
 
-// Records what the app is saying right now, at most once an hour.
+// Records what the app is saying right now, and the last few days' rain and
+// spills as they now stand, at most once an hour.
 //
 // Called by the keep-alive workflow every 15 minutes
 // (.github/workflows/keep-alive.yml). Four chances an hour because GitHub
@@ -55,7 +62,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const month = monthKey(now);
-    const snapshots = parseSnapshots(await readMonth(month));
+    const stored = parseMonth(await readMonth(month));
+    const { snapshots } = stored;
     const last = snapshots[snapshots.length - 1];
     if (last && hourKey(last.at) === hour) {
       lastRecordedHour = hour;
@@ -75,7 +83,12 @@ export async function GET(request: NextRequest) {
 
     const snapshot = buildSnapshot(cso, rainfall, waterQuality, flow, now);
     snapshots.push(snapshot);
-    await writeMonth(month, JSON.stringify(snapshots));
+    // The last few days' rain and spills, filled in a little further.
+    const days = mergeDayRecords(
+      stored.days,
+      buildDayRecords(cso, rainfall, now)
+    );
+    await writeMonth(month, JSON.stringify({ snapshots, days }));
     lastRecordedHour = hour;
     // The chart is drawn in days, so its route only needs rebuilding ahead
     // of its own three-hour cycle when a new day starts - which also makes

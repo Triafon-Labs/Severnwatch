@@ -154,15 +154,40 @@ export interface RiskSnapshot {
   flowBewdley: number | null;
 }
 
-// One London calendar day of snapshots, as the history chart draws it.
+// One London calendar day of rain and spills, as measured. Kept beside the
+// snapshots and rewritten as the day fills in: the EA's gauges report in
+// batches hours late, and a spill's length is only known once it ends, so
+// each recording can only add to a day (see mergeDayRecords).
+export interface DayRecord {
+  // Mean of the gauges' totals for the day, mm. Null before any reading.
+  rainMm: number | null;
+  // Hours of spilling that day, summed across the catchment's overflows.
+  spillHours: number;
+  // How many overflows spilled at some point in the day.
+  spillOutfalls: number;
+}
+
+// A month's file in the store.
+export interface RiskHistoryMonth {
+  snapshots: RiskSnapshot[]; // oldest first, one per clock hour
+  days: Record<string, DayRecord>; // by London date, "2026-11-16"
+}
+
+// One London calendar day, as the history chart reads it. The two halves
+// come from different places and reach back different distances, so either
+// can be missing.
 export interface RiskHistoryDay {
   date: string; // "2026-11-16"
-  worst: RiskLevel; // the worst modelLevel recorded that day
-  // Snapshots at each modelLevel - roughly hours, less any missed.
-  counts: Record<RiskLevel, number>;
+  // Open-Meteo's modelled rain for Worcester (lib/rainHistory.ts) - not the
+  // gauges' rainMm kept in DayRecord. Null if the archive had nothing.
+  rainMm: number | null;
+  // From the app's own record (DayRecord). Null for a day it didn't record:
+  // every day before recording began, since the spill feed has no history.
+  spillHours: number | null;
+  spillOutfalls: number | null;
 }
 
 export interface RiskHistoryResponse {
-  days: RiskHistoryDay[]; // oldest first; empty until recording has begun
+  days: RiskHistoryDay[]; // oldest first
   asOf: string;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { RiskHistoryResponse, RiskSnapshot } from "@/types";
-import { parseSnapshots, summariseDays } from "@/lib/riskHistory";
+import { DayRecord, RiskHistoryResponse } from "@/types";
+import { fetchRainHistory } from "@/lib/rainHistory";
+import { collectDays, parseMonth } from "@/lib/riskHistory";
 import {
   historyAvailable,
   monthKey,
@@ -8,20 +9,22 @@ import {
   readMonth,
 } from "@/lib/riskHistoryStore";
 
-// The recorded risk, a day at a time, for the history chart. Empty until
-// recording has begun (or with no store connected), which the card reads as
-// "don't show yet".
+// Rain and spills by day, for the Rain vs Water Quality chart. Rain is
+// Open-Meteo's archive, fetched here and reaching back past the oldest
+// sample; spills are the app's own record, which begins when a Blob store
+// is connected. Each is best-effort: with no store the days carry rain
+// alone, and with the archive down they carry spills alone.
 //
-// Cached for three hours: the chart is drawn in days, so nothing on it moves
-// faster than that, and every rebuild is one storage read per month kept.
-// Has to be a literal (see lib/fetchCache.ts).
+// Cached for three hours: the chart works in days, so nothing on it moves
+// faster than that, and every rebuild is one archive request and one
+// storage read per month kept. Has to be a literal (see lib/fetchCache.ts).
 export const revalidate = 10800;
 
-// How far back the chart reaches, which also bounds the reads per rebuild.
+// How far back recorded spills are read, which bounds the reads per rebuild.
 const MAX_MONTHS = 13;
 
 export async function GET() {
-  const snapshots: RiskSnapshot[] = [];
+  const months: Record<string, DayRecord>[] = [];
   try {
     if (historyAvailable()) {
       // Newest month backwards, stopping at the first month with nothing in
@@ -30,10 +33,10 @@ export async function GET() {
       // there.)
       let key = monthKey(Date.now());
       for (let i = 0; i < MAX_MONTHS; i++) {
-        const month = parseSnapshots(await readMonth(key));
+        const month = parseMonth(await readMonth(key));
         // The current month can be empty in its first hour.
-        if (month.length === 0 && i > 0) break;
-        snapshots.unshift(...month);
+        if (month.snapshots.length === 0 && i > 0) break;
+        months.unshift(month.days);
         key = previousMonthKey(key);
       }
     }
@@ -41,8 +44,13 @@ export async function GET() {
     console.error("Error reading risk history:", error);
   }
 
+  const rain = await fetchRainHistory().catch((error) => {
+    console.error("Error fetching rain history:", error);
+    return {};
+  });
+
   const body: RiskHistoryResponse = {
-    days: summariseDays(snapshots),
+    days: collectDays(rain, months),
     asOf: new Date().toISOString(),
   };
   return NextResponse.json(body);

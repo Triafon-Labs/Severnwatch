@@ -1,8 +1,9 @@
 import {
   CsoResponse,
+  DayRecord,
   RainfallResponse,
   RiskHistoryDay,
-  RiskLevel,
+  RiskHistoryMonth,
   RiskSnapshot,
   WaterQualityResponse,
 } from "@/types";
@@ -13,7 +14,8 @@ import {
 import { HOUR_MS, sumRecentMm } from "@/lib/rainfallAnalysis";
 import { londonDayKey } from "@/lib/time";
 
-// The record of what the app said, hour by hour, so it can be held against
+// The app's own history: what it said hour by hour (snapshots), and each
+// day's measured rain and spills (day records), so both can be held against
 // the water samples later. Pure: the store is lib/riskHistoryStore.ts and
 // the routes are app/api/risk-history.
 
@@ -60,35 +62,135 @@ export const buildSnapshot = (
 // The hour a snapshot belongs to, "2026-11-16T15" - one is kept per hour.
 export const hourKey = (iso: string): string => iso.slice(0, 13);
 
-// A month's file back into snapshots. Anything unreadable is treated as
+// How many days back each recording rewrites. Rain: the gauges' readings
+// can arrive most of a day late. Spills: a finished spill stays in the feed
+// as Recent, with its start and end, for at least 48 hours.
+const DAY_RECORD_LOOKBACK = 3;
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+// Rain and spills for each of the last few London days, as far as the
+// responses in hand can say.
+export const buildDayRecords = (
+  cso: CsoResponse,
+  rainfall: RainfallResponse | null,
+  now: number
+): Record<string, DayRecord> => {
+  const records: Record<string, DayRecord> = {};
+  // Noon UTC is the same London calendar day all year, so stepping back a
+  // day at a time from it never skips or repeats one over a clock change.
+  const todayNoon = Date.parse(`${londonDayKey(now)}T12:00:00Z`);
+  for (let i = 0; i < DAY_RECORD_LOOKBACK; i++) {
+    const date = londonDayKey(todayNoon - i * 24 * HOUR_MS);
+    records[date] = { rainMm: null, spillHours: 0, spillOutfalls: 0 };
+  }
+
+  // Each gauge's total for the day, then the mean of the gauges that
+  // reported - one figure for the catchment.
+  if (rainfall) {
+    const totals: Record<string, number[]> = {};
+    for (const gauge of rainfall.gauges) {
+      const byDay: Record<string, number> = {};
+      for (const reading of gauge.readings) {
+        const date = londonDayKey(Date.parse(reading.dateTime));
+        if (date in records) {
+          byDay[date] = (byDay[date] ?? 0) + reading.valueMm;
+        }
+      }
+      for (const [date, mm] of Object.entries(byDay)) {
+        (totals[date] ??= []).push(mm);
+      }
+    }
+    for (const [date, perGauge] of Object.entries(totals)) {
+      records[date].rainMm = round1(
+        perGauge.reduce((sum, mm) => sum + mm, 0) / perGauge.length
+      );
+    }
+  }
+
+  // Every spill the feed still gives times for, split across the days it
+  // ran over (15-minute steps: the monitors' own resolution).
+  const STEP_MS = 15 * 60 * 1000;
+  for (const outfall of cso.outfalls) {
+    if (outfall.state !== "Ongoing" && outfall.state !== "Recent") continue;
+    if (!outfall.startISO) continue;
+    const start = Date.parse(outfall.startISO);
+    const end =
+      outfall.state === "Ongoing" || !outfall.endISO
+        ? now
+        : Date.parse(outfall.endISO);
+    const touched = new Set<string>();
+    for (let t = start; t < end; t += STEP_MS) {
+      const date = londonDayKey(t);
+      if (!(date in records)) continue;
+      records[date].spillHours += Math.min(STEP_MS, end - t) / HOUR_MS;
+      touched.add(date);
+    }
+    for (const date of touched) records[date].spillOutfalls++;
+  }
+  for (const record of Object.values(records)) {
+    record.spillHours = round1(record.spillHours);
+  }
+  return records;
+};
+
+// A day only ever fills in: late rain readings raise its total, and a
+// spill's hours grow until it ends. A later recording can also see less -
+// an overflow that spills again shows only its newest event - so each
+// figure keeps the most that has been seen.
+export const mergeDayRecords = (
+  existing: Record<string, DayRecord>,
+  incoming: Record<string, DayRecord>
+): Record<string, DayRecord> => {
+  const merged = { ...existing };
+  for (const [date, next] of Object.entries(incoming)) {
+    const prev = merged[date];
+    merged[date] = prev
+      ? {
+          rainMm:
+            prev.rainMm === null || next.rainMm === null
+              ? (prev.rainMm ?? next.rainMm)
+              : Math.max(prev.rainMm, next.rainMm),
+          spillHours: Math.max(prev.spillHours, next.spillHours),
+          spillOutfalls: Math.max(prev.spillOutfalls, next.spillOutfalls),
+        }
+      : next;
+  }
+  return merged;
+};
+
+// A month's file back into its parts. Anything unreadable is treated as
 // empty rather than thrown: the recorder must be able to carry on.
-export const parseSnapshots = (text: string | null): RiskSnapshot[] => {
-  if (!text) return [];
+export const parseMonth = (text: string | null): RiskHistoryMonth => {
+  const empty: RiskHistoryMonth = { snapshots: [], days: {} };
+  if (!text) return empty;
   try {
-    const parsed: unknown = JSON.parse(text);
-    return Array.isArray(parsed) ? (parsed as RiskSnapshot[]) : [];
+    const parsed = JSON.parse(text) as Partial<RiskHistoryMonth> | null;
+    if (!parsed || typeof parsed !== "object") return empty;
+    return {
+      snapshots: Array.isArray(parsed.snapshots) ? parsed.snapshots : [],
+      days: parsed.days && typeof parsed.days === "object" ? parsed.days : {},
+    };
   } catch {
-    return [];
+    return empty;
   }
 };
 
-const RANK: Record<RiskLevel, number> = { low: 0, raised: 1, high: 2 };
-
-// Snapshots into London calendar days, oldest first, for the chart.
-export const summariseDays = (snapshots: RiskSnapshot[]): RiskHistoryDay[] => {
-  const days = new Map<string, RiskHistoryDay>();
-  for (const s of snapshots) {
-    const ms = Date.parse(s.at);
-    if (!Number.isFinite(ms) || !(s.modelLevel in RANK)) continue;
-    const date = londonDayKey(ms);
-    const day = days.get(date) ?? {
-      date,
-      worst: "low" as RiskLevel,
-      counts: { low: 0, raised: 0, high: 0 },
-    };
-    day.counts[s.modelLevel]++;
-    if (RANK[s.modelLevel] > RANK[day.worst]) day.worst = s.modelLevel;
-    days.set(date, day);
-  }
-  return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
+// The chart's days, oldest first: the archive's rain for every day it
+// covers, with the recorded spills beside it where there are any. Months of
+// day records come oldest first; a day can sit in two files - the first
+// days of a month are still being filled in when the next begins - and
+// merges the same way as on recording.
+export const collectDays = (
+  rain: Record<string, number>,
+  months: Record<string, DayRecord>[]
+): RiskHistoryDay[] => {
+  const recorded = months.reduce(mergeDayRecords, {});
+  const dates = new Set([...Object.keys(rain), ...Object.keys(recorded)]);
+  return [...dates].sort().map((date) => ({
+    date,
+    rainMm: date in rain ? round1(rain[date]) : null,
+    spillHours: recorded[date]?.spillHours ?? null,
+    spillOutfalls: recorded[date]?.spillOutfalls ?? null,
+  }));
 };
