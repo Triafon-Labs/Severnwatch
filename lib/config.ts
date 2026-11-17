@@ -313,6 +313,14 @@ export const CATCHMENT_EXCLUDED_WATERCOURSES = [
   "CRADLEY",
 ];
 
+// Individual outfalls dropped by Severn Trent ID, for the ones that sit inside
+// a waypoint's circle and on a watercourse we keep but still can't reach the
+// reach. SVT02635 (Navigation Road, Diglis) discharges to the Severn about
+// 70 m below Diglis weir, so its water leaves Worcester rather than passing
+// through it - the Diglis circle is centred below the weir and would
+// otherwise count it as spilling in the reach.
+export const CATCHMENT_EXCLUDED_OUTFALL_IDS = ["SVT02635"];
+
 // Known site name overrides for CSO outfalls in the catchment corridor where
 // reverse geocoding gives a street name that differs from Severn Trent Water's
 // official site location name.

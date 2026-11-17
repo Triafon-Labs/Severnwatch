@@ -4,6 +4,7 @@ import {
   SEWAGE_API_URL,
   SEWAGE_MAX_RESULTS,
   CSO_SITE_OVERRIDES,
+  CATCHMENT_EXCLUDED_OUTFALL_IDS,
 } from "@/lib/config";
 import {
   nearestWaypoint,
@@ -107,6 +108,9 @@ export const getSewagePayload = async (
 
   const outfalls = features
     .map(({ attributes }) => {
+      if (CATCHMENT_EXCLUDED_OUTFALL_IDS.includes(String(attributes.Id))) {
+        return null; // in a circle, but discharges below the reach
+      }
       const nearest = nearestWaypoint(
         attributes.Latitude,
         attributes.Longitude,
