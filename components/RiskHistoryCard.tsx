@@ -44,19 +44,21 @@ import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 // there are too few Poor samples for counts to mean anything, a line saying
 // so.
 //
-// None of it is the app's own risk estimate. The rain is Open-Meteo's
-// modelled figure for Worcester (lib/rainHistory.ts), which reaches back
-// past the oldest sample, so the Rain view has every sample from the start.
-// The spills are the app's own record (lib/riskHistory.ts), which only
-// begins once a Blob store is connected - the feed has no history - so the
-// Spills view fills in a sample at a time from then on.
+// None of it is the app's own risk estimate. The rain is what the EA's
+// gauges caught in the 72 hours before each sample, worked out with the
+// samples (lib/sampleRain.ts), so the Rain view has every sample from the
+// start. The spills are the app's own record (lib/riskHistory.ts), which
+// only begins once a Blob store is connected - the feed has no history - so
+// the Spills view fills in a sample at a time from then on.
 
-// A sample is set against its own day and this many before it. Not a week:
-// what fell six days ago has long gone past, and would only blur the
-// picture. Roughly a spill's travel time down plus the 48 h it lingers.
+// A sample is set against the three days before it - its own day and the
+// three before for spills, which are recorded by the day. Not a week: what
+// fell six days ago has long gone past and would only blur the picture.
+// Roughly a spill's travel time down plus the 48 h it lingers.
 const DAYS_BEFORE = 3;
 
 const PLOT_HEIGHT = 200;
+const AXIS_WIDTH = 54;
 const DOT_SIZE = 14;
 
 // Up the side: the sample's bacteria as a multiple of the Good limit, for
@@ -67,36 +69,97 @@ const DOT_SIZE = 14;
 // linear one every ordinary sample would sit on the floor beside a bad one.
 const RATIO_FLOOR = 0.01;
 const RATIO_CEILING = 100;
+// Words rather than multiples ("10×", "1/10"): the scale is there to say
+// up is dirtier, and the shaded zone already marks where Poor starts.
 const RATIO_TICKS: { ratio: number; label: string }[] = [
-  { ratio: 100, label: "100×" },
-  { ratio: 10, label: "10×" },
+  { ratio: RATIO_CEILING, label: "Dirtier" },
   { ratio: 1, label: "Limit" },
-  { ratio: 0.1, label: "1/10" },
-  { ratio: 0.01, label: "1/100" },
+  { ratio: RATIO_FLOOR, label: "Cleaner" },
 ];
-
-// The tiles split the samples at this much rain over the days before: a
-// properly wet spell against the rest. A fixed line rather than the middle
-// sample, which in a dry run put "wetter" at a couple of millimetres.
-const WET_SPELL_MM = 10;
 
 // Below this many Poor samples the card says there are too few to judge,
 // rather than showing counts: "1 of 13 Poor after rain, 0 of 13 without"
 // reads as a finding and is one sample.
 const MIN_POOR_TO_COMPARE = 3;
 
-// The bottom scale always reaches at least this, so a few dry samples
-// don't spread across the chart as if they differed.
-const MIN_SCALE = { rain: 10, spills: 5 };
+type Measure = "rain" | "spills" | "flow";
 
-type Measure = "rain" | "spills";
+// Everything that differs between the three views.
+interface MeasureUi {
+  toggle: string;
+  title: string; // "Rain vs Water Quality"
+  subject: string; // "If rain makes the water worse..."
+  axis: string; // along the bottom
+  unit: string;
+  source: string; // the line under the chart
+  // The tapped sample's figure: "4.9 mm rain in the 3 days before".
+  detail: (x: number) => string;
+  // The bottom scale always reaches at least this, so a few samples close
+  // together don't spread across the chart as if they differed.
+  minScale: number;
+  // The tiles split the samples above this from the rest. Fixed lines
+  // rather than the middle sample, which in a dry run put "wetter" at a
+  // couple of millimetres.
+  cut: number;
+  moreTile: { label: string; detail: string };
+  lessTile: { label: string; detail: string };
+}
 
-const MEASURE_UI: Record<
-  Measure,
-  { toggle: string; axis: string; unit: string }
-> = {
-  rain: { toggle: "Rain", axis: "Rain", unit: " mm" },
-  spills: { toggle: "Sewage Spills", axis: "Spilling", unit: "h" },
+const WET_SPELL_MM = 10;
+// Bewdley's long-term mean flow, m3/s (see plumeTravelHours in
+// lib/config.ts): above it, the river is running higher than usual.
+const MEAN_FLOW_M3S = 62;
+
+const MEASURE_UI: Record<Measure, MeasureUi> = {
+  rain: {
+    toggle: "Rain",
+    title: "Rain vs Water Quality",
+    subject: "rain makes",
+    axis: "Rain",
+    unit: " mm",
+    source: "Rain: EA gauges, mean of three",
+    detail: (x) => `${x} mm rain in the ${DAYS_BEFORE} days before`,
+    minScale: 10,
+    cut: WET_SPELL_MM,
+    moreTile: {
+      label: "After Wet Spells",
+      detail: `Over ${WET_SPELL_MM} mm before`,
+    },
+    lessTile: {
+      label: "After Dry Spells",
+      detail: `${WET_SPELL_MM} mm or less before`,
+    },
+  },
+  spills: {
+    toggle: "Spills",
+    title: "Spills vs Water Quality",
+    subject: "spills make",
+    axis: "Spilling",
+    unit: "h",
+    source: "Spills: hours across all monitored overflows",
+    detail: (x) => `${x}h spilling in the ${DAYS_BEFORE} days before`,
+    minScale: 5,
+    cut: 0,
+    moreTile: { label: "After Spills", detail: "Some spilling before" },
+    lessTile: { label: "No Spills", detail: "No spilling before" },
+  },
+  flow: {
+    toggle: "River",
+    title: "River vs Water Quality",
+    subject: "a high river makes",
+    axis: "Peak flow",
+    unit: " m³/s",
+    source: "River: EA flow gauge at Bewdley",
+    detail: (x) =>
+      `River peaked at ${Math.round(x)} m³/s in the ${DAYS_BEFORE} days before`,
+    minScale: 100,
+    cut: MEAN_FLOW_M3S,
+    moreTile: {
+      label: "High River",
+      detail: `Over ${MEAN_FLOW_M3S} m³/s, its average`,
+    },
+    lessTile: { label: "Low River", detail: `${MEAN_FLOW_M3S} m³/s or less` },
+  },
 };
 
 const keyToMs = (key: string) => Date.parse(`${key}T12:00:00Z`);
@@ -116,10 +179,11 @@ interface Point {
   ratio: number; // the worse indicator, as a multiple of its Good limit
   countText: string; // "Enterococci 520" - the worse indicator
   allCounts: string; // "E. coli 100 · Enterococci 60"
-  // Over the sample's day and the days before; null if any of those days
-  // is missing, since a part-known run-up would plot as a drier one.
-  rain: number | null; // mm
-  spills: number | null; // hours of spilling
+  // Null where it isn't known, since a part-known run-up would plot as a
+  // drier one.
+  rain: number | null; // mm in the 72 hours before
+  flow: number | null; // highest m3/s at Bewdley in the 72 hours before
+  spills: number | null; // hours of spilling, its own day and three before
 }
 
 const RiskHistoryCard: React.FC = () => {
@@ -130,7 +194,6 @@ const RiskHistoryCard: React.FC = () => {
   const [pickedId, setPickedId] = useState<string | null>(null);
 
   const allPoints = useMemo(() => {
-    if (days.length === 0) return null;
     const byDate = new Map<string, RiskHistoryDay>(
       days.map((d) => [d.date, d])
     );
@@ -147,12 +210,8 @@ const RiskHistoryCard: React.FC = () => {
         const day = byDate.get(londonDayKey(sampleDay - i * DAY_MS));
         if (day) before.push(day);
       }
-      const total = (pick: (d: RiskHistoryDay) => number | null) => {
-        const values = before.map(pick);
-        return before.length > DAYS_BEFORE && values.every((v) => v !== null)
-          ? round1(values.reduce<number>((sum, v) => sum + (v ?? 0), 0))
-          : null;
-      };
+      const rain = waterQuality?.rainBeforeMm?.[sample.id];
+      const flow = waterQuality?.flowBeforeM3s?.[sample.id];
       result.push({
         id: sample.id,
         when: formatLondonDate(ms),
@@ -162,14 +221,26 @@ const RiskHistoryCard: React.FC = () => {
         allCounts: CLASSIFIED_INDICATORS.map(
           (key) => `${INDICATORS[key].shortLabel} ${formatCount(sample[key])}`
         ).join(" · "),
-        rain: total((d) => d.rainMm),
-        spills: total((d) => d.spillHours),
+        rain: typeof rain === "number" ? rain : null,
+        flow: typeof flow === "number" ? flow : null,
+        spills:
+          before.length > DAYS_BEFORE
+            ? round1(before.reduce((sum, d) => sum + d.spillHours, 0))
+            : null,
       });
     }
     return result;
   }, [days, waterQuality]);
 
-  if (!allPoints) return null;
+  // Nothing to show until there's a sample with rain against it - an old
+  // saved response has none, and the gauges can be unreachable at a build.
+  if (
+    !allPoints.some(
+      (p) => p.rain !== null || p.spills !== null || p.flow !== null
+    )
+  ) {
+    return null;
+  }
 
   const ui = MEASURE_UI[measure];
   // The samples this view can place, each with its figure for the measure.
@@ -182,11 +253,11 @@ const RiskHistoryCard: React.FC = () => {
   const spillsSince = firstSpillDay
     ? formatLondonDate(keyToMs(firstSpillDay), { withWeekday: false })
     : null;
-  const max = Math.max(MIN_SCALE[measure], ...points.map((p) => p.x));
+  const max = Math.max(ui.minScale, ...points.map((p) => p.x));
 
   // The same answer in counts: the samples split into those after more of
   // it and those after less - any spilling at all, or a wet spell of rain.
-  const cut = measure === "spills" ? 0 : WET_SPELL_MM;
+  const cut = ui.cut;
   const more = points.filter((p) => p.x > cut);
   const less = points.filter((p) => p.x <= cut);
   const poorCount = points.filter((p) => p.band === "poor").length;
@@ -202,14 +273,15 @@ const RiskHistoryCard: React.FC = () => {
     <Card>
       <CardContent>
         <Typography variant="h5" component="h2">
-          {measure === "rain" ? "Rain" : "Spills"} vs Water Quality
+          {ui.title}
         </Typography>
         <Typography
           variant="body2"
           color="text.secondary"
           sx={{ mt: 0.25, mb: 2 }}
         >
-          Each dot is a sample, set against the {DAYS_BEFORE} days before it
+          Each dot is a sample. If {ui.subject} the water worse, the dots climb
+          to the right.
         </Typography>
 
         <Stack spacing={2}>
@@ -231,11 +303,11 @@ const RiskHistoryCard: React.FC = () => {
           {points.length === 0 ? (
             <InfoPanel>
               <Typography variant="body2" color="text.secondary">
-                {measure === "rain"
+                {measure !== "spills"
                   ? "No samples to plot yet."
                   : spillsSince
-                    ? `Spills have been recorded since ${spillsSince}. A sample joins once the ${DAYS_BEFORE} days before it are on record.`
-                    : "Spills aren't being recorded yet. Severn Trent's feed keeps no history, so this fills in from the day recording begins."}
+                    ? `Recording since ${spillsSince}. Samples appear here as they come in.`
+                    : "Spills aren't being recorded yet. Samples will appear here once they are."}
               </Typography>
             </InfoPanel>
           ) : (
@@ -250,7 +322,7 @@ const RiskHistoryCard: React.FC = () => {
                     aria-hidden
                     sx={{
                       position: "relative",
-                      width: 44,
+                      width: AXIS_WIDTH,
                       flexShrink: 0,
                       height: PLOT_HEIGHT,
                     }}
@@ -368,7 +440,7 @@ const RiskHistoryCard: React.FC = () => {
                   direction="row"
                   sx={{
                     justifyContent: "space-between",
-                    pl: "44px",
+                    pl: `${AXIS_WIDTH}px`,
                     mt: 0.5,
                   }}
                 >
@@ -376,7 +448,7 @@ const RiskHistoryCard: React.FC = () => {
                     0
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {ui.axis} in the {DAYS_BEFORE} days before →
+                    {ui.axis}, {DAYS_BEFORE} days before →
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {Math.round(max)}
@@ -389,12 +461,10 @@ const RiskHistoryCard: React.FC = () => {
                   color="text.secondary"
                   sx={{ display: "block", mt: 0.5 }}
                 >
-                  Up the side is the sample&apos;s bacteria compared with the
-                  Good limit: 10× is ten times over it, 1/10 is a tenth of it. A
-                  link shows as dots climbing to the right.{" "}
-                  {measure === "rain"
-                    ? "Rain is Open-Meteo's estimate for Worcester, not a gauge reading."
-                    : `Spills are hours of spilling added up across the monitored overflows${spillsSince ? `, recorded since ${spillsSince}` : ""}.`}
+                  {ui.source}
+                  {measure === "spills" && spillsSince
+                    ? `, since ${spillsSince}`
+                    : ""}
                 </Typography>
               </Box>
 
@@ -425,10 +495,7 @@ const RiskHistoryCard: React.FC = () => {
                         color="text.secondary"
                         sx={{ display: "block" }}
                       >
-                        {measure === "rain"
-                          ? `${picked.x} mm of rain`
-                          : `${picked.x}h of spilling`}{" "}
-                        in the {DAYS_BEFORE} days before
+                        {ui.detail(picked.x)}
                       </Typography>
                     </Box>
                     <SampleBandChip band={picked.band} />
@@ -443,37 +510,24 @@ const RiskHistoryCard: React.FC = () => {
                   />
                   <Typography variant="body2" color="text.secondary">
                     {poorCount === 0
-                      ? `None of the ${points.length} samples was Poor,`
-                      : `Only ${poorCount} of the ${points.length} samples ${poorCount === 1 ? "was" : "were"} Poor,`}{" "}
-                    which is too few to show a link either way. That is not the
-                    same as showing there isn&apos;t one.
+                      ? "No Poor samples yet"
+                      : `Only ${poorCount} Poor sample${poorCount === 1 ? "" : "s"} so far`}
+                    , too few to tell either way.
                   </Typography>
                 </InfoPanel>
               ) : (
                 <Box sx={tileGridSx}>
                   <StatTile
                     icon={<WaterDropIcon />}
-                    label={
-                      measure === "rain" ? "After Wet Spells" : "After Spills"
-                    }
+                    label={ui.moreTile.label}
                     value={poorOf(more)}
-                    detail={
-                      measure === "rain"
-                        ? `Over ${cut} mm before`
-                        : "Some spilling before"
-                    }
+                    detail={ui.moreTile.detail}
                   />
                   <StatTile
                     icon={<WbSunnyOutlinedIcon />}
-                    label={
-                      measure === "rain" ? "After Dry Spells" : "No Spills"
-                    }
+                    label={ui.lessTile.label}
                     value={poorOf(less)}
-                    detail={
-                      measure === "rain"
-                        ? `${cut} mm or less before`
-                        : "No spilling before"
-                    }
+                    detail={ui.lessTile.detail}
                   />
                 </Box>
               )}

@@ -109,6 +109,12 @@ export interface WaterQualitySite {
 export interface WaterQualityResponse {
   site: WaterQualitySite;
   samples: WaterQualitySample[]; // oldest first
+  // Rain in the 72 hours before each sample, mm, the mean of the EA gauges
+  // (lib/sampleConditions.ts), by sample ID. Null where the gauges couldn't say;
+  // absent from responses saved by older versions.
+  rainBeforeMm?: Record<string, number | null>;
+  // The highest flow at Bewdley in the same 72 hours, m3/s. Same rules.
+  flowBeforeM3s?: Record<string, number | null>;
   // When the response was built. For the file-based source this is the
   // build, not the sampling, so it deliberately doesn't feed the app bar's
   // "Updated" line - the cards date each sample themselves.
@@ -173,21 +179,14 @@ export interface RiskHistoryMonth {
   days: Record<string, DayRecord>; // by London date, "2026-11-16"
 }
 
-// One London calendar day, as the history chart reads it. The two halves
-// come from different places and reach back different distances, so either
-// can be missing.
+// One recorded London calendar day, as the history chart reads it.
 export interface RiskHistoryDay {
   date: string; // "2026-11-16"
-  // Open-Meteo's modelled rain for Worcester (lib/rainHistory.ts) - not the
-  // gauges' rainMm kept in DayRecord. Null if the archive had nothing.
-  rainMm: number | null;
-  // From the app's own record (DayRecord). Null for a day it didn't record:
-  // every day before recording began, since the spill feed has no history.
-  spillHours: number | null;
-  spillOutfalls: number | null;
+  spillHours: number;
+  spillOutfalls: number;
 }
 
 export interface RiskHistoryResponse {
-  days: RiskHistoryDay[]; // oldest first
+  days: RiskHistoryDay[]; // oldest first; empty until recording has begun
   asOf: string;
 }
