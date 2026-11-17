@@ -57,6 +57,7 @@ import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 const DAYS_BEFORE = 3;
 
 const PLOT_HEIGHT = 200;
+const AXIS_WIDTH = 54;
 const DOT_SIZE = 14;
 
 // Up the side: the sample's bacteria as a multiple of the Good limit, for
@@ -67,12 +68,12 @@ const DOT_SIZE = 14;
 // linear one every ordinary sample would sit on the floor beside a bad one.
 const RATIO_FLOOR = 0.01;
 const RATIO_CEILING = 100;
+// Words rather than multiples ("10×", "1/10"): the scale is there to say
+// up is dirtier, and the shaded zone already marks where Poor starts.
 const RATIO_TICKS: { ratio: number; label: string }[] = [
-  { ratio: 100, label: "100×" },
-  { ratio: 10, label: "10×" },
+  { ratio: RATIO_CEILING, label: "Dirtier" },
   { ratio: 1, label: "Limit" },
-  { ratio: 0.1, label: "1/10" },
-  { ratio: 0.01, label: "1/100" },
+  { ratio: RATIO_FLOOR, label: "Cleaner" },
 ];
 
 // The tiles split the samples at this much rain over the days before: a
@@ -209,7 +210,9 @@ const RiskHistoryCard: React.FC = () => {
           color="text.secondary"
           sx={{ mt: 0.25, mb: 2 }}
         >
-          Each dot is a sample, set against the {DAYS_BEFORE} days before it
+          Each dot is a sample. If {measure === "rain" ? "rain" : "spills"}{" "}
+          {measure === "rain" ? "makes" : "make"} the water worse, the dots
+          climb to the right.
         </Typography>
 
         <Stack spacing={2}>
@@ -234,8 +237,8 @@ const RiskHistoryCard: React.FC = () => {
                 {measure === "rain"
                   ? "No samples to plot yet."
                   : spillsSince
-                    ? `Spills have been recorded since ${spillsSince}. A sample joins once the ${DAYS_BEFORE} days before it are on record.`
-                    : "Spills aren't being recorded yet. Severn Trent's feed keeps no history, so this fills in from the day recording begins."}
+                    ? `Recording since ${spillsSince}. Samples appear here as they come in.`
+                    : "Spills aren't being recorded yet. Samples will appear here once they are."}
               </Typography>
             </InfoPanel>
           ) : (
@@ -250,7 +253,7 @@ const RiskHistoryCard: React.FC = () => {
                     aria-hidden
                     sx={{
                       position: "relative",
-                      width: 44,
+                      width: AXIS_WIDTH,
                       flexShrink: 0,
                       height: PLOT_HEIGHT,
                     }}
@@ -368,7 +371,7 @@ const RiskHistoryCard: React.FC = () => {
                   direction="row"
                   sx={{
                     justifyContent: "space-between",
-                    pl: "44px",
+                    pl: `${AXIS_WIDTH}px`,
                     mt: 0.5,
                   }}
                 >
@@ -376,7 +379,7 @@ const RiskHistoryCard: React.FC = () => {
                     0
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {ui.axis} in the {DAYS_BEFORE} days before →
+                    {ui.axis}, {DAYS_BEFORE} days before →
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {Math.round(max)}
@@ -389,12 +392,9 @@ const RiskHistoryCard: React.FC = () => {
                   color="text.secondary"
                   sx={{ display: "block", mt: 0.5 }}
                 >
-                  Up the side is the sample&apos;s bacteria compared with the
-                  Good limit: 10× is ten times over it, 1/10 is a tenth of it. A
-                  link shows as dots climbing to the right.{" "}
                   {measure === "rain"
-                    ? "Rain is Open-Meteo's estimate for Worcester, not a gauge reading."
-                    : `Spills are hours of spilling added up across the monitored overflows${spillsSince ? `, recorded since ${spillsSince}` : ""}.`}
+                    ? "Rain: Open-Meteo estimate for Worcester"
+                    : `Spills: hours across all monitored overflows${spillsSince ? `, since ${spillsSince}` : ""}`}
                 </Typography>
               </Box>
 
@@ -426,8 +426,8 @@ const RiskHistoryCard: React.FC = () => {
                         sx={{ display: "block" }}
                       >
                         {measure === "rain"
-                          ? `${picked.x} mm of rain`
-                          : `${picked.x}h of spilling`}{" "}
+                          ? `${picked.x} mm rain`
+                          : `${picked.x}h spilling`}{" "}
                         in the {DAYS_BEFORE} days before
                       </Typography>
                     </Box>
@@ -443,10 +443,9 @@ const RiskHistoryCard: React.FC = () => {
                   />
                   <Typography variant="body2" color="text.secondary">
                     {poorCount === 0
-                      ? `None of the ${points.length} samples was Poor,`
-                      : `Only ${poorCount} of the ${points.length} samples ${poorCount === 1 ? "was" : "were"} Poor,`}{" "}
-                    which is too few to show a link either way. That is not the
-                    same as showing there isn&apos;t one.
+                      ? "No Poor samples yet"
+                      : `Only ${poorCount} Poor sample${poorCount === 1 ? "" : "s"} so far`}
+                    , too few to tell either way.
                   </Typography>
                 </InfoPanel>
               ) : (
