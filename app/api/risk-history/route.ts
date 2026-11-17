@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { DayRecord, RiskHistoryResponse } from "@/types";
-import { fetchRainHistory } from "@/lib/rainHistory";
 import { collectDays, parseMonth } from "@/lib/riskHistory";
 import {
   historyAvailable,
@@ -9,15 +8,14 @@ import {
   readMonth,
 } from "@/lib/riskHistoryStore";
 
-// Rain and spills by day, for the Rain vs Water Quality chart. Rain is
-// Open-Meteo's archive, fetched here and reaching back past the oldest
-// sample; spills are the app's own record, which begins when a Blob store
-// is connected. Each is best-effort: with no store the days carry rain
-// alone, and with the archive down they carry spills alone.
+// The recorded spills by day, for the Spills view of the Rain vs Water
+// Quality chart. Severn Trent's feed keeps no history, so these begin when
+// a Blob store is connected; until then the list is empty. (The chart's
+// rain comes with the samples - see lib/sampleRain.ts.)
 //
 // Cached for three hours: the chart works in days, so nothing on it moves
-// faster than that, and every rebuild is one archive request and one
-// storage read per month kept. Has to be a literal (see lib/fetchCache.ts).
+// faster than that, and every rebuild is one storage read per month kept.
+// Has to be a literal (see lib/fetchCache.ts).
 export const revalidate = 10800;
 
 // How far back recorded spills are read, which bounds the reads per rebuild.
@@ -44,13 +42,8 @@ export async function GET() {
     console.error("Error reading risk history:", error);
   }
 
-  const rain = await fetchRainHistory().catch((error) => {
-    console.error("Error fetching rain history:", error);
-    return {};
-  });
-
   const body: RiskHistoryResponse = {
-    days: collectDays(rain, months),
+    days: collectDays(months),
     asOf: new Date().toISOString(),
   };
   return NextResponse.json(body);

@@ -44,16 +44,17 @@ import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 // there are too few Poor samples for counts to mean anything, a line saying
 // so.
 //
-// None of it is the app's own risk estimate. The rain is Open-Meteo's
-// modelled figure for Worcester (lib/rainHistory.ts), which reaches back
-// past the oldest sample, so the Rain view has every sample from the start.
-// The spills are the app's own record (lib/riskHistory.ts), which only
-// begins once a Blob store is connected - the feed has no history - so the
-// Spills view fills in a sample at a time from then on.
+// None of it is the app's own risk estimate. The rain is what the EA's
+// gauges caught in the 72 hours before each sample, worked out with the
+// samples (lib/sampleRain.ts), so the Rain view has every sample from the
+// start. The spills are the app's own record (lib/riskHistory.ts), which
+// only begins once a Blob store is connected - the feed has no history - so
+// the Spills view fills in a sample at a time from then on.
 
-// A sample is set against its own day and this many before it. Not a week:
-// what fell six days ago has long gone past, and would only blur the
-// picture. Roughly a spill's travel time down plus the 48 h it lingers.
+// A sample is set against the three days before it - its own day and the
+// three before for spills, which are recorded by the day. Not a week: what
+// fell six days ago has long gone past and would only blur the picture.
+// Roughly a spill's travel time down plus the 48 h it lingers.
 const DAYS_BEFORE = 3;
 
 const PLOT_HEIGHT = 200;
@@ -117,10 +118,10 @@ interface Point {
   ratio: number; // the worse indicator, as a multiple of its Good limit
   countText: string; // "Enterococci 520" - the worse indicator
   allCounts: string; // "E. coli 100 · Enterococci 60"
-  // Over the sample's day and the days before; null if any of those days
-  // is missing, since a part-known run-up would plot as a drier one.
-  rain: number | null; // mm
-  spills: number | null; // hours of spilling
+  // Null where it isn't known, since a part-known run-up would plot as a
+  // drier one.
+  rain: number | null; // mm in the 72 hours before
+  spills: number | null; // hours of spilling, its own day and three before
 }
 
 const RiskHistoryCard: React.FC = () => {
@@ -131,7 +132,6 @@ const RiskHistoryCard: React.FC = () => {
   const [pickedId, setPickedId] = useState<string | null>(null);
 
   const allPoints = useMemo(() => {
-    if (days.length === 0) return null;
     const byDate = new Map<string, RiskHistoryDay>(
       days.map((d) => [d.date, d])
     );
@@ -148,12 +148,7 @@ const RiskHistoryCard: React.FC = () => {
         const day = byDate.get(londonDayKey(sampleDay - i * DAY_MS));
         if (day) before.push(day);
       }
-      const total = (pick: (d: RiskHistoryDay) => number | null) => {
-        const values = before.map(pick);
-        return before.length > DAYS_BEFORE && values.every((v) => v !== null)
-          ? round1(values.reduce<number>((sum, v) => sum + (v ?? 0), 0))
-          : null;
-      };
+      const rain = waterQuality?.rainBeforeMm?.[sample.id];
       result.push({
         id: sample.id,
         when: formatLondonDate(ms),
@@ -163,14 +158,21 @@ const RiskHistoryCard: React.FC = () => {
         allCounts: CLASSIFIED_INDICATORS.map(
           (key) => `${INDICATORS[key].shortLabel} ${formatCount(sample[key])}`
         ).join(" · "),
-        rain: total((d) => d.rainMm),
-        spills: total((d) => d.spillHours),
+        rain: typeof rain === "number" ? rain : null,
+        spills:
+          before.length > DAYS_BEFORE
+            ? round1(before.reduce((sum, d) => sum + d.spillHours, 0))
+            : null,
       });
     }
     return result;
   }, [days, waterQuality]);
 
-  if (!allPoints) return null;
+  // Nothing to show until there's a sample with rain against it - an old
+  // saved response has none, and the gauges can be unreachable at a build.
+  if (!allPoints.some((p) => p.rain !== null || p.spills !== null)) {
+    return null;
+  }
 
   const ui = MEASURE_UI[measure];
   // The samples this view can place, each with its figure for the measure.
@@ -393,7 +395,7 @@ const RiskHistoryCard: React.FC = () => {
                   sx={{ display: "block", mt: 0.5 }}
                 >
                   {measure === "rain"
-                    ? "Rain: Open-Meteo estimate for Worcester"
+                    ? "Rain: EA gauges, mean of three"
                     : `Spills: hours across all monitored overflows${spillsSince ? `, since ${spillsSince}` : ""}`}
                 </Typography>
               </Box>
