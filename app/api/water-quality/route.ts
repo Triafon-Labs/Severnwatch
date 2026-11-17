@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { WaterQualityResponse } from "@/types";
 import { loadWaterQualitySamples } from "@/lib/waterQualityCsv";
-import { loadSampleRain } from "@/lib/sampleRain";
+import { loadSampleConditions } from "@/lib/sampleConditions";
 
 // The samples are the CSVs committed to data/water-quality/ plus every export
 // uploaded through /upload (lib/waterQualityStore.ts). Neither changes on its
@@ -14,8 +14,8 @@ import { loadSampleRain } from "@/lib/sampleRain";
 // rather than every request. `next dev` runs this per request, so a file
 // dropped into the folder shows up on refresh.
 //
-// Each sample also carries the gauges' rain in the 72 hours before it
-// (lib/sampleRain.ts), fetched here so it is worked out once per build
+// Each sample also carries the gauges' rain and the river's flow in the 72
+// hours before it (lib/sampleConditions.ts), fetched here so it is worked out once per build
 // rather than per visit. A sample's rain is settled by the time it is
 // uploaded, so nothing goes stale between rebuilds; if the gauges were
 // unreachable at build, that sample's rain is null until the next one. The
@@ -28,7 +28,7 @@ export async function GET() {
   const body: WaterQualityResponse = {
     site,
     samples,
-    rainBeforeMm: await loadSampleRain(samples),
+    ...(await loadSampleConditions(samples)),
     asOf: new Date().toISOString(),
   };
   return NextResponse.json(body);

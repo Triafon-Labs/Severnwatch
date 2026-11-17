@@ -104,7 +104,7 @@ app/
       live/             Same response with no cache – called when the cached one has expired
     rainfall/           EA rainfall gauges + Open-Meteo forecast (lib/rainfall.ts)
       live/             Same, no cache
-    water-quality/      Committed + uploaded SAS CSVs + the rain before each, static; rebuilt on each upload
+    water-quality/      Committed + uploaded SAS CSVs + the rain and flow before each, static; rebuilt on each upload
       upload/           POST: passcode-checked upload of one export (validates, stores, revalidates)
     risk-history/       Recorded spills by day, cached 3 h
       record/           Records a snapshot and the day records once per clock hour to the Blob store; called by keep-alive
@@ -128,7 +128,7 @@ components/
   LatestSampleCard.tsx       Newest Grandstand Road sample – counts, tier, tester's note, conditions
   SampleHistoryCard.tsx      Every sample – indicator toggle, picked sample with ‹ › stepping, tier counts, how the limits work
   SampleHistoryChart.tsx     Recharts history of one indicator in tier bands; tap/drag picks a sample (no tooltip)
-  RiskHistoryCard.tsx        "Rain vs Water Quality" – scatter of each sample's bacteria against the rain or spills before it
+  RiskHistoryCard.tsx        "Rain vs Water Quality" – scatter of each sample's bacteria against the rain, spills or river flow before it
   SampleDetails.tsx          One sample's counts, note and conditions – Latest Sample and the picked sample
   SampleBandChip.tsx         A sample's Excellent/Good/Poor band as a status chip
   UploadForm.tsx             The /upload page's form – passcode, file, the check's result
@@ -149,7 +149,7 @@ lib/
   riskHistory.ts        Pure: the hourly snapshot of what the app said, and each day's rain and spills
   riskHistoryStore.ts   Server-only: one JSON file a month in Vercel Blob (or a local folder off Vercel)
   useRiskHistory.ts     Client hook: fetches /api/risk-history once for the card
-  sampleRain.ts         Server-only: EA gauge rain in the 72 h before each sample (Hydrology API), for the history chart
+  sampleConditions.ts   Server-only: EA gauge rain and Bewdley flow in the 72 h before each sample (Hydrology API)
   riverFlow.ts          Server-only: Bewdley flow, recorded with each snapshot (not used by the risk)
   shareText.ts          What the share button sends – the risk, its reasons and the latest sample
   waterQuality.ts       Sample bands against the bathing water limits, formatting, stats
@@ -206,7 +206,7 @@ docs/                   Reference documents
 | Outfall place names           | Nominatim reverse geocoding                                                                | Only for Ongoing/Recent, capped by `SEWAGE_MAX_RESULTS` |
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) | 15-min readings, three gauges                           |
 | Rainfall forecast             | Open-Meteo `api.open-meteo.com/v1/forecast`                                                | Single point for Worcester, not per-gauge               |
-| Rain before each sample       | EA Hydrology API (`environment.data.gov.uk/hydrology`), same three gauges                  | 15-min history; fetched at build, for the history chart |
+| Rain and flow before samples  | EA Hydrology API (`environment.data.gov.uk/hydrology`), three gauges + Bewdley flow        | 15-min history; fetched at build, for the history chart |
 | Citizen science water quality | SAS CSV export, uploaded via `/upload` (Vercel Blob) + committed baseline                  | No API; uploaded by hand. Static, rebuilt per upload    |
 
 ---
@@ -301,24 +301,28 @@ is safe only because this route is the one writer:
 London day, reading the months back by name (never a list - that is a
 metered Blob operation). Empty until a store is connected.
 
-The chart's rain doesn't come from the record: `/api/water-quality` attaches
-`rainBeforeMm` to its response - the mean of the three EA gauges over the 72
-hours before each sample (`lib/sampleRain.ts`), from the EA's Hydrology
-service, which keeps the gauges' 15-minute readings for years and is current
-to within hours. (Its daily totals run 09:00 to 09:00 and lag weeks, so
-aren't used.) It is fetched at build and after each upload, with past
+The chart's rain and river flow don't come from the record:
+`/api/water-quality` attaches `rainBeforeMm` - the mean of the three EA
+gauges over the 72 hours before each sample - and `flowBeforeM3s` - the
+highest flow at Bewdley in the same 72 hours (`lib/sampleConditions.ts`).
+Both come from the EA's Hydrology service, which keeps 15-minute readings
+for years; rain is current to within hours, flow runs a few days behind.
+(Its daily totals run 09:00 to 09:00 for rain and lag weeks, so aren't
+used.) Flow at Bewdley stands for everything upstream - rain in Shropshire
+and Wales, the overflows above Bewdley the app leaves out - with the travel
+time built in. It is fetched at build and after each upload, with past
 windows cached for a week - which also makes that route rebuild weekly. A
-gauge missing over 10% of its readings is left out, and a sample with none
-usable gets null.
+station missing over 10% of its readings is left out, and a sample with
+none usable gets null.
 
 `RiskHistoryCard` asks one question of them - is there a link between rain
-or spills and poor water quality? - as a scatter: a dot per sample, rain (or
-hours of spilling, by a toggle) over its own day and the three before along
+or spills and poor water quality? - as a scatter: a dot per sample, rain (or,
+by a toggle, hours of spilling or the river's peak flow) over its own day and the three before along
 the bottom, its bacteria as a multiple of the Good limit up the side (log
-scale, the worse of the two indicators). Rain is the 72 hours before each
-sample; spills are its own day and the three before. Tapping a dot shows its sample.
+scale, the worse of the two indicators). Rain and flow are the 72 hours
+before each sample; spills are its own day and the three before. Tapping a dot shows its sample.
 Two tiles give the same answer as counts of Poor samples after a wet spell
-(or any spilling) and after less - or, below `MIN_POOR_TO_COMPARE` Poor
+(or any spilling, or a river above its 62 m³/s average) and after less - or, below `MIN_POOR_TO_COMPARE` Poor
 samples, a line saying there are too few to judge. The Rain view has
 every sample from the start; the Spills view places a sample once all four
 of its days were recorded. Off Vercel

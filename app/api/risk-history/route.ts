@@ -11,7 +11,7 @@ import {
 // The recorded spills by day, for the Spills view of the Rain vs Water
 // Quality chart. Severn Trent's feed keeps no history, so these begin when
 // a Blob store is connected; until then the list is empty. (The chart's
-// rain comes with the samples - see lib/sampleRain.ts.)
+// rain comes with the samples - see lib/sampleConditions.ts.)
 //
 // Cached for three hours: the chart works in days, so nothing on it moves
 // faster than that, and every rebuild is one storage read per month kept.

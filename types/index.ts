@@ -110,9 +110,11 @@ export interface WaterQualityResponse {
   site: WaterQualitySite;
   samples: WaterQualitySample[]; // oldest first
   // Rain in the 72 hours before each sample, mm, the mean of the EA gauges
-  // (lib/sampleRain.ts), by sample ID. Null where the gauges couldn't say;
+  // (lib/sampleConditions.ts), by sample ID. Null where the gauges couldn't say;
   // absent from responses saved by older versions.
   rainBeforeMm?: Record<string, number | null>;
+  // The highest flow at Bewdley in the same 72 hours, m3/s. Same rules.
+  flowBeforeM3s?: Record<string, number | null>;
   // When the response was built. For the file-based source this is the
   // build, not the sampling, so it deliberately doesn't feed the app bar's
   // "Updated" line - the cards date each sample themselves.
