@@ -5,6 +5,7 @@ import {
   Box,
   Card,
   CardContent,
+  Grow,
   Stack,
   ToggleButton,
   Typography,
@@ -31,6 +32,8 @@ import InfoPanel from "@/components/InfoPanel";
 import SampleBandChip from "@/components/SampleBandChip";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
+import { EasedHeight, ReservedHeight } from "@/components/HeightMotion";
+import { m3Spring, spring, springTransition } from "@/lib/m3-palette";
 
 // One question: is there a link between rain or sewage spills and poor
 // water quality? Answered the way that question is - a scatter. Each dot is
@@ -269,273 +272,303 @@ const RiskHistoryCard: React.FC = () => {
       ? "None yet"
       : `${group.filter((p) => p.band === "poor").length} of ${group.length} Poor`;
 
+  // The card arrives after the rest of the page (once the samples have rain
+  // against them), so it grows in as the others' content does. It is the
+  // last card, so it keeps the height of its tallest view (ReservedHeight)
+  // and eases between views (EasedHeight): switching to a view with less in
+  // it leaves page background below the card rather than pulling the page
+  // down under the toggle.
   return (
-    <Card>
-      <CardContent>
-        <Typography variant="h5" component="h2">
-          {ui.title}
-        </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ mt: 0.25, mb: 2 }}
-        >
-          Each dot is a sample. If {ui.subject} the water worse, the dots climb
-          to the right.
-        </Typography>
-
-        <Stack spacing={2}>
-          <SlidingToggleButtonGroup
-            value={measure}
-            exclusive
-            fullWidth
-            size="small"
-            aria-label="Compare the samples with"
-            onChange={(_, v: Measure | null) => v && setMeasure(v)}
-          >
-            {(Object.keys(MEASURE_UI) as Measure[]).map((key) => (
-              <ToggleButton key={key} value={key} sx={{ fontSize: 12 }}>
-                {MEASURE_UI[key].toggle}
-              </ToggleButton>
-            ))}
-          </SlidingToggleButtonGroup>
-
-          {points.length === 0 ? (
-            <InfoPanel>
-              <Typography variant="body2" color="text.secondary">
-                {measure !== "spills"
-                  ? "No samples to plot yet."
-                  : spillsSince
-                    ? `Recording since ${spillsSince}. Samples appear here as they come in.`
-                    : "Spills aren't being recorded yet. Samples will appear here once they are."}
+    <ReservedHeight>
+      <Grow in appear {...springTransition()}>
+        <Card>
+          <CardContent>
+            <EasedHeight>
+              <Typography variant="h5" component="h2">
+                {ui.title}
               </Typography>
-            </InfoPanel>
-          ) : (
-            <>
-              <Box
-                role="group"
-                aria-label={`Bacteria in each of ${points.length} samples against ${ui.axis.toLowerCase()} in the ${DAYS_BEFORE} days before. ${poorOf(more)} after more, ${poorOf(less)} after less.`}
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 0.25, mb: 2 }}
               >
-                <Box sx={{ display: "flex" }}>
-                  {/* Count scale, on the plot's own lines. */}
-                  <Box
-                    aria-hidden
-                    sx={{
-                      position: "relative",
-                      width: AXIS_WIDTH,
-                      flexShrink: 0,
-                      height: PLOT_HEIGHT,
-                    }}
-                  >
-                    {RATIO_TICKS.map((tick) => (
-                      <Typography
-                        key={tick.ratio}
-                        variant="caption"
-                        color="text.secondary"
+                Each dot is a sample. If {ui.subject} the water worse, the dots
+                climb to the right.
+              </Typography>
+
+              <Stack spacing={2}>
+                <SlidingToggleButtonGroup
+                  value={measure}
+                  exclusive
+                  fullWidth
+                  size="small"
+                  aria-label="Compare the samples with"
+                  onChange={(_, v: Measure | null) => v && setMeasure(v)}
+                >
+                  {(Object.keys(MEASURE_UI) as Measure[]).map((key) => (
+                    <ToggleButton key={key} value={key} sx={{ fontSize: 12 }}>
+                      {MEASURE_UI[key].toggle}
+                    </ToggleButton>
+                  ))}
+                </SlidingToggleButtonGroup>
+
+                {points.length === 0 ? (
+                  <InfoPanel>
+                    <Typography variant="body2" color="text.secondary">
+                      {measure !== "spills"
+                        ? "No samples to plot yet."
+                        : spillsSince
+                          ? `Recording since ${spillsSince}. Samples appear here as they come in.`
+                          : "Spills aren't being recorded yet. Samples will appear here once they are."}
+                    </Typography>
+                  </InfoPanel>
+                ) : (
+                  <>
+                    <Box
+                      role="group"
+                      aria-label={`Bacteria in each of ${points.length} samples against ${ui.axis.toLowerCase()} in the ${DAYS_BEFORE} days before. ${poorOf(more)} after more, ${poorOf(less)} after less.`}
+                    >
+                      <Box sx={{ display: "flex" }}>
+                        {/* Count scale, on the plot's own lines. */}
+                        <Box
+                          aria-hidden
+                          sx={{
+                            position: "relative",
+                            width: AXIS_WIDTH,
+                            flexShrink: 0,
+                            height: PLOT_HEIGHT,
+                          }}
+                        >
+                          {RATIO_TICKS.map((tick) => (
+                            <Typography
+                              key={tick.ratio}
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                position: "absolute",
+                                right: 6,
+                                bottom: `${ratioFraction(tick.ratio) * 100}%`,
+                                transform: "translateY(50%)",
+                                lineHeight: 1,
+                              }}
+                            >
+                              {tick.label}
+                            </Typography>
+                          ))}
+                        </Box>
+
+                        <Box
+                          sx={{
+                            position: "relative",
+                            flex: 1,
+                            height: PLOT_HEIGHT,
+                            borderLeft: "1px solid",
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                            // Room for half a dot at the right-hand end.
+                            mr: `${DOT_SIZE / 2}px`,
+                          }}
+                        >
+                          {/* The Poor zone: everything over the Good limit. */}
+                          <Box
+                            aria-hidden
+                            sx={{
+                              position: "absolute",
+                              left: 0,
+                              right: `-${DOT_SIZE / 2}px`,
+                              top: 0,
+                              bottom: `${ratioFraction(1) * 100}%`,
+                              bgcolor: "error.container",
+                              opacity: 0.5,
+                              borderBottom: "1px dashed",
+                              borderColor: "error.main",
+                            }}
+                          />
+                          <Typography
+                            aria-hidden
+                            variant="caption"
+                            sx={{
+                              position: "absolute",
+                              left: 6,
+                              top: 4,
+                              color: "error.main",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Poor
+                          </Typography>
+
+                          {points.map((p) => {
+                            const isPicked = p.id === picked?.id;
+                            return (
+                              <Box
+                                key={p.id}
+                                component="button"
+                                type="button"
+                                onClick={() => setPickedId(p.id)}
+                                aria-pressed={isPicked}
+                                aria-label={`${p.when}: ${SAMPLE_BAND_UI[p.band].label}, ${p.x}${ui.unit} before`}
+                                sx={{
+                                  position: "absolute",
+                                  left: `${(p.x / max) * 100}%`,
+                                  bottom: `${ratioFraction(p.ratio) * 100}%`,
+                                  width: DOT_SIZE,
+                                  height: DOT_SIZE,
+                                  p: 0,
+                                  transform: "translate(-50%, 50%)",
+                                  borderRadius: "50%",
+                                  backgroundColor: SAMPLE_BAND_UI[p.band].color,
+                                  // A ring in the card's own colour, so dots that
+                                  // land on each other stay countable.
+                                  border: "2px solid",
+                                  borderColor: "background.paper",
+                                  cursor: "pointer",
+                                  // The picked dot wears a second ring and sits
+                                  // on top of its neighbours.
+                                  outline: isPicked ? "2px solid" : "none",
+                                  outlineColor: "text.primary",
+                                  zIndex: isPicked ? 1 : 0,
+                                  // Switching views moves each dot to its new
+                                  // place rather than redrawing the plot; a dot
+                                  // the last view couldn't place pops in.
+                                  transition: spring("left, bottom"),
+                                  animation: `riskDotIn ${m3Spring.spatialDefault.duration}ms ${m3Spring.spatialDefault.easing} both`,
+                                  "@keyframes riskDotIn": {
+                                    from: {
+                                      transform:
+                                        "translate(-50%, 50%) scale(0)",
+                                    },
+                                    to: {
+                                      transform:
+                                        "translate(-50%, 50%) scale(1)",
+                                    },
+                                  },
+                                  // A finger-sized target around a 14px dot.
+                                  "&::after": {
+                                    content: '""',
+                                    position: "absolute",
+                                    inset: -10,
+                                  },
+                                  "&:focus-visible": {
+                                    outline: "2px solid",
+                                    outlineColor: "primary.main",
+                                    outlineOffset: 2,
+                                  },
+                                }}
+                              />
+                            );
+                          })}
+                        </Box>
+                      </Box>
+
+                      {/* Bottom scale. */}
+                      <Stack
+                        aria-hidden
+                        direction="row"
                         sx={{
-                          position: "absolute",
-                          right: 6,
-                          bottom: `${ratioFraction(tick.ratio) * 100}%`,
-                          transform: "translateY(50%)",
-                          lineHeight: 1,
+                          justifyContent: "space-between",
+                          pl: `${AXIS_WIDTH}px`,
+                          mt: 0.5,
                         }}
                       >
-                        {tick.label}
-                      </Typography>
-                    ))}
-                  </Box>
-
-                  <Box
-                    sx={{
-                      position: "relative",
-                      flex: 1,
-                      height: PLOT_HEIGHT,
-                      borderLeft: "1px solid",
-                      borderBottom: "1px solid",
-                      borderColor: "divider",
-                      // Room for half a dot at the right-hand end.
-                      mr: `${DOT_SIZE / 2}px`,
-                    }}
-                  >
-                    {/* The Poor zone: everything over the Good limit. */}
-                    <Box
-                      aria-hidden
-                      sx={{
-                        position: "absolute",
-                        left: 0,
-                        right: `-${DOT_SIZE / 2}px`,
-                        top: 0,
-                        bottom: `${ratioFraction(1) * 100}%`,
-                        bgcolor: "error.container",
-                        opacity: 0.5,
-                        borderBottom: "1px dashed",
-                        borderColor: "error.main",
-                      }}
-                    />
-                    <Typography
-                      aria-hidden
-                      variant="caption"
-                      sx={{
-                        position: "absolute",
-                        left: 6,
-                        top: 4,
-                        color: "error.main",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Poor
-                    </Typography>
-
-                    {points.map((p) => {
-                      const isPicked = p.id === picked?.id;
-                      return (
-                        <Box
-                          key={p.id}
-                          component="button"
-                          type="button"
-                          onClick={() => setPickedId(p.id)}
-                          aria-pressed={isPicked}
-                          aria-label={`${p.when}: ${SAMPLE_BAND_UI[p.band].label}, ${p.x}${ui.unit} before`}
-                          sx={{
-                            position: "absolute",
-                            left: `${(p.x / max) * 100}%`,
-                            bottom: `${ratioFraction(p.ratio) * 100}%`,
-                            width: DOT_SIZE,
-                            height: DOT_SIZE,
-                            p: 0,
-                            transform: "translate(-50%, 50%)",
-                            borderRadius: "50%",
-                            backgroundColor: SAMPLE_BAND_UI[p.band].color,
-                            // A ring in the card's own colour, so dots that
-                            // land on each other stay countable.
-                            border: "2px solid",
-                            borderColor: "background.paper",
-                            cursor: "pointer",
-                            // The picked dot wears a second ring and sits
-                            // on top of its neighbours.
-                            outline: isPicked ? "2px solid" : "none",
-                            outlineColor: "text.primary",
-                            zIndex: isPicked ? 1 : 0,
-                            // A finger-sized target around a 14px dot.
-                            "&::after": {
-                              content: '""',
-                              position: "absolute",
-                              inset: -10,
-                            },
-                            "&:focus-visible": {
-                              outline: "2px solid",
-                              outlineColor: "primary.main",
-                              outlineOffset: 2,
-                            },
-                          }}
-                        />
-                      );
-                    })}
-                  </Box>
-                </Box>
-
-                {/* Bottom scale. */}
-                <Stack
-                  aria-hidden
-                  direction="row"
-                  sx={{
-                    justifyContent: "space-between",
-                    pl: `${AXIS_WIDTH}px`,
-                    mt: 0.5,
-                  }}
-                >
-                  <Typography variant="caption" color="text.secondary">
-                    0
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {ui.axis}, {DAYS_BEFORE} days before →
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {Math.round(max)}
-                    {ui.unit}
-                  </Typography>
-                </Stack>
-                <Typography
-                  aria-hidden
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "block", mt: 0.5 }}
-                >
-                  {ui.source}
-                  {measure === "spills" && spillsSince
-                    ? `, since ${spillsSince}`
-                    : ""}
-                </Typography>
-              </Box>
-
-              {/* The dot that was tapped. */}
-              {picked && (
-                <InfoPanel sx={{ display: "block" }}>
-                  <Stack
-                    direction="row"
-                    spacing={1.5}
-                    sx={{
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {picked.when}
-                      </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          0
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {ui.axis}, {DAYS_BEFORE} days before →
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {Math.round(max)}
+                          {ui.unit}
+                        </Typography>
+                      </Stack>
                       <Typography
+                        aria-hidden
                         variant="caption"
                         color="text.secondary"
-                        sx={{ display: "block" }}
+                        sx={{ display: "block", mt: 0.5 }}
                       >
-                        {picked.allCounts}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: "block" }}
-                      >
-                        {ui.detail(picked.x)}
+                        {ui.source}
+                        {measure === "spills" && spillsSince
+                          ? `, since ${spillsSince}`
+                          : ""}
                       </Typography>
                     </Box>
-                    <SampleBandChip band={picked.band} />
-                  </Stack>
-                </InfoPanel>
-              )}
 
-              {poorCount < MIN_POOR_TO_COMPARE ? (
-                <InfoPanel align="flex-start">
-                  <HourglassEmptyIcon
-                    sx={{ flexShrink: 0, color: "text.secondary" }}
-                  />
-                  <Typography variant="body2" color="text.secondary">
-                    {poorCount === 0
-                      ? "No Poor samples yet"
-                      : `Only ${poorCount} Poor sample${poorCount === 1 ? "" : "s"} so far`}
-                    , too few to tell either way.
-                  </Typography>
-                </InfoPanel>
-              ) : (
-                <Box sx={tileGridSx}>
-                  <StatTile
-                    icon={<WaterDropIcon />}
-                    label={ui.moreTile.label}
-                    value={poorOf(more)}
-                    detail={ui.moreTile.detail}
-                  />
-                  <StatTile
-                    icon={<WbSunnyOutlinedIcon />}
-                    label={ui.lessTile.label}
-                    value={poorOf(less)}
-                    detail={ui.lessTile.detail}
-                  />
-                </Box>
-              )}
-            </>
-          )}
-        </Stack>
-      </CardContent>
-    </Card>
+                    {/* The dot that was tapped. */}
+                    {picked && (
+                      <InfoPanel sx={{ display: "block" }}>
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          sx={{
+                            alignItems: "flex-start",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              {picked.when}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ display: "block" }}
+                            >
+                              {picked.allCounts}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ display: "block" }}
+                            >
+                              {ui.detail(picked.x)}
+                            </Typography>
+                          </Box>
+                          <SampleBandChip band={picked.band} />
+                        </Stack>
+                      </InfoPanel>
+                    )}
+
+                    {poorCount < MIN_POOR_TO_COMPARE ? (
+                      <InfoPanel align="flex-start">
+                        <HourglassEmptyIcon
+                          sx={{ flexShrink: 0, color: "text.secondary" }}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {poorCount === 0
+                            ? "No Poor samples yet"
+                            : `Only ${poorCount} Poor sample${poorCount === 1 ? "" : "s"} so far`}
+                          , too few to tell either way.
+                        </Typography>
+                      </InfoPanel>
+                    ) : (
+                      <Box sx={tileGridSx}>
+                        <StatTile
+                          icon={<WaterDropIcon />}
+                          label={ui.moreTile.label}
+                          value={poorOf(more)}
+                          detail={ui.moreTile.detail}
+                        />
+                        <StatTile
+                          icon={<WbSunnyOutlinedIcon />}
+                          label={ui.lessTile.label}
+                          value={poorOf(less)}
+                          detail={ui.lessTile.detail}
+                        />
+                      </Box>
+                    )}
+                  </>
+                )}
+              </Stack>
+            </EasedHeight>
+          </CardContent>
+        </Card>
+      </Grow>
+    </ReservedHeight>
   );
 };
 

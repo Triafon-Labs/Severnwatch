@@ -38,6 +38,7 @@ import {
 import { formatLondonDate } from "@/lib/time";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { collapseMotion, springTransition } from "@/lib/m3-palette";
+import { EasedHeight } from "@/components/HeightMotion";
 import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
@@ -291,13 +292,18 @@ const SampleHistoryCard: React.FC = () => {
                 onStep={step}
               />
 
+              {/* Eases to each sample's height as you step, as Paddlecheck's
+                  forecast hour does, so the tiles below glide rather than
+                  jump between a sample with a note and one without. */}
               {selected && (
-                <Box {...swipe(stepProps)} sx={{ touchAction: "pan-y" }}>
-                  <SampleHeader sample={selected} {...stepProps} />
-                  <Box sx={{ mt: 1.5 }}>
-                    <SampleDetails samples={samples} index={selectedIndex} />
+                <EasedHeight>
+                  <Box {...swipe(stepProps)} sx={{ touchAction: "pan-y" }}>
+                    <SampleHeader sample={selected} {...stepProps} />
+                    <Box sx={{ mt: 1.5 }}>
+                      <SampleDetails samples={samples} index={selectedIndex} />
+                    </Box>
                   </Box>
-                </Box>
+                </EasedHeight>
               )}
 
               <Divider />
