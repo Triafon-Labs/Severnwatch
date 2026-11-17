@@ -104,9 +104,9 @@ app/
       live/             Same response with no cache – called when the cached one has expired
     rainfall/           EA rainfall gauges + Open-Meteo forecast (lib/rainfall.ts)
       live/             Same, no cache
-    water-quality/      Committed + uploaded SAS CSVs, static; rebuilt on each upload
+    water-quality/      Committed + uploaded SAS CSVs + the rain before each, static; rebuilt on each upload
       upload/           POST: passcode-checked upload of one export (validates, stores, revalidates)
-    risk-history/       Rain (Open-Meteo archive) and recorded spills by day, cached 3 h
+    risk-history/       Recorded spills by day, cached 3 h
       record/           Records a snapshot and the day records once per clock hour to the Blob store; called by keep-alive
   upload/               The tester's upload page (from Settings → Info → For Testers; noindex)
   layout.tsx            Root layout – ThemeRegistry, data provider, safe-area frame
@@ -149,7 +149,7 @@ lib/
   riskHistory.ts        Pure: the hourly snapshot of what the app said, and each day's rain and spills
   riskHistoryStore.ts   Server-only: one JSON file a month in Vercel Blob (or a local folder off Vercel)
   useRiskHistory.ts     Client hook: fetches /api/risk-history once for the card
-  rainHistory.ts        Server-only: daily rain for Worcester from Open-Meteo's archive, for the history chart
+  sampleRain.ts         Server-only: EA gauge rain in the 72 h before each sample (Hydrology API), for the history chart
   riverFlow.ts          Server-only: Bewdley flow, recorded with each snapshot (not used by the risk)
   shareText.ts          What the share button sends – the risk, its reasons and the latest sample
   waterQuality.ts       Sample bands against the bathing water limits, formatting, stats
@@ -206,7 +206,7 @@ docs/                   Reference documents
 | Outfall place names           | Nominatim reverse geocoding                                                                | Only for Ongoing/Recent, capped by `SEWAGE_MAX_RESULTS` |
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) | 15-min readings, three gauges                           |
 | Rainfall forecast             | Open-Meteo `api.open-meteo.com/v1/forecast`                                                | Single point for Worcester, not per-gauge               |
-| Past rainfall                 | Open-Meteo `archive-api.open-meteo.com/v1/archive`                                         | Modelled daily totals, for the history chart only       |
+| Rain before each sample       | EA Hydrology API (`environment.data.gov.uk/hydrology`), same three gauges                  | 15-min history; fetched at build, for the history chart |
 | Citizen science water quality | SAS CSV export, uploaded via `/upload` (Vercel Blob) + committed baseline                  | No API; uploaded by hand. Static, rebuilt per upload    |
 
 ---
@@ -297,24 +297,31 @@ is safe only because this route is the one writer:
   (`mergeDayRecords`), because gauge readings arrive hours late and a spill's
   length is only known once it ends.
 
-`/api/risk-history` returns one `RiskHistoryDay` per London day from two
-sources: rain from Open-Meteo's archive for the last `RAIN_HISTORY_DAYS`
-(`lib/rainHistory.ts` - modelled, not the gauges, because it has no gaps or
-lag and is the same source for every sample), and spills from the day
-records, read back by month name (never a list - that is a metered Blob
-operation). Either can be missing: with no store connected the days carry
-rain alone.
+`/api/risk-history` returns the recorded spills as one `RiskHistoryDay` per
+London day, reading the months back by name (never a list - that is a
+metered Blob operation). Empty until a store is connected.
+
+The chart's rain doesn't come from the record: `/api/water-quality` attaches
+`rainBeforeMm` to its response - the mean of the three EA gauges over the 72
+hours before each sample (`lib/sampleRain.ts`), from the EA's Hydrology
+service, which keeps the gauges' 15-minute readings for years and is current
+to within hours. (Its daily totals run 09:00 to 09:00 and lag weeks, so
+aren't used.) It is fetched at build and after each upload, with past
+windows cached for a week - which also makes that route rebuild weekly. A
+gauge missing over 10% of its readings is left out, and a sample with none
+usable gets null.
 
 `RiskHistoryCard` asks one question of them - is there a link between rain
 or spills and poor water quality? - as a scatter: a dot per sample, rain (or
 hours of spilling, by a toggle) over its own day and the three before along
 the bottom, its bacteria as a multiple of the Good limit up the side (log
-scale, the worse of the two indicators). Tapping a dot shows its sample.
+scale, the worse of the two indicators). Rain is the 72 hours before each
+sample; spills are its own day and the three before. Tapping a dot shows its sample.
 Two tiles give the same answer as counts of Poor samples after a wet spell
 (or any spilling) and after less - or, below `MIN_POOR_TO_COMPARE` Poor
-samples, a line saying there are too few to judge. A sample is placed only
-when all four days are known, so the Rain view has every sample from the
-start and the Spills view fills in from when recording begins. Off Vercel
+samples, a line saying there are too few to judge. The Rain view has
+every sample from the start; the Spills view places a sample once all four
+of its days were recorded. Off Vercel
 the record uses the gitignored `data/risk-history/` folder.
 
 ---
