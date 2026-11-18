@@ -20,7 +20,7 @@ import { Analytics } from "@vercel/analytics/next";
 // through this variable rather than by spelling the name out. See the
 // fontFamily entry in lib/themes.ts.
 const robotoFlex = localFont({
-  src: "../node_modules/@fontsource-variable/roboto-flex/files/roboto-flex-latin-full-normal.woff2",
+  src: "../node_modules/@fontsource-variable/roboto-flex/files/roboto-flex-latin-opsz-normal.woff2",
   weight: "100 900",
   style: "normal",
   variable: "--font-roboto-flex",
