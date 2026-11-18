@@ -206,7 +206,7 @@ docs/                   Reference documents
 | Data                          | Source                                                                                     | Notes                                                   |
 | ----------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
 | CSO spill status              | Severn Trent Water Storm Overflow Activity feed (public ArcGIS FeatureServer)              | No key; filtered to the catchment corridor              |
-| Outfall place names           | Nominatim reverse geocoding                                                                | Only for Ongoing/Recent, capped by `SEWAGE_MAX_RESULTS` |
+| Outfall place names           | Nominatim reverse geocoding                                                                | Ongoing/Recent only, capped; cached 30 days             |
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) | 15-min readings, three gauges                           |
 | Rainfall forecast             | Open-Meteo `api.open-meteo.com/v1/forecast`                                                | Single point for Worcester, not per-gauge               |
 | Rain and flow before samples  | EA Hydrology API (`environment.data.gov.uk/hydrology`), three gauges + Bewdley flow        | 15-min history; fetched at build, for the history chart |
@@ -391,9 +391,11 @@ rejecting commits whose first line isn't a valid Conventional Commit
   that both API routes still return usable data. A fork skips it until it sets
   a `SITE_URL` repository variable pointing at its own deployment, which also
   overrides the default here. The 15-minute cadence matches both routes'
-  `revalidate` window, so each ping rebuilds the caches as they expire — worth
-  doing because a cold sewage rebuild reverse-geocodes sequentially at 1
-  request per second and can take ~15s. GitHub runs schedules late and skips
+  `revalidate` window, so each ping rebuilds the caches as they expire, sparing
+  a visitor the wait. Outfall place names are cached for 30 days
+  (`unstable_cache` in `lib/sewage.ts`), so a rebuild only calls Nominatim -
+  a second apart - for an outfall it hasn't named before; before that cache a
+  cold rebuild took ~15s. GitHub runs schedules late and skips
   them under load, so it only narrows the gap; the client's `/live` fallback
   is what stops a visitor getting an expired entry. Its last step calls
   `/api/risk-history/record` (see Risk history), which only warns on failure.

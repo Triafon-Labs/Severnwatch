@@ -4,8 +4,9 @@ import { getSewagePayload } from "@/lib/sewage";
 // Bypasses the route cache for a genuinely live response. The client calls
 // this when /api/sewage hands back an entry older than the cache window -
 // the first open after a quiet spell, when the cache gives that visitor the
-// expired copy and only rebuilds behind them. Reverse geocoding still runs a
-// second apart, so with many outfalls spilling this can take ~15s.
+// expired copy and only rebuilds behind them. Place names come from a 30-day
+// cache (lib/sewage.ts), so only an outfall not named before waits on
+// Nominatim.
 export const dynamic = "force-dynamic";
 
 export async function GET() {

@@ -4,9 +4,9 @@ on:
   schedule:
     # Every 15 minutes, which is also both routes' revalidate window (see
     # lib/fetchCache.ts) - so each ping lands just as the cache expires and
-    # rebuilds it before a visitor has to wait for it. The sewage route
-    # reverse-geocodes sequentially with a 1s gap between calls to respect
-    # Nominatim's usage policy, so a cold rebuild can take ~15s. GitHub runs
+    # rebuilds it before a visitor has to wait for it. Place names are cached
+    # for 30 days (lib/sewage.ts), so only an outfall not seen before costs a
+    # Nominatim call, a second apart; a rebuild is otherwise quick. GitHub runs
     # scheduled workflows late and sometimes skips them under load, so this
     # narrows the gap rather than closing it: the client's live fallback
     # (/api/*/live) is what guarantees a visitor never gets an expired entry.
