@@ -4,6 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CsoResponse, RainfallResponse, WaterQualityResponse } from "@/types";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { DATA_REVALIDATE_SECONDS } from "@/lib/fetchCache";
+import {
+  RAINFALL_PATH,
+  SEWAGE_PATH,
+  WATER_QUALITY_PATH,
+  fetchPreferringEarly,
+} from "@/lib/earlyFetch";
 
 // There is no background poll. Like Paddlecheck, data is fetched on load, on
 // a manual refresh, and when the reader comes back to the app (tab shown,
@@ -91,8 +97,11 @@ const oldest = (
 
 const ageMs = (iso: string) => Date.now() - new Date(iso).getTime();
 
+// A plain request (no init) on load picks up the one the inline <head>
+// script already started (lib/earlyFetch.ts); the /live calls and every
+// later load make their own.
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
-  const res = await fetch(url, init);
+  const res = await (init ? fetch(url, init) : fetchPreferringEarly(url));
   if (!res.ok) throw new Error(`${url}: ${res.status}`);
   return (await res.json()) as T;
 };
@@ -167,16 +176,16 @@ export const useSevernData = (): SevernData => {
     setIsRefreshing(true);
 
     const csoPromise = loadSource<CsoResponse>(
-      "/api/sewage",
+      SEWAGE_PATH,
       STORAGE_KEYS.CSO_DATA
     );
     const rainfallPromise = loadSource<RainfallResponse>(
-      "/api/rainfall",
+      RAINFALL_PATH,
       STORAGE_KEYS.RAINFALL_DATA
     );
 
     const waterQualityPromise = loadStaticSource<WaterQualityResponse>(
-      "/api/water-quality",
+      WATER_QUALITY_PATH,
       STORAGE_KEYS.WATER_QUALITY_DATA
     );
 

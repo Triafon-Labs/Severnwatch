@@ -8,6 +8,7 @@ import DisclaimerDialog from "@/components/DisclaimerDialog";
 import { SevernDataProvider } from "@/lib/SevernDataContext";
 import { APP_DESCRIPTION, APP_NAME, DISCLAIMER_VERSION } from "@/lib/config";
 import { DISCLAIMER_PENDING_ATTR, STORAGE_KEYS } from "@/lib/storageKeys";
+import { EARLY_FETCH_SCRIPT } from "@/lib/earlyFetch";
 import { Box } from "@mui/material";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -76,6 +77,9 @@ export default function RootLayout({
     // hydrates, which would otherwise be reported as a hydration mismatch.
     <html lang="en" className={robotoFlex.variable} suppressHydrationWarning>
       <head>
+        {/* Starts the data requests while the JavaScript is still
+            downloading; the data hook picks them up (lib/earlyFetch.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: EARLY_FETCH_SCRIPT }} />
         {/* Applies the saved colour scheme to <html> before the body is even
             parsed, so there's no window in which a flash of the wrong theme
             could paint. `attribute` and the storage key must match the
