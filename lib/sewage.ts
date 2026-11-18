@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { CsoOutfall, CsoResponse, CsoState } from "@/types";
 import {
   APP_NAME,
@@ -29,38 +30,59 @@ interface SewageFeatureAttributes {
 // The FeatureServer has no human-readable site name (only an opaque `Id`),
 // so outfalls are reverse-geocoded to a place name instead. Nominatim is
 // free and keyless but requires an identifying User-Agent and asks callers
-// not to burst requests, hence the small delay between calls below.
+// not to burst requests, so real calls are kept at least a second apart.
+const NOMINATIM_GAP_MS = 1000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+let lastNominatimCallAt = 0;
 
-const reverseGeocode = async (
+// Throws on a failed request rather than returning null, so a failure (a
+// 429, a timeout) is never cached in place of the outfall's name.
+const reverseGeocodeUncached = async (
   lat: number,
   lon: number
 ): Promise<string | null> => {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1`,
-      {
-        headers: {
-          "User-Agent": `${APP_NAME} (River Severn water quality dashboard)`,
-        },
-      }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const address = data?.address || {};
-    const specific =
-      address.road ||
-      address.suburb ||
-      address.neighbourhood ||
-      address.village;
-    const locality = address.town || address.city || address.county;
-    if (specific && locality && specific !== locality)
-      return `${specific}, ${locality}`;
-    return specific || locality || null;
-  } catch {
-    return null;
-  }
+  const wait = lastNominatimCallAt + NOMINATIM_GAP_MS - Date.now();
+  if (wait > 0) await sleep(wait);
+  lastNominatimCallAt = Date.now();
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1`,
+    {
+      headers: {
+        "User-Agent": `${APP_NAME} (River Severn water quality dashboard)`,
+      },
+    }
+  );
+  if (!res.ok) throw new Error(`Nominatim: ${res.status}`);
+  const data = await res.json();
+  const address = data?.address || {};
+  const specific =
+    address.road || address.suburb || address.neighbourhood || address.village;
+  const locality = address.town || address.city || address.county;
+  if (specific && locality && specific !== locality)
+    return `${specific}, ${locality}`;
+  return specific || locality || null;
 };
+
+// Outfalls don't move, so a name is kept for 30 days (long enough to pick up
+// an OpenStreetMap edit eventually) in Next's persistent cache, which on
+// Vercel survives deploys. Before this every rebuild of /api/sewage - and
+// every /live call - geocoded each spilling outfall afresh, a second apart:
+// ~15 s with a dozen spilling. The gap above lives inside the cached
+// function, so it only paces calls that actually reach Nominatim.
+//
+// unstable_cache rather than "use cache": the directive needs Cache
+// Components switched on for the whole app, which changes how every route
+// caches. A fetch-level cache alone wouldn't do either - nothing tells the
+// caller whether a fetch was answered from the cache, so the gap would still
+// apply to every lookup.
+const reverseGeocodeCached = unstable_cache(
+  reverseGeocodeUncached,
+  ["nominatim-reverse"],
+  { revalidate: 30 * 24 * 60 * 60 }
+);
+
+const reverseGeocode = (lat: number, lon: number): Promise<string | null> =>
+  reverseGeocodeCached(lat, lon).catch(() => null);
 
 // The FeatureServer caps each query at maxRecordCount (2000) regardless of
 // how many `resultRecordCount` asks for, but the company-wide feed has
@@ -187,9 +209,10 @@ export const getSewagePayload = async (
       );
     });
 
-  // Reverse-geocode sequentially (not in parallel) to stay well within
-  // Nominatim's "no bursts" usage policy. Only the actionable outfalls
-  // (Ongoing/Recent) are worth the round-trip, capped at
+  // Reverse-geocode sequentially (not in parallel): a name not in the cache
+  // waits its turn behind the previous Nominatim call (reverseGeocode,
+  // above), to stay within its "no bursts" usage policy. Only the
+  // actionable outfalls (Ongoing/Recent) are worth the round-trip, capped at
   // SEWAGE_MAX_RESULTS - the rest of the corridor's monitors are still
   // returned below, just identified by watercourse/distance instead of a
   // resolved place name.
@@ -201,13 +224,11 @@ export const getSewagePayload = async (
     )
     .slice(0, SEWAGE_MAX_RESULTS);
 
-  for (let i = 0; i < toGeocode.length; i++) {
-    const { o, index } = toGeocode[i];
+  for (const { o, index } of toGeocode) {
     outfalls[index].locationName = await reverseGeocode(
       o.latitude,
       o.longitude
     );
-    if (i < toGeocode.length - 1) await sleep(1000);
   }
 
   // Explicit name-based exclusion as a safety net for localities that are
