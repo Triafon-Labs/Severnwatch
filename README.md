@@ -48,7 +48,7 @@ The "Rain vs Water Quality" card plots each sample against the rain the Environm
 
 ## Commits and Releases
 
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/) and are enforced by a `commit-msg` hook. Merging to `main` triggers `auto-tag.yml`, which bumps the version, writes `CHANGELOG.md` and pushes a `severnwatch-vX.Y.Z` tag — `feat:` for a minor bump, `fix:`/`perf:`/`refactor:` for a patch.
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/) and are enforced by a `commit-msg` hook. Merging to `main` triggers `auto-tag.yml`, which bumps the version, writes `CHANGELOG.md` and pushes a `severnwatch-vX.Y.Z` tag — `feat:` for a minor bump, `fix:`/`perf:`/`refactor:` for a patch. A `Release-As: x.y.z` footer on a commit sets the next version outright.
 
 ## Design System
 

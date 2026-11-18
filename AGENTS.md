@@ -383,8 +383,11 @@ rejecting commits whose first line isn't a valid Conventional Commit
   `CHANGELOG.md`, commit both directly to `main`, and push a
   `severnwatch-vX.Y.Z` tag. No release PR, no approval step. `feat:` commits
   get a minor bump, `fix:`/`perf:`/etc. get a patch bump with a changelog
-  entry, and a `BREAKING CHANGE:` footer bumps major. The job skips itself when
-  the triggering commit is its own `chore(release): ...` commit, to avoid a
+  entry, and a `BREAKING CHANGE:` footer bumps major (below 1.0 the tool makes
+  that a minor bump instead). A `Release-As: x.y.z` footer on any commit since
+  the last release sets the version outright - the only way to reach a new
+  major from 0.x, and how 1.0.0 was cut. The job skips itself when the
+  triggering commit is its own `chore(release): ...` commit, to avoid a
   loop.
 - **keep-alive.yml** – every 15 minutes, pings the deployed site
   (`https://severnwatch.vercel.app`, hard-coded in the workflow) and asserts

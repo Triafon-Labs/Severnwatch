@@ -39,7 +39,22 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+      # A `Release-As: x.y.z` footer on any commit since the last release sets
+      # the next version outright. Below 1.0 the tool turns a breaking change
+      # into a minor bump, so this is the only way to reach a major version.
+      # Only tags in main's history count, so the footer is spent once the
+      # release it asked for is tagged.
       - name: Bump version, update changelog, and tag
-        run: npx commit-and-tag-version --tag-prefix "severnwatch-v"
+        run: |
+          last_tag=$(git describe --tags --abbrev=0 --match 'severnwatch-v*' 2>/dev/null || true)
+          release_as=$(git log "${last_tag:+$last_tag..}HEAD" --format=%B \
+            | sed -n 's/^Release-As:[[:space:]]*\([0-9][^[:space:]]*\)[[:space:]]*$/\1/p' \
+            | head -n 1)
+          if [ -n "$release_as" ]; then
+            echo "Release-As footer found: releasing $release_as"
+            npx commit-and-tag-version --tag-prefix "severnwatch-v" --release-as "$release_as"
+          else
+            npx commit-and-tag-version --tag-prefix "severnwatch-v"
+          fi
       - name: Push release commit and tag
         run: git push --follow-tags origin HEAD:main
