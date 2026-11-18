@@ -2,6 +2,99 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.0.0](https://github.com/Triafon-Labs/Severnwatch/compare/severnwatch-v0.1.23...severnwatch-v1.0.0) (2026-11-18)
+
+* let a Release-As footer set the next release version ([bbefe91](https://github.com/Triafon-Labs/Severnwatch/commit/bbefe9115d8361b8327c612540dde9f7dc1eb8f4))
+
+### Features
+
+* add a conditions key to the Info tab ([ed0b8fa](https://github.com/Triafon-Labs/Severnwatch/commit/ed0b8fa0a0c81fda4838cfd69e2e9ea0a12af632))
+* add an upload page for the weekly SAS export ([e6da4f9](https://github.com/Triafon-Labs/Severnwatch/commit/e6da4f91331f6dd5916acd41459d0253d52add25))
+* add citizen science sample cards from the SAS CSV export ([96090cf](https://github.com/Triafon-Labs/Severnwatch/commit/96090cfc9bf548674a328302d37cded53db5ed2a))
+* add river flow as a third view on the samples chart ([d11fa0a](https://github.com/Triafon-Labs/Severnwatch/commit/d11fa0a01215cf815908a72f122627c5cec3a652))
+* always say what the risk is waiting on, and soften the disclaimer ([7b8e12b](https://github.com/Triafon-Labs/Severnwatch/commit/7b8e12bbca66fe9feb077b93098e105b72f6de82))
+* chart rain, spills and samples instead of the app's own status ([ae9e833](https://github.com/Triafon-Labs/Severnwatch/commit/ae9e8331ce9876c17d2e5d63fe27720c2ca0055b))
+* credit the data sources in the settings sheet ([9ff1a37](https://github.com/Triafon-Labs/Severnwatch/commit/9ff1a371700282dd1abb0f3f41d72be0b1a3252e))
+* derive a pollution risk for the reach from spills and rainfall ([a9df069](https://github.com/Triafon-Labs/Severnwatch/commit/a9df06974f607cb3d7742cb615c774403f525b53))
+* first-run disclaimer and softer pollution risk wording ([4198e42](https://github.com/Triafon-Labs/Severnwatch/commit/4198e42517dcf7ca627617f5d9aa9ea5e9c7aa24))
+* link the upload page from the settings sheet ([8023f06](https://github.com/Triafon-Labs/Severnwatch/commit/8023f06794da2dbd34d18123fcc53d00e733cf78))
+* make the scatter's dots tappable and stop it over-claiming ([db914fb](https://github.com/Triafon-Labs/Severnwatch/commit/db914fbfa0ac3cfd24b324ca820cabb90396c9a2))
+* make the share text read as a message and drop its disclaimer ([#5](https://github.com/Triafon-Labs/Severnwatch/issues/5)) ([2d432ef](https://github.com/Triafon-Labs/Severnwatch/commit/2d432efe3d0c5eb2c1a8bde77707a9edc2841dea))
+* move the "Updated" line into the status card ([c2b8a93](https://github.com/Triafon-Labs/Severnwatch/commit/c2b8a93bdef381d2fa53dfde2f06221a4b6d16c1))
+* move the latest sample up to second on the page ([fd79326](https://github.com/Triafon-Labs/Severnwatch/commit/fd793260a5a2f813e5025abf457ee1478d5fbc10))
+* overflow map tidy-up, offline monitors, spill durations, and catchment fixes ([#6](https://github.com/Triafon-Labs/Severnwatch/issues/6)) ([ab53c10](https://github.com/Triafon-Labs/Severnwatch/commit/ab53c109ec211059995d45467aff7421f2336d9e))
+* pick a sample on the history chart, Paddlecheck-style ([cefe964](https://github.com/Triafon-Labs/Severnwatch/commit/cefe964fcdd66427aeaab47af66e1d1df52a1345))
+* plot each sample against the rain and spills before it ([c0d1b62](https://github.com/Triafon-Labs/Severnwatch/commit/c0d1b627b59ece6ece0f804f7d4078b5cf34202c))
+* port Paddlecheck's recent UI work for consistency ([201e839](https://github.com/Triafon-Labs/Severnwatch/commit/201e83939c851265d88b90de8e94fc749179e912)), references [392-#410](https://github.com/Triafon-Labs/Severnwatch/issues/410)
+* raise the pollution risk for moderate or heavy rain ([eea7c0b](https://github.com/Triafon-Labs/Severnwatch/commit/eea7c0b44e5cb573fc28eedb4d7097f491ba7fb8))
+* record the risk hourly and chart it against the samples ([e8db309](https://github.com/Triafon-Labs/Severnwatch/commit/e8db3096c4e8463097e604e3f155ac865fde6bf4))
+* replace the logo with a real vector and regenerate every icon ([97d0468](https://github.com/Triafon-Labs/Severnwatch/commit/97d0468bdaef6626242cf7650ec51251e23bf28c))
+* reserve High Risk for observed evidence and calm the headline ([0d5ab2c](https://github.com/Triafon-Labs/Severnwatch/commit/0d5ab2c40ea0693de41549e4ee065458b7b13874))
+* show the age of rainfall readings, not just of the fetch ([0b42ef2](https://github.com/Triafon-Labs/Severnwatch/commit/0b42ef2644e026e1a8473b5b01cf86285dba49be))
+* take the chart's rain from Open-Meteo so it works from day one ([85b546c](https://github.com/Triafon-Labs/Severnwatch/commit/85b546cf7272757aa8264b4be8e3ff6498f95dde))
+* use the EA gauges' real rain in the chart, not a model ([c16c81c](https://github.com/Triafon-Labs/Severnwatch/commit/c16c81cfac8f30758ab9999f362d03408f759080))
+
+### Bug Fixes
+
+* address review findings in the pollution risk ([13e1d4c](https://github.com/Triafon-Labs/Severnwatch/commit/13e1d4c439e51086be150484a1c25d5c82f6754a))
+* align the CSO map's confluence curves with the river lines ([7f9e80f](https://github.com/Triafon-Labs/Severnwatch/commit/7f9e80fe5052c9d06e8868b4acff0c0bd756c40b))
+* correct claims in the conditions key and code comments ([c0f9867](https://github.com/Triafon-Labs/Severnwatch/commit/c0f986754a5e0629472f7a903cbabc50b06482d8))
+* correct rainfall and bathing water thresholds against their sources ([7bdb1e8](https://github.com/Triafon-Labs/Severnwatch/commit/7bdb1e8412174fdc32103d45b304d23b58716cb1))
+* count only spills above the sample site as high, and raise the rain trigger ([0e2ed90](https://github.com/Triafon-Labs/Severnwatch/commit/0e2ed90f052f3a6f4d2cb61cac31913d56eab984))
+* **deps:** bump handlebars to 4.7.10 and source-map-js to 1.2.2 ([c7675c1](https://github.com/Triafon-Labs/Severnwatch/commit/c7675c13336ec5510bf97b4e02e1e0109924566e))
+* draw the CSO map's river lines as one smooth line ([559ed92](https://github.com/Triafon-Labs/Severnwatch/commit/559ed92c52944145fbb591cde15e605080b9c888))
+* draw the sample history chart on a linear axis ([9026cfc](https://github.com/Triafon-Labs/Severnwatch/commit/9026cfca028f6bf4eff1d5805121fba3a7498c7b))
+* draw unmonitored river stops as hollow rings ([ea2675f](https://github.com/Triafon-Labs/Severnwatch/commit/ea2675f2060d46df8959508cdb562184e2ebb9c4)), references [#8A9DA4](https://github.com/Triafon-Labs/Severnwatch/issues/8A9DA4) [#9E9E9E](https://github.com/Triafon-Labs/Severnwatch/issues/9E9E9E)
+* drop the 5-minute background poll ([d53c8b4](https://github.com/Triafon-Labs/Severnwatch/commit/d53c8b4a0b381cc5bb89dae9e56e4ab74191fd0a))
+* drop the rainfall spill likelihood from the share text ([3fd114d](https://github.com/Triafon-Labs/Severnwatch/commit/3fd114dd815a59f5c4d96c5095235e389c5323eb))
+* give the rainfall chart Paddlecheck's tooltip ([7f90ce5](https://github.com/Triafon-Labs/Severnwatch/commit/7f90ce5a553fb158b2ea5f60b925df728bea3c54))
+* give the river map's expandable rows Paddlecheck's state layer ([0fbab7d](https://github.com/Triafon-Labs/Severnwatch/commit/0fbab7d4885fb7d5f0806e130a3ea6a3a776b0ad))
+* judge measured rain by its peak 15-minute rate, not the hourly sum ([0eec40e](https://github.com/Triafon-Labs/Severnwatch/commit/0eec40eff9c3ca1813b6f3a2891e854786c343ae))
+* keep the bottom card from jumping the page, and fill in missing motion ([7e2e63a](https://github.com/Triafon-Labs/Severnwatch/commit/7e2e63a45d896a3cc86f952fafc795a8b12478b9))
+* label the sample chart's bands, not its limit lines ([6a27239](https://github.com/Triafon-Labs/Severnwatch/commit/6a2723971a6cb0cd101cdfb4f42c59b0ab62bd12))
+* leave out the Navigation Road overflow below Diglis weir ([a862a18](https://github.com/Triafon-Labs/Severnwatch/commit/a862a18b7119b1036d9b711dd832be1b16dd086f))
+* link to a short explainer for the official classifications ([6f2b10b](https://github.com/Triafon-Labs/Severnwatch/commit/6f2b10ba7aed781fd4baa7868aa01abddd80403e))
+* make loading skeletons match the cards they stand in for ([06ce534](https://github.com/Triafon-Labs/Severnwatch/commit/06ce5342c3bc70fe6bba561a3adb64f89b103ecd))
+* make Severnwatch installable from Chrome ([9cdc31c](https://github.com/Triafon-Labs/Severnwatch/commit/9cdc31c4e4a86f25fb497cdcd69c155f7663e74f))
+* match the classifications heading to Paddlecheck's in-card headings ([4b10d95](https://github.com/Triafon-Labs/Severnwatch/commit/4b10d9513081a2e62889be456d2996acdbc4eb65))
+* match the rainfall period tiles to Paddlecheck's change tiles ([5929b0c](https://github.com/Triafon-Labs/Severnwatch/commit/5929b0c0841b9bb29ef781ce238e5b6f0e767d9a))
+* name and colour samples after the classification tiers ([d8377b6](https://github.com/Triafon-Labs/Severnwatch/commit/d8377b62b292f679d1a93bcbec5b71ecc1c06f50))
+* read the SAS Water Quality Surveys export instead of the map download ([7f2dfcd](https://github.com/Triafon-Labs/Severnwatch/commit/7f2dfcdef24cef42dffd7ed842983c2da6a9493a))
+* restore the offline service worker ([2a372b2](https://github.com/Triafon-Labs/Severnwatch/commit/2a372b2e34bcb431be7820cf4644023abc6346a0))
+* show testers' notes in the sample history without hover ([53b4723](https://github.com/Triafon-Labs/Severnwatch/commit/53b472300a25034472ee9a9088d9c6402bac16f8))
+* stop clipping the rainfall chart's y-axis labels ([e8a6187](https://github.com/Triafon-Labs/Severnwatch/commit/e8a61873fc9fd9797285c947fdb6a7773ac29477))
+* stop stale data and the stale banner surviving a refresh ([9ce2494](https://github.com/Triafon-Labs/Severnwatch/commit/9ce24943fcf9d941d866d3995facc73334bb2a93))
+
+### Performance Improvements
+
+* cache outfall place names instead of geocoding every rebuild ([c4aff9b](https://github.com/Triafon-Labs/Severnwatch/commit/c4aff9b4ff2b8f17b5bcbf0fa1380fc600dc96cc))
+* lazy-load the rainfall chart ([231cc19](https://github.com/Triafon-Labs/Severnwatch/commit/231cc19e44a13d0a0da565b2e900f4b3f92e50b9))
+* load the two-axis Roboto Flex file instead of the full one ([f511498](https://github.com/Triafon-Labs/Severnwatch/commit/f51149821c3ebb989494a441da8f2bb0a9eadfaa))
+* start the data requests from the page head ([9c8cb37](https://github.com/Triafon-Labs/Severnwatch/commit/9c8cb372726494f3488e179d3b7a29c76b36831c))
+* stop loading a 914KB file for the 40px app bar logo ([4fbdcfb](https://github.com/Triafon-Labs/Severnwatch/commit/4fbdcfb1f51758f59e6406ed10589009524884e1))
+
+### Code Refactoring
+
+* base the risk on spills alone and match Paddlecheck's layout ([8ed9f83](https://github.com/Triafon-Labs/Severnwatch/commit/8ed9f83a3b25936e72bce23499b5253486183281))
+* drop the "Notable" findings from the latest sample card ([06b1280](https://github.com/Triafon-Labs/Severnwatch/commit/06b12802dc7165041370fe59458c69eacb87ecae))
+* drop the latest sample line from the pollution risk card ([39092ad](https://github.com/Triafon-Labs/Severnwatch/commit/39092ad9ff8a8704da63597c3a4ab8aa7e53665e))
+* drop the outlook line under the pollution risk headline ([9bdf7a2](https://github.com/Triafon-Labs/Severnwatch/commit/9bdf7a28bc92a1067ff0a70b5da487c740e2c66f))
+* drop thermotolerant coliforms from the sample cards ([55aba08](https://github.com/Triafon-Labs/Severnwatch/commit/55aba085e09a1793cc9c94adac5d93312a305fca))
+* move useNowTicking out of lib/time.ts ([7ceeff9](https://github.com/Triafon-Labs/Severnwatch/commit/7ceeff95c75a0501e38cb0cdf5792dedd5e5fdfe))
+* read the app name and description from config ([442c566](https://github.com/Triafon-Labs/Severnwatch/commit/442c56657d2541f8f685041d91b0ba5db7907c84))
+* remove the SAS map embed card ([64b9860](https://github.com/Triafon-Labs/Severnwatch/commit/64b98604cbd9d7dff87d3141a1bd94f06ccf41ee))
+* shorten "How Limits Work" and link out for the official method ([a954855](https://github.com/Triafon-Labs/Severnwatch/commit/a9548555cfd2d5049bc90d1c37de7003e49a68fb))
+* treat every spill in the Worcester reach the same ([028d237](https://github.com/Triafon-Labs/Severnwatch/commit/028d237c4db78756f94e1af6e8c68cff6f1a73d4))
+* trim the sample cards ([9aa846f](https://github.com/Triafon-Labs/Severnwatch/commit/9aa846f270877f88a132b0b6754edac418ed13ba))
+* trim the sample chart tooltip to the headline figure ([664e578](https://github.com/Triafon-Labs/Severnwatch/commit/664e5785a1300343ce9dd8eef08fb276b48e067e))
+
+### Documentation
+
+* correct the conditions key's caption-spacing comment ([cfb59f0](https://github.com/Triafon-Labs/Severnwatch/commit/cfb59f07c480c902aa060bab96a8d8eda5705a4d))
+* describe the keep-alive's hard-coded site URL ([a5d9d0e](https://github.com/Triafon-Labs/Severnwatch/commit/a5d9d0edcea0c2ba38583735a9cb7d87b9ee9cde))
+* describe where the chart's rain now comes from ([b3f31dc](https://github.com/Triafon-Labs/Severnwatch/commit/b3f31dc8565e26b23fa067db48c0171ad22027b7))
+* explain how the app grades a sample against the official classification ([3aa6248](https://github.com/Triafon-Labs/Severnwatch/commit/3aa6248c93456f9e49a0e1cf074249bc9bcfa16d))
+
 ## [0.1.23](https://github.com/Triafon-Labs/Severnwatch/compare/severnwatch-v0.1.22...severnwatch-v0.1.23) (2026-10-15)
 
 ## [0.1.22](https://github.com/Triafon-Labs/Severnwatch/compare/severnwatch-v0.1.21...severnwatch-v0.1.22) (2026-09-26)
