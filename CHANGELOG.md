@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.0.1](https://github.com/Triafon-Labs/Severnwatch/compare/severnwatch-v1.0.0...severnwatch-v1.0.1) (2026-11-22)
+
+### Bug Fixes
+
+* read water samples from the upload store only ([#16](https://github.com/Triafon-Labs/Severnwatch/issues/16)) ([7e8dfa6](https://github.com/Triafon-Labs/Severnwatch/commit/7e8dfa685df726c2291986e5d875c13ca612f5e2))
+
 ## [1.0.0](https://github.com/Triafon-Labs/Severnwatch/compare/severnwatch-v0.1.23...severnwatch-v1.0.0) (2026-11-18)
 
 * let a Release-As footer set the next release version ([bbefe91](https://github.com/Triafon-Labs/Severnwatch/commit/bbefe9115d8361b8327c612540dde9f7dc1eb8f4))
