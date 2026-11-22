@@ -106,7 +106,7 @@ const describeSources = (data: SevernData, now: Date): SourceView[] => {
 
   const spills = ((): SourceView => {
     const base = { key: "cso" as const, label: "Spills" };
-    const detail = "Severn Trent overflow feed";
+    const detail = "Severn Trent feed";
     const common = commonState(data, "cso", !!cso);
     if (common) return { ...base, ...common, detail };
     const old = nowMs - new Date(cso!.asOf).getTime() > DATA_STALE_THRESHOLD_MS;
@@ -122,7 +122,7 @@ const describeSources = (data: SevernData, now: Date): SourceView[] => {
     const newest = rainfall ? newestGaugeReadingMs(rainfall.gauges) : null;
     const detail =
       newest !== null
-        ? `Newest EA gauge reading ${getLondonHHMM(new Date(newest))} (${formatDataAge(newest, now)})`
+        ? `Last reading ${getLondonHHMM(new Date(newest))}, ${formatDataAge(newest, now)}`
         : "EA rain gauges";
     const common = commonState(data, "rainfall", !!rainfall);
     if (common) return { ...base, ...common, detail };
@@ -146,8 +146,8 @@ const describeSources = (data: SevernData, now: Date): SourceView[] => {
     const days = latestMs !== null ? londonDaysAgo(latestMs, now) : null;
     const detail =
       latestMs !== null && days !== null
-        ? `Latest sample ${formatLondonDate(latestMs)} (${formatDaysAgo(days)}), uploaded weekly`
-        : "Citizen science samples, uploaded weekly";
+        ? `Last sample ${formatLondonDate(latestMs)}, ${formatDaysAgo(days)}`
+        : "Weekly citizen science samples";
     const common = commonState(data, "waterQuality", !!waterQuality);
     if (common) return { ...base, ...common, detail };
     // Both said on the Latest Sample card.
@@ -240,8 +240,8 @@ export const DataSourcesList: React.FC = () => {
     <Stack spacing={1.5}>
       {updatedMs !== null && (
         <Typography variant="body2" color="text.secondary">
-          Updated {getLondonHHMM(new Date(updatedMs))} (
-          {formatDataAge(updatedMs, now)})
+          Updated {getLondonHHMM(new Date(updatedMs))},{" "}
+          {formatDataAge(updatedMs, now)}
         </Typography>
       )}
       {views.map((v) => (
