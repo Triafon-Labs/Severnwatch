@@ -23,6 +23,25 @@ export const DAILY_HEAVY_MM = 20; // mm/day - ETCCDI R20mm, very heavy precipita
 export const HOUR_MS = 60 * 60 * 1000;
 export const DAY_MS = 24 * HOUR_MS;
 
+// When a gauge's newest reading was taken. EA gauges report on their own
+// telemetry schedules and often upload in batches, so the newest reading can
+// be well over the nominal 15 minutes old - and one gauge can fall hours
+// behind the others without the route failing.
+export const latestReadingMs = (gauge: RainfallGaugeData): number | null =>
+  gauge.readings.length > 0
+    ? new Date(gauge.readings[gauge.readings.length - 1].dateTime).getTime()
+    : null;
+
+// The freshest reading across the gauges - how far behind the rain data is
+// as a whole (the Rain dot in the liveness row).
+export const newestGaugeReadingMs = (
+  gauges: RainfallGaugeData[]
+): number | null =>
+  gauges.reduce<number | null>((newest, gauge) => {
+    const ms = latestReadingMs(gauge);
+    return ms !== null && (newest === null || ms > newest) ? ms : newest;
+  }, null);
+
 export interface Bucket {
   label: string;
   sortKey: number;

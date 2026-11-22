@@ -35,7 +35,8 @@ import {
   springTransition,
 } from "@/lib/m3-palette";
 import { useNowTicking } from "@/lib/useNowTicking";
-import { useFreshness } from "@/lib/useFreshness";
+import { showSkeletonFor } from "@/lib/hooks";
+import SourceLiveness from "@/components/SourceLiveness";
 import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 
@@ -157,18 +158,17 @@ const ContributingFactors: React.FC<{ factors: PollutionRiskFactor[] }> = ({
 );
 
 const PollutionRiskCard: React.FC = () => {
-  const {
-    cso,
-    rainfall,
-    waterQuality,
-    csoError,
-    loading,
-    isRefreshing,
-    isOffline,
-    lastUpdated,
-  } = useSevernContext();
-  const { freshnessText } = useFreshness(lastUpdated);
-  const showSkeleton = loading || (isRefreshing && !isOffline);
+  const data = useSevernContext();
+  const { cso, rainfall, waterQuality, csoError } = data;
+  // All three, not just the spills: the headline is worked out from rain
+  // and the latest sample too, so drawing it from spills alone would show
+  // one level and then change it as the others arrived.
+  const showSkeleton = showSkeletonFor(
+    data,
+    { key: "cso", hasData: !!cso },
+    { key: "rainfall", hasData: !!rainfall },
+    { key: "waterQuality", hasData: !!waterQuality }
+  );
   // Ticks so a spill starts and stops counting on time between fetches.
   const now = useNowTicking();
 
@@ -186,21 +186,13 @@ const PollutionRiskCard: React.FC = () => {
         <Typography variant="h5" component="h2">
           Pollution Risk
         </Typography>
-        {/* When the spill and rainfall data were fetched - Paddlecheck's
-            "Updated" line under its status card title. The banners above the
-            app bar take over once it's stale or an update has failed. Held at
-            one line's height so the card doesn't jump when it fills in. */}
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ mt: 0.25, mb: 1.5, minHeight: "1.43em" }}
-        >
-          {isRefreshing
-            ? "Updating…"
-            : freshnessText
-              ? `Updated ${freshnessText}`
-              : null}
-        </Typography>
+        {/* Where Paddlecheck has its "Updated" line: a dot per source the
+            headline is drawn from, each live, behind or failed on its own
+            (components/SourceLiveness.tsx). The banners above the app bar
+            still take over once the data is stale or an update has failed. */}
+        <Box sx={{ mt: 0.25, mb: 1 }}>
+          <SourceLiveness />
+        </Box>
 
         {/* Mirrors the hero and its scale strip, so the card doesn't change
             height when the data lands. */}

@@ -36,6 +36,20 @@ export const OFFLINE_NO_CACHE_ERROR =
 // the banner only means a fetch failed or the page has been left open.
 export const DATA_STALE_THRESHOLD_MS = 2 * DATA_REVALIDATE_SECONDS * 1000;
 
+export type SourceKey = "cso" | "rainfall" | "waterQuality";
+
+// Where one source's data on screen came from, for the cards' skeletons and
+// the liveness row under the Pollution Risk title.
+export interface SourceStatus {
+  // Its request is in flight. True from the start, until the first load
+  // settles, so a card with nothing yet shows its skeleton rather than a
+  // flash of "couldn't load".
+  pending: boolean;
+  // The last load couldn't reach the route and fell back to the saved copy
+  // (which may be nothing - see the *Error flags).
+  fromSavedCopy: boolean;
+}
+
 export interface SevernData {
   cso: CsoResponse | null;
   rainfall: RainfallResponse | null;
@@ -48,6 +62,9 @@ export interface SevernData {
   // isRefreshing - every fetch, as in Paddlecheck, so the skeletons clearing
   // means what's on screen just came from the network.
   loading: boolean;
+  // Per source, so each card can come out of its skeleton as soon as its own
+  // data lands rather than waiting on the slowest feed.
+  sources: Record<SourceKey, SourceStatus>;
   isRefreshing: boolean;
   isOffline: boolean;
   // The last fetch couldn't get one of the sources from inside the cache
@@ -146,6 +163,25 @@ const loadStaticSource = async <T>(
   return { body: readCache<T>(storageKey), fromCache: true };
 };
 
+// Whether a card drawn from these sources should show its skeleton: while
+// any of them is in flight - every fetch, so the skeleton clearing still
+// means the card's data just came from the network - except offline with
+// something saved to show, where there's no fetch worth waiting on.
+export const showSkeletonFor = (
+  data: Pick<SevernData, "sources" | "isOffline">,
+  ...keys: { key: SourceKey; hasData: boolean }[]
+): boolean =>
+  keys.some(
+    ({ key, hasData }) =>
+      data.sources[key].pending && !(data.isOffline && hasData)
+  );
+
+const INITIAL_SOURCES: Record<SourceKey, SourceStatus> = {
+  cso: { pending: true, fromSavedCopy: false },
+  rainfall: { pending: true, fromSavedCopy: false },
+  waterQuality: { pending: true, fromSavedCopy: false },
+};
+
 export const useSevernData = (): SevernData => {
   const [cso, setCso] = useState<CsoResponse | null>(null);
   const [rainfall, setRainfall] = useState<RainfallResponse | null>(null);
@@ -156,6 +192,8 @@ export const useSevernData = (): SevernData => {
   );
   const [waterQualityError, setWaterQualityError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sources, setSources] =
+    useState<Record<SourceKey, SourceStatus>>(INITIAL_SOURCES);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [lastFetchFailed, setLastFetchFailed] = useState(false);
@@ -174,37 +212,45 @@ export const useSevernData = (): SevernData => {
     if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     setIsRefreshing(true);
+    setSources((prev) => ({
+      cso: { ...prev.cso, pending: true },
+      rainfall: { ...prev.rainfall, pending: true },
+      waterQuality: { ...prev.waterQuality, pending: true },
+    }));
 
-    const csoPromise = loadSource<CsoResponse>(
-      SEWAGE_PATH,
-      STORAGE_KEYS.CSO_DATA
-    );
-    const rainfallPromise = loadSource<RainfallResponse>(
-      RAINFALL_PATH,
-      STORAGE_KEYS.RAINFALL_DATA
-    );
-
-    const waterQualityPromise = loadStaticSource<WaterQualityResponse>(
-      WATER_QUALITY_PATH,
-      STORAGE_KEYS.WATER_QUALITY_DATA
-    );
+    // Each source is put on screen as soon as it lands, so a quick feed
+    // isn't held back by a slow one; the rest of the bookkeeping waits for
+    // all three below.
+    const settle = <T>(
+      key: SourceKey,
+      result: { body: T | null; fromCache: boolean },
+      setBody: (body: T) => void,
+      setFailed: (failed: boolean) => void
+    ) => {
+      if (result.body) setBody(result.body);
+      setFailed(result.fromCache && !result.body);
+      setSources((prev) => ({
+        ...prev,
+        [key]: { pending: false, fromSavedCopy: result.fromCache },
+      }));
+      return result;
+    };
 
     const [csoResult, rainfallResult, waterQualityResult] = await Promise.all([
-      csoPromise,
-      rainfallPromise,
-      waterQualityPromise,
+      loadSource<CsoResponse>(SEWAGE_PATH, STORAGE_KEYS.CSO_DATA).then((r) =>
+        settle("cso", r, setCso, setCsoError)
+      ),
+      loadSource<RainfallResponse>(
+        RAINFALL_PATH,
+        STORAGE_KEYS.RAINFALL_DATA
+      ).then((r) => settle("rainfall", r, setRainfall, setRainfallError)),
+      loadStaticSource<WaterQualityResponse>(
+        WATER_QUALITY_PATH,
+        STORAGE_KEYS.WATER_QUALITY_DATA
+      ).then((r) =>
+        settle("waterQuality", r, setWaterQuality, setWaterQualityError)
+      ),
     ]);
-
-    if (csoResult.body) setCso(csoResult.body);
-    setCsoError(csoResult.fromCache && !csoResult.body);
-
-    if (rainfallResult.body) setRainfall(rainfallResult.body);
-    setRainfallError(rainfallResult.fromCache && !rainfallResult.body);
-
-    if (waterQualityResult.body) setWaterQuality(waterQualityResult.body);
-    setWaterQualityError(
-      waterQualityResult.fromCache && !waterQualityResult.body
-    );
 
     const oldestResultTime = oldest(
       csoResult.body?.asOf,
@@ -342,6 +388,7 @@ export const useSevernData = (): SevernData => {
     rainfallError,
     waterQualityError,
     loading,
+    sources,
     isRefreshing,
     isOffline,
     lastFetchFailed,

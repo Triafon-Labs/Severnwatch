@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   Grow,
+  Skeleton,
   Stack,
   ToggleButton,
   Typography,
@@ -15,6 +16,7 @@ import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import WbSunnyOutlinedIcon from "@mui/icons-material/WbSunnyOutlined";
 import { RiskHistoryDay } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
+import { showSkeletonFor } from "@/lib/hooks";
 import { useRiskHistory } from "@/lib/useRiskHistory";
 import {
   CLASSIFIED_INDICATORS,
@@ -189,9 +191,45 @@ interface Point {
   spills: number | null; // hours of spilling, its own day and three before
 }
 
+// The loaded card's pieces at their rendered heights: toggle, plot with its
+// scales and source line, the picked sample, then the two tiles. Kept no
+// taller than the real thing, since ReservedHeight holds the tallest height
+// it has seen.
+const RiskHistorySkeleton: React.FC<{ title: string }> = ({ title }) => (
+  <Card>
+    <CardContent>
+      <Typography variant="h5" component="h2">
+        {title}
+      </Typography>
+      <Skeleton
+        variant="text"
+        width="80%"
+        animation="wave"
+        sx={{ mt: 0.25, mb: 2 }}
+      />
+      <Stack spacing={2} aria-hidden>
+        <Skeleton
+          variant="rounded"
+          height={40}
+          animation="wave"
+          sx={{ borderRadius: 9999 }}
+        />
+        <Skeleton
+          variant="rounded"
+          height={PLOT_HEIGHT + 40}
+          animation="wave"
+        />
+        <Skeleton variant="rounded" height={72} animation="wave" />
+        <Skeleton variant="rounded" height={64} animation="wave" />
+      </Stack>
+    </CardContent>
+  </Card>
+);
+
 const RiskHistoryCard: React.FC = () => {
-  const days = useRiskHistory();
-  const { waterQuality } = useSevernContext();
+  const { days, loading: historyLoading } = useRiskHistory();
+  const data = useSevernContext();
+  const { waterQuality } = data;
   const [measure, setMeasure] = useState<Measure>("rain");
   // The dot picked by a tap; the newest sample until one is.
   const [pickedId, setPickedId] = useState<string | null>(null);
@@ -235,6 +273,19 @@ const RiskHistoryCard: React.FC = () => {
     return result;
   }, [days, waterQuality]);
 
+  // Held as a skeleton while either half is loading, like the cards above,
+  // rather than popping in under the reader once both have landed.
+  if (
+    historyLoading ||
+    showSkeletonFor(data, { key: "waterQuality", hasData: !!waterQuality })
+  ) {
+    return (
+      <ReservedHeight>
+        <RiskHistorySkeleton title={MEASURE_UI[measure].title} />
+      </ReservedHeight>
+    );
+  }
+
   // Nothing to show until there's a sample with rain against it - an old
   // saved response has none, and the gauges can be unreachable at a build.
   if (
@@ -272,8 +323,7 @@ const RiskHistoryCard: React.FC = () => {
       ? "None yet"
       : `${group.filter((p) => p.band === "poor").length} of ${group.length} Poor`;
 
-  // The card arrives after the rest of the page (once the samples have rain
-  // against them), so it grows in as the others' content does. It is the
+  // It grows in out of its skeleton as the others' content does. It is the
   // last card, so it keeps the height of its tallest view (ReservedHeight)
   // and eases between views (EasedHeight): switching to a view with less in
   // it leaves page background below the card rather than pulling the page

@@ -30,7 +30,7 @@ export default function HomePage() {
         <CsoListCard />
         <RainfallCard />
         <SampleHistoryCard />
-        {/* Appears once the risk history has a first day recorded. */}
+        {/* Hidden only if no sample has rain, flow or spills against it. */}
         <RiskHistoryCard />
       </Stack>
     </Container>

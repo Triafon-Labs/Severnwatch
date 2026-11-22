@@ -24,6 +24,7 @@ import CircleIcon from "@mui/icons-material/Circle";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useSevernContext } from "@/lib/SevernDataContext";
+import { showSkeletonFor } from "@/lib/hooks";
 import {
   CLASSIFIED_INDICATORS,
   INDICATORS,
@@ -170,9 +171,12 @@ const SampleHeader: React.FC<StepProps & { sample: WaterQualitySample }> = ({
 };
 
 const SampleHistoryCard: React.FC = () => {
-  const { waterQuality, waterQualityError, loading, isRefreshing, isOffline } =
-    useSevernContext();
-  const showSkeleton = loading || (isRefreshing && !isOffline);
+  const data = useSevernContext();
+  const { waterQuality, waterQualityError } = data;
+  const showSkeleton = showSkeletonFor(data, {
+    key: "waterQuality",
+    hasData: !!waterQuality,
+  });
   const samples = waterQuality?.samples ?? [];
 
   // Seeded from localStorage on first render, like the rainfall range, so the

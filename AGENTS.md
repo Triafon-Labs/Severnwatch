@@ -122,7 +122,8 @@ components/
   SettingsModal.tsx          Bottom sheet – theme, links, conditions key, deep dive, version
   DisclaimerDialog.tsx       First-run pop-up – must be accepted once per DISCLAIMER_VERSION (as in Paddlecheck)
   ConditionsKey.tsx          Legend for the status colours, map markers and chart bands
-  PollutionRiskCard.tsx      Headline pollution risk from spills, rainfall + latest sample, with the "Updated" line
+  PollutionRiskCard.tsx      Headline pollution risk from spills, rainfall + latest sample, with the liveness row
+  SourceLiveness.tsx         A dot per source (Spills, Rain, Samples) - live, behind, failed or updating; tap for times
   CsoListCard.tsx            "Sewage Overflows" – the network as a river diagram
   RiverSchematic.tsx         Transit-map view of the catchment, stops in downstream order
   CsoOutfallRow.tsx          One outfall as a row under its stop – where its spill is, times, map link
@@ -174,7 +175,7 @@ lib/
   storageKeys.ts        Canonical localStorage key names
   time.ts               Europe/London time and calendar-day helpers (no React, so servers can import it)
   useNowTicking.ts      Client hook: the current time, ticking each minute (kept out of time.ts)
-  useFreshness.ts       "10:33 · just now" and whether data is stale – status card and the banners
+  useFreshness.ts       "10:33 · just now" and whether data is stale – the stale/offline banners
   format.ts             Duration and "data as of" formatting
   useTooltipDismiss.ts  Closes a recharts tooltip on an outside press
 
@@ -229,6 +230,8 @@ one fetch rather than three.
   rainfallError: boolean
   waterQualityError: boolean
   loading: boolean           // true only when there is genuinely nothing to render
+  sources: Record<"cso" | "rainfall" | "waterQuality",
+    { pending: boolean; fromSavedCopy: boolean }>  // per source - skeletons + liveness dots
   isRefreshing: boolean      // any fetch in flight
   isOffline: boolean
   lastFetchFailed: boolean   // a source couldn't be got from inside the cache window
@@ -259,15 +262,26 @@ There is **no background poll**, matching Paddlecheck. Data is fetched on load,
 on a manual refresh, and when the reader comes back to the app — tab shown,
 window focused, signal regained, or page restored from the back/forward cache —
 with data older than the 15-minute cache window. Every fetch
-puts the cards into their skeletons (they read `isRefreshing`), so the
-skeletons clearing means what's on screen just came from the network; a poll
-would blank the page under whoever was reading it.
+puts the cards into their skeletons, so the skeletons clearing means what's
+on screen just came from the network; a poll would blank the page under
+whoever was reading it. Each card waits only on the sources it draws
+(`showSkeletonFor(data, …)` in `lib/hooks.ts`, reading `sources[key].pending`),
+and each source is put on screen the moment it lands, so a slow rainfall feed
+doesn't hold back the spills. Pollution Risk waits on all three, since its
+headline is worked out from all three; Rain vs Water Quality waits on the
+samples and its own `/api/risk-history` fetch. Cards keep their fixed places
+with skeletons rather than popping in as data arrives, so nothing moves under
+the reader.
 
-Freshness is communicated by the "Updated HH:MM · n min ago" line under the
-Pollution Risk title (`lib/useFreshness.ts`, as in Paddlecheck),
-the "As of" caption under the rainfall chart (the age of the newest gauge
-reading, which the EA typically receives only once or twice a day), and a
-banner above the app bar. That banner says "Live update failed" only when the
+Freshness is communicated by the liveness row under the Pollution Risk title
+(`components/SourceLiveness.tsx`): a dot per source - green live, amber
+behind, red failed, grey pulsing while it loads - with a popover giving the
+times. Spills go by when they were fetched; rain by its newest gauge reading
+(amber past 3 hours), since `asOf` is fresh even when the gauges are not;
+samples by the newest sample (amber past `WATER_QUALITY_STALE_DAYS`). A gauge
+row on the Rainfall card shows its own reading's age only when it trails the
+freshest gauge by an hour. Above the app bar there is also a
+banner. That banner says "Live update failed" only when the
 last fetch couldn't get a source from inside the cache window (it fell back to
 the saved copy, or the live fallback failed too); data that is merely past
 `DATA_STALE_THRESHOLD_MS` (two windows, 30 minutes) because nobody has
@@ -277,8 +291,7 @@ the banner threshold well above the window: a successful fetch can return data
 up to one window old, so a banner set just above it comes back a few minutes
 after a refresh that worked. The nav bar works staleness out during render from
 a ticking clock rather than holding it in state, so the render where a refresh
-lands never pairs the new data with the old "stale" flag (`lib/useFreshness.ts`,
-shared with the status card's "Updated" line).
+lands never pairs the new data with the old "stale" flag (`lib/useFreshness.ts`).
 
 ### Risk history
 

@@ -144,11 +144,9 @@ const buildTimeTicks = (
 interface Props {
   gauges: RainfallGaugeData[];
   forecast: RainfallForecastPoint[];
-  // Age of the newest gauge reading, e.g. "12 min ago".
-  dataAgeLabel: string | null;
 }
 
-const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
+const RainfallChart: React.FC<Props> = ({ gauges, forecast }) => {
   // Seeded from localStorage on first render rather than in an effect, so the
   // reader's chosen range is what paints - not a frame of "Forecast" that
   // then jumps to "7d".
@@ -350,27 +348,12 @@ const RainfallChart: React.FC<Props> = ({ gauges, forecast, dataAgeLabel }) => {
   return (
     <Stack spacing={1}>
       <Stack spacing={1}>
-        {/* Shares a row with the chart's caption rather than stacking a second
-            caption line above the toggle. Same styling as Paddlecheck's "As
-            of" over its river graph: text.disabled, right-aligned. */}
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{ justifyContent: "space-between", alignItems: "baseline" }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            {caption}
-          </Typography>
-          {dataAgeLabel && (
-            <Typography
-              variant="caption"
-              color="text.disabled"
-              sx={{ flexShrink: 0, textAlign: "right" }}
-            >
-              As of {dataAgeLabel}
-            </Typography>
-          )}
-        </Stack>
+        {/* No "As of" here: how far behind the gauges are is the Rain dot
+            in the liveness row under Pollution Risk, and a gauge that has
+            fallen behind the others says so on its own row above. */}
+        <Typography variant="caption" color="text.secondary">
+          {caption}
+        </Typography>
         <SlidingToggleButtonGroup
           value={selectedRange}
           exclusive
