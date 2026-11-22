@@ -15,19 +15,17 @@ SAS have no public API for it, so each week's export is added by hand.
    file and press Upload.
 
 The page checks the file before anything is stored, then says what it found:
-"25 samples read - 1 new", or exactly what's wrong with the file. The cards
+"25 samples, 1 new", or exactly what's wrong with the file. The cards
 pick the new samples up within a minute, with no redeploy.
 
 The page asks search engines not to list it.
 
 ## Where the samples come from
 
-The app merges, by Survey ID:
-
-1. **Every CSV committed in this folder**, in name order. This is the
-   baseline, and how the first season's export got here.
-2. **Every export uploaded through `/upload`**, in upload order. These are
-   stored in a private Vercel Blob store (`lib/waterQualityStore.ts`).
+Every export uploaded through `/upload` is kept in a private Vercel Blob
+store (`lib/waterQualityStore.ts`), and the app merges them by Survey ID in
+upload order. Nothing is committed to this repository: the exports name the
+volunteers who took the samples.
 
 A later copy of a sample replaces an earlier one, so a corrected result wins.
 A partial export can't remove samples an earlier one had. Uploading a file
@@ -36,9 +34,6 @@ with nothing new in it stores nothing.
 To undo a bad upload, delete that file from the Blob store in the Vercel
 dashboard (Storage → the store → `water-quality/`), then redeploy or upload
 again so the route rebuilds.
-
-Committing a CSV here still works too: name it
-`SAS_Water_Quality_Surveys_YYYY-MM-DD.csv` and push.
 
 ## Setting it up on Vercel
 
@@ -50,11 +45,12 @@ Two things, both in the Vercel dashboard for the project:
   passcode testers will use, then redeploy.
 
 Until both are set, `/upload` explains that uploads aren't set up, and the
-cards carry on with the committed CSVs.
+sample cards say no samples have been added.
 
 Running locally (`npm run dev`) needs neither: set `UPLOAD_PASSCODE` in
-`.env.local` to try the page, and uploads are saved to
-`data/water-quality/uploads/` (gitignored) instead of Blob.
+`.env.local`, and uploads are saved to `data/water-quality/uploads/`
+(gitignored) instead of Blob. A fresh clone has no samples until you upload
+an export there.
 
 ## What's read
 
@@ -75,7 +71,7 @@ Running locally (`npm run dev`) needs neither: set `UPLOAD_PASSCODE` in
 
 Every file's column headings are checked. If SAS rename or drop a column, or
 a count has a qualifier the parser doesn't recognise, the upload is
-refused with the file, row and column named. A committed file that fails
-the same check stops the build. That's deliberate: showing wrong numbers
+refused with the file, row and column named. A stored export that fails
+the same check (after a parser change, say) stops the build. That's deliberate: showing wrong numbers
 would be worse than showing none. Fix the parser in `lib/waterQualityCsv.ts`,
 not the CSV.

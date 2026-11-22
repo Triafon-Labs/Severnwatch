@@ -35,8 +35,7 @@ const CsoListCard: React.FC = () => {
           <InfoPanel align="flex-start">
             <CloudOffIcon color="warning" sx={{ flexShrink: 0 }} />
             <Typography variant="body2" color="text.secondary">
-              Couldn&apos;t load CSO monitoring data right now. It&apos;ll retry
-              on the next refresh.
+              Couldn&apos;t load CSO monitoring data. Try refreshing.
             </Typography>
           </InfoPanel>
         )}

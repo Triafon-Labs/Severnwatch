@@ -240,8 +240,7 @@ const PollutionRiskCard: React.FC = () => {
               sx={{ flexShrink: 0, fontSize: 32 }}
             />
             <Typography variant="body2" color="text.secondary">
-              Couldn&apos;t load sewage spill data right now. It&apos;ll retry
-              on the next refresh.
+              Couldn&apos;t load sewage spill data. Try refreshing.
             </Typography>
           </InfoPanel>
         )}

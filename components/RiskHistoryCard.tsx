@@ -318,8 +318,8 @@ const RiskHistoryCard: React.FC = () => {
                       {measure !== "spills"
                         ? "No samples to plot yet."
                         : spillsSince
-                          ? `Recording since ${spillsSince}. Samples appear here as they come in.`
-                          : "Spills aren't being recorded yet. Samples will appear here once they are."}
+                          ? `Recording since ${spillsSince}. No samples since then yet.`
+                          : "Spills aren't being recorded yet."}
                     </Typography>
                   </InfoPanel>
                 ) : (

@@ -78,8 +78,7 @@ const LatestSampleCard: React.FC = () => {
           <InfoPanel align="flex-start">
             <CloudOffIcon color="warning" sx={{ flexShrink: 0 }} />
             <Typography variant="body2" color="text.secondary">
-              Couldn&apos;t load the water quality samples right now. It&apos;ll
-              retry on the next refresh.
+              Couldn&apos;t load the water quality samples. Try refreshing.
             </Typography>
           </InfoPanel>
         )}
@@ -169,7 +168,7 @@ const LatestSampleCard: React.FC = () => {
                 <InfoPanel align="flex-start">
                   <EventBusyIcon color="warning" sx={{ flexShrink: 0 }} />
                   <Typography variant="body2" color="text.secondary">
-                    No new sample for {days} days, so this may be out of date.
+                    No new sample for {days} days.
                   </Typography>
                 </InfoPanel>
               )}

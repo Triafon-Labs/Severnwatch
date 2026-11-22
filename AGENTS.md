@@ -25,8 +25,8 @@ sampling. There is no database. Spill and rainfall readings are fetched live
 from public APIs through Next.js routes. The Grandstand Road sample results
 are the exception: SAS has no API for them, so each week's CSV export is
 uploaded by a tester through `/upload` and kept in a private Vercel Blob
-store, on top of a baseline committed to `data/water-quality/` (see that
-folder's README).
+store (see `data/water-quality/README.md`). None are committed: the exports
+name the volunteers.
 
 Sibling project to [Paddlecheck](https://github.com/Triafon-Labs/Paddlecheck) (the
 Worcester Canoe Club kayaking conditions app). The two share a tech stack, a
@@ -42,9 +42,10 @@ scopes. **Location hardcoded to:** Worcester, UK (lat 52.2, lon -2.2).
 | Framework     | Next.js 16 (App Router, Turbopack)                                             |
 | Library       | React 19                                                                       |
 | Language      | TypeScript 6 (strict mode)                                                     |
-| UI Library    | Material UI (MUI) 7 + Emotion, themed to Material Design 3                     |
+| UI Library    | Material UI (MUI) 9 + Emotion, themed to Material Design 3                     |
 | Charts        | Recharts 3                                                                     |
 | Date handling | date-fns 4                                                                     |
+| Analytics     | Vercel Analytics + Speed Insights (inert until enabled in the dashboard)       |
 | PWA           | Web manifest (`app/manifest.ts`) + hand-rolled service worker (`public/sw.js`) |
 | Linting       | ESLint 10, Prettier 3                                                          |
 | Git hooks     | Husky 9 + commitlint (Conventional Commits)                                    |
@@ -53,8 +54,8 @@ scopes. **Location hardcoded to:** Worcester, UK (lat 52.2, lon -2.2).
 
 No environment variables are required for local development. In production,
 `/upload` needs a connected Vercel Blob store (`BLOB_READ_WRITE_TOKEN`, set by
-Vercel) and `UPLOAD_PASSCODE`; without them uploads are refused and the cards
-use the committed CSVs. The risk history (below) needs only the Blob store.
+Vercel) and `UPLOAD_PASSCODE`; without them uploads are refused and the sample
+cards are empty. The risk history (below) needs only the Blob store.
 
 ---
 
@@ -106,7 +107,7 @@ app/
       live/             Same response with no cache – called when the cached one has expired
     rainfall/           EA rainfall gauges + Open-Meteo forecast (lib/rainfall.ts)
       live/             Same, no cache
-    water-quality/      Committed + uploaded SAS CSVs + the rain and flow before each, static; rebuilt on each upload
+    water-quality/      Uploaded SAS CSVs + the rain and flow before each, static; rebuilt on each upload
       upload/           POST: passcode-checked upload of one export (validates, stores, revalidates)
     risk-history/       Recorded spills by day, cached 3 h
       record/           Records a snapshot and the day records once per clock hour to the Blob store; called by keep-alive
@@ -181,10 +182,9 @@ types/
   index.ts              All shared TypeScript types
 
 data/
-  water-quality/        Hand-downloaded SAS CSV exports + README on adding them
+  water-quality/        README on adding samples; local uploads (gitignored)
 
 public/                 Static assets – icons, favicon, sw.js (offline shell)
-docs/                   Reference documents
 ```
 
 ---
@@ -210,7 +210,7 @@ docs/                   Reference documents
 | Rainfall                      | Environment Agency real-time rainfall network (`environment.data.gov.uk/flood-monitoring`) | 15-min readings, three gauges                           |
 | Rainfall forecast             | Open-Meteo `api.open-meteo.com/v1/forecast`                                                | Single point for Worcester, not per-gauge               |
 | Rain and flow before samples  | EA Hydrology API (`environment.data.gov.uk/hydrology`), three gauges + Bewdley flow        | 15-min history; fetched at build, for the history chart |
-| Citizen science water quality | SAS CSV export, uploaded via `/upload` (Vercel Blob) + committed baseline                  | No API; uploaded by hand. Static, rebuilt per upload    |
+| Citizen science water quality | SAS CSV export, uploaded via `/upload` (Vercel Blob)                                       | No API; uploaded by hand. Static, rebuilt per upload    |
 
 ---
 
@@ -388,7 +388,9 @@ rejecting commits whose first line isn't a valid Conventional Commit
   the last release sets the version outright - the only way to reach a new
   major from 0.x, and how 1.0.0 was cut. The job skips itself when the
   triggering commit is its own `chore(release): ...` commit, to avoid a
-  loop.
+  loop, and everywhere except `Triafon-Labs/Severnwatch` – a fork's own
+  release commits would rewrite `CHANGELOG.md` and `package.json` and
+  conflict on every sync.
 - **keep-alive.yml** – every 15 minutes, pings the deployed site
   (`https://severnwatch.vercel.app`, hard-coded in the workflow) and asserts
   that both API routes still return usable data. A fork skips it until it sets
@@ -464,11 +466,9 @@ If Git hooks are not firing:
 
 ## What This Project Does Not Have
 
-- No database — everything is live-fetched, apart from the sample CSVs
-  (committed, or uploaded to Vercel Blob) and the app's own hourly risk
-  history (Vercel Blob)
+- No database — everything is live-fetched, apart from the uploaded sample
+  CSVs and the app's own hourly risk history (both Vercel Blob)
 - No authentication
 - No automated tests (Jest/Vitest/Playwright)
 - No environment variables required locally (uploads need two in production)
 - No multi-location support (hardcoded to Worcester)
-- No analytics
