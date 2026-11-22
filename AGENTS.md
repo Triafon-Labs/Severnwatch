@@ -274,8 +274,9 @@ with skeletons rather than popping in as data arrives, so nothing moves under
 the reader.
 
 Freshness is communicated by the liveness row under the Pollution Risk title
-(`components/SourceLiveness.tsx`): a dot per source - green live, amber
-behind, red failed, grey pulsing while it loads - with a popover giving the
+(`components/SourceLiveness.tsx`, as in Paddlecheck): a dot per source - green
+live, amber behind, red failed, grey pulsing while it loads - and the time the
+spills and rain were fetched (the older of the two), with a popover giving the
 times. Spills go by when they were fetched; rain by its newest gauge reading
 (amber past 3 hours), since `asOf` is fresh even when the gauges are not;
 samples by the newest sample (amber past `WATER_QUALITY_STALE_DAYS`). A gauge
