@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.1.0](https://github.com/Triafon-Labs/Severnwatch/compare/severnwatch-v1.0.1...severnwatch-v1.1.0) (2026-11-22)
+
+### Features
+
+* move data source status to Info, flag only problems on the home page ([d0d926f](https://github.com/Triafon-Labs/Severnwatch/commit/d0d926f34799254cb6c0a713caecc12dffd73333))
+* per-source loading and a liveness row for each data source ([bded558](https://github.com/Triafon-Labs/Severnwatch/commit/bded558db9dd2bae1a477df4b42976fed0a7fba4))
+* show the fetch time beside the liveness dots ([0111afd](https://github.com/Triafon-Labs/Severnwatch/commit/0111afdd29fd52cc8073407fc1b05eaf835aa575))
+
 ## [1.0.1](https://github.com/Triafon-Labs/Severnwatch/compare/severnwatch-v1.0.0...severnwatch-v1.0.1) (2026-11-22)
 
 ### Bug Fixes
