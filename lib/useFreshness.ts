@@ -5,8 +5,8 @@ import { getLondonHHMM, getRelativeTimeString } from "@/lib/time";
 import { useNowTicking } from "@/lib/useNowTicking";
 
 // How fresh the data on screen is: "10:33 · just now", and whether it's past
-// DATA_STALE_THRESHOLD_MS. Shared by the status card's "Updated" line and the
-// stale-data banners above the app bar (Paddlecheck's hook).
+// DATA_STALE_THRESHOLD_MS, for the stale-data banners above the app bar
+// (Paddlecheck's hook).
 //
 // Worked out during render from lastUpdated and a ticking clock, not kept in
 // state of its own. State set from an effect lags a render behind: the render

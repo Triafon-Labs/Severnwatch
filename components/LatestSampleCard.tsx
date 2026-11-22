@@ -14,6 +14,7 @@ import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import EventBusyIcon from "@mui/icons-material/EventBusy";
 import { useSevernContext } from "@/lib/SevernDataContext";
+import { showSkeletonFor } from "@/lib/hooks";
 import {
   COUNT_UNIT,
   SAMPLE_BAND_UI,
@@ -46,9 +47,12 @@ const LatestSampleSkeleton: React.FC = () => (
 );
 
 const LatestSampleCard: React.FC = () => {
-  const { waterQuality, waterQualityError, loading, isRefreshing, isOffline } =
-    useSevernContext();
-  const showSkeleton = loading || (isRefreshing && !isOffline);
+  const data = useSevernContext();
+  const { waterQuality, waterQualityError } = data;
+  const showSkeleton = showSkeletonFor(data, {
+    key: "waterQuality",
+    hasData: !!waterQuality,
+  });
   const now = useNowTicking();
 
   const samples = useMemo(() => waterQuality?.samples ?? [], [waterQuality]);

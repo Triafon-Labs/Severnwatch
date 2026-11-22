@@ -24,6 +24,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import NextLink from "next/link";
 import SlidingToggleButtonGroup from "@/components/SlidingToggleButtonGroup";
 import { WaterQualityDeepDive } from "@/components/WaterQualityInfoContent";
+import { DataSourcesList } from "@/components/DataSources";
 import ConditionsKey from "@/components/ConditionsKey";
 import { useAppTheme, ThemeMode } from "@/lib/ThemeContext";
 import { APP_NAME, DISCLAIMER, USEFUL_LINKS } from "@/lib/config";
@@ -312,6 +313,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
             River Severn conditions at Worcester - sewage spill status, upstream
             rainfall, and citizen science water quality, in one place.
           </Typography>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Whether each feed is live. The home page only flags one when
+              something is wrong that nothing else there says. */}
+          <Typography variant="h6" gutterBottom>
+            Data Sources
+          </Typography>
+          <DataSourcesList />
 
           <Divider sx={{ my: 2 }} />
 

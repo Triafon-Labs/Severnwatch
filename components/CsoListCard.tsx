@@ -3,6 +3,7 @@
 import { Card, CardContent, Grow, Stack, Typography } from "@mui/material";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import { useSevernContext } from "@/lib/SevernDataContext";
+import { showSkeletonFor } from "@/lib/hooks";
 import InfoPanel from "@/components/InfoPanel";
 import RiverSchematic, {
   RiverSchematicSkeleton,
@@ -10,10 +11,10 @@ import RiverSchematic, {
 import { springTransition } from "@/lib/m3-palette";
 
 const CsoListCard: React.FC = () => {
-  const { cso, csoError, loading, isRefreshing, isOffline } =
-    useSevernContext();
+  const data = useSevernContext();
+  const { cso, csoError } = data;
   const outfalls = cso?.outfalls ?? [];
-  const showSkeleton = loading || (isRefreshing && !isOffline);
+  const showSkeleton = showSkeletonFor(data, { key: "cso", hasData: !!cso });
 
   return (
     <Card>

@@ -17,9 +17,12 @@ import CloudOffIcon from "@mui/icons-material/CloudOff";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import { RainfallGaugeData } from "@/types";
 import { useSevernContext } from "@/lib/SevernDataContext";
+import { showSkeletonFor } from "@/lib/hooks";
 import {
   HOUR_MS,
   calculateForecast24hTotal,
+  latestReadingMs,
+  newestGaugeReadingMs,
   sumRecentMm,
 } from "@/lib/rainfallAnalysis";
 import InfoPanel from "@/components/InfoPanel";
@@ -29,15 +32,6 @@ import { springTransition } from "@/lib/m3-palette";
 import { RAINFALL_GAUGES } from "@/lib/config";
 import { formatDataAge } from "@/lib/time";
 import { useNowTicking } from "@/lib/useNowTicking";
-
-// When a gauge's newest reading was taken. EA gauges report on their own
-// telemetry schedules and often upload in batches, so the newest reading can
-// be well over the nominal 15 minutes old - and one gauge can fall hours
-// behind the others without the route failing.
-const latestReadingMs = (gauge: RainfallGaugeData): number | null =>
-  gauge.readings.length > 0
-    ? new Date(gauge.readings[gauge.readings.length - 1].dateTime).getTime()
-    : null;
 
 // Each tile's rendered height, for the skeletons that stand in for them: the
 // heading and value, and the same with a detail line beneath.
@@ -58,10 +52,17 @@ const PERIODS: { label: string; ms: number; icon: React.ReactNode }[] = [
 // columns: at half width the reading's age wraps onto a line of its own.
 const gaugeListSx = { display: "grid", gap: 1 } as const;
 
+// A gauge counts as behind once its newest reading trails the freshest
+// gauge's by this much. The EA's gauges upload on their own schedules, so a
+// few readings apart is normal; an hour is one that has stopped or stalled.
+const GAUGE_BEHIND_MS = HOUR_MS;
+
 // A gauge's own day of rain, with its newest reading beneath. The reading's
-// own age rather than a fixed "in the last 15 min", which this used to claim
-// for whatever the newest reading was - including one from a gauge that had
-// stopped reporting hours ago.
+// age only when this gauge has fallen behind the others: how far behind the
+// gauges are as a whole is the Rain dot under Pollution Risk, and the same
+// "20 min ago" on all three rows only repeated it. Never a fixed "in the
+// last 15 min", which this once claimed for a gauge that had stopped
+// reporting hours before.
 const GaugeStat: React.FC<{
   label: string;
   latestMm: number | null;
@@ -73,9 +74,11 @@ const GaugeStat: React.FC<{
     label={label}
     value={`${last24hTotalMm} mm in 24h`}
     detail={
-      latestMm !== null && latestAgeLabel
-        ? `Latest ${latestMm} mm · ${latestAgeLabel}`
-        : "No recent reading"
+      latestMm === null
+        ? "No recent reading"
+        : latestAgeLabel
+          ? `Latest ${latestMm} mm · ${latestAgeLabel}`
+          : `Latest ${latestMm} mm`
     }
   />
 );
@@ -93,10 +96,7 @@ const maxAcrossGauges = (
 // chart's place while its chunk downloads.
 const ChartSkeleton: React.FC = () => (
   <Stack spacing={1} aria-hidden>
-    <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-      <Skeleton variant="text" width={150} height={17} animation="wave" />
-      <Skeleton variant="text" width={90} height={17} animation="wave" />
-    </Stack>
+    <Skeleton variant="text" width={150} height={17} animation="wave" />
     <Skeleton
       variant="rounded"
       height={41}
@@ -156,24 +156,27 @@ const RainfallCardSkeleton: React.FC = () => (
 );
 
 const RainfallCard: React.FC = () => {
-  const { rainfall, rainfallError, loading, isRefreshing, isOffline } =
-    useSevernContext();
+  const data = useSevernContext();
+  const { rainfall, rainfallError } = data;
   const gauges = rainfall?.gauges ?? [];
-  const showSkeleton = loading || (isRefreshing && !isOffline);
+  const showSkeleton = showSkeletonFor(data, {
+    key: "rainfall",
+    hasData: !!rainfall,
+  });
 
-  // The age of the reading itself, not of the fetch. The app bar's "Updated"
-  // line is when /api/rainfall built its response, which is fresh by
-  // construction even when every gauge is an hour behind.
   const now = useNowTicking();
-  const ageLabel = (ms: number | null) =>
-    ms !== null ? formatDataAge(ms, now) : null;
   const forecast24hMm = rainfall
     ? calculateForecast24hTotal(rainfall.forecast)
     : null;
-  const newestReadingMs = gauges.reduce<number | null>((newest, gauge) => {
-    const ms = latestReadingMs(gauge);
-    return ms !== null && (newest === null || ms > newest) ? ms : newest;
-  }, null);
+  const newestReadingMs = newestGaugeReadingMs(gauges);
+  // The age of the reading itself, not of the fetch - but only for a gauge
+  // trailing the freshest one (see GAUGE_BEHIND_MS).
+  const behindLabel = (ms: number | null) =>
+    ms !== null &&
+    newestReadingMs !== null &&
+    newestReadingMs - ms >= GAUGE_BEHIND_MS
+      ? formatDataAge(ms, now)
+      : null;
 
   return (
     <Card>
@@ -202,17 +205,13 @@ const RainfallCard: React.FC = () => {
                     key={gauge.id}
                     label={gauge.label}
                     latestMm={gauge.latestMm}
-                    latestAgeLabel={ageLabel(latestReadingMs(gauge))}
+                    latestAgeLabel={behindLabel(latestReadingMs(gauge))}
                     last24hTotalMm={gauge.last24hTotalMm}
                   />
                 ))}
               </Box>
 
-              <RainfallChart
-                gauges={gauges}
-                forecast={rainfall.forecast}
-                dataAgeLabel={ageLabel(newestReadingMs)}
-              />
+              <RainfallChart gauges={gauges} forecast={rainfall.forecast} />
 
               <Divider />
 
