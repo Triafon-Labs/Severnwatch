@@ -283,3 +283,10 @@ export const loadWaterQualitySamples = async (): Promise<{
   );
   return mergeExports([...committed, ...uploaded]);
 };
+
+// The uploaded exports alone, without the committed baseline - what the
+// store already holds, so an upload can tell whether it adds anything there.
+export const loadUploadedSamples = async (): Promise<WaterQualitySample[]> =>
+  mergeExports(
+    (await listStoredExports()).map(({ name, text }) => parseExport(text, name))
+  ).samples;

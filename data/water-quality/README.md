@@ -30,8 +30,9 @@ The app merges, by Survey ID:
    stored in a private Vercel Blob store (`lib/waterQualityStore.ts`).
 
 A later copy of a sample replaces an earlier one, so a corrected result wins.
-A partial export can't remove samples an earlier one had. Uploading a file
-with nothing new in it stores nothing.
+A partial export can't remove samples an earlier one had. A file is stored
+unless the Blob store already holds every sample in it unchanged, so
+re-uploading the same export twice stores it once.
 
 To undo a bad upload, delete that file from the Blob store in the Vercel
 dashboard (Storage → the store → `water-quality/`), then redeploy or upload
