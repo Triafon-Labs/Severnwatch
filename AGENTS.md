@@ -42,9 +42,10 @@ scopes. **Location hardcoded to:** Worcester, UK (lat 52.2, lon -2.2).
 | Framework     | Next.js 16 (App Router, Turbopack)                                             |
 | Library       | React 19                                                                       |
 | Language      | TypeScript 6 (strict mode)                                                     |
-| UI Library    | Material UI (MUI) 7 + Emotion, themed to Material Design 3                     |
+| UI Library    | Material UI (MUI) 9 + Emotion, themed to Material Design 3                     |
 | Charts        | Recharts 3                                                                     |
 | Date handling | date-fns 4                                                                     |
+| Analytics     | Vercel Analytics + Speed Insights (inert until enabled in the dashboard)       |
 | PWA           | Web manifest (`app/manifest.ts`) + hand-rolled service worker (`public/sw.js`) |
 | Linting       | ESLint 10, Prettier 3                                                          |
 | Git hooks     | Husky 9 + commitlint (Conventional Commits)                                    |
@@ -184,7 +185,6 @@ data/
   water-quality/        Hand-downloaded SAS CSV exports + README on adding them
 
 public/                 Static assets – icons, favicon, sw.js (offline shell)
-docs/                   Reference documents
 ```
 
 ---
@@ -388,7 +388,9 @@ rejecting commits whose first line isn't a valid Conventional Commit
   the last release sets the version outright - the only way to reach a new
   major from 0.x, and how 1.0.0 was cut. The job skips itself when the
   triggering commit is its own `chore(release): ...` commit, to avoid a
-  loop.
+  loop, and everywhere except `Triafon-Labs/Severnwatch` – a fork's own
+  release commits would rewrite `CHANGELOG.md` and `package.json` and
+  conflict on every sync.
 - **keep-alive.yml** – every 15 minutes, pings the deployed site
   (`https://severnwatch.vercel.app`, hard-coded in the workflow) and asserts
   that both API routes still return usable data. A fork skips it until it sets
@@ -471,4 +473,3 @@ If Git hooks are not firing:
 - No automated tests (Jest/Vitest/Playwright)
 - No environment variables required locally (uploads need two in production)
 - No multi-location support (hardcoded to Worcester)
-- No analytics

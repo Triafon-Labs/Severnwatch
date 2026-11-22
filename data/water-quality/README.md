@@ -15,7 +15,7 @@ SAS have no public API for it, so each week's export is added by hand.
    file and press Upload.
 
 The page checks the file before anything is stored, then says what it found:
-"25 samples read - 1 new", or exactly what's wrong with the file. The cards
+"25 samples, 1 new", or exactly what's wrong with the file. The cards
 pick the new samples up within a minute, with no redeploy.
 
 The page asks search engines not to list it.
@@ -38,7 +38,11 @@ dashboard (Storage → the store → `water-quality/`), then redeploy or upload
 again so the route rebuilds.
 
 Committing a CSV here still works too: name it
-`SAS_Water_Quality_Surveys_YYYY-MM-DD.csv` and push.
+`SAS_Water_Quality_Surveys_YYYY-MM-DD.csv` and push. This repository is
+public, so first blank the **Surveyor: ID** and **Surveyor: Screen Name**
+values (keep the columns – the headings are checked). They're volunteers'
+names, and the app doesn't use them. Uploaded files stay in the private Blob
+store, so they don't need this.
 
 ## Setting it up on Vercel
 

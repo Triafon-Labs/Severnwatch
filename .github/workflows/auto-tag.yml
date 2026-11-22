@@ -16,8 +16,13 @@ concurrency:
 
 jobs:
   release:
-    # Skip the release commit's own push so it can't trigger itself again.
-    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    # Releases are this repository's own. In a fork or copy, the job skips
+    # itself: its release commits would rewrite CHANGELOG.md and package.json,
+    # and every later sync with this repository would conflict on them.
+    # Also skip the release commit's own push so it can't trigger itself again.
+    if: >-
+      github.repository == 'Triafon-Labs/Severnwatch' &&
+      !startsWith(github.event.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
