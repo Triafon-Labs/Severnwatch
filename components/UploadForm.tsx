@@ -30,7 +30,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const successSummary = (r: Extract<UploadResponse, { ok: true }>) => {
   const changes =
     r.added === 0 && r.updated === 0
-      ? "nothing new, so nothing was changed. The site already has all of them"
+      ? "none new"
       : [
           r.added > 0 && `${r.added} new`,
           r.updated > 0 && `${r.updated} updated`,
@@ -38,9 +38,9 @@ const successSummary = (r: Extract<UploadResponse, { ok: true }>) => {
           .filter(Boolean)
           .join(", ");
   const latest = r.latestSampledAt
-    ? ` Latest sample: ${formatLondonDate(Date.parse(r.latestSampledAt), { withTime: true })}.`
+    ? ` Latest: ${formatLondonDate(Date.parse(r.latestSampledAt), { withTime: true })}.`
     : "";
-  return `${plural(r.samples, "sample")} read - ${changes}.${latest}`;
+  return `${plural(r.samples, "sample")}, ${changes}.${latest}`;
 };
 
 const UploadForm: React.FC = () => {
@@ -98,9 +98,8 @@ const UploadForm: React.FC = () => {
           color="text.secondary"
           sx={{ mt: 0.5, mb: 2 }}
         >
-          Download the Water Quality Surveys export from Surfers Against Sewage,
-          then choose the CSV here. It&apos;s checked before anything changes,
-          and the site updates within a minute.
+          Choose the Water Quality Surveys CSV exported from Surfers Against
+          Sewage. The site updates within a minute.
         </Typography>
 
         <Box component="form" onSubmit={submit} noValidate>

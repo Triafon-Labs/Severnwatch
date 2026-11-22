@@ -152,11 +152,9 @@ export const WaterQualityDeepDive: React.FC = () => (
       Event Duration Monitoring (EDM)
     </Typography>
     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-      Water companies fit CSOs with monitors that record when a discharge starts
-      and stops - this is what powers the sewage spill status on the home
-      screen. It&apos;s a near-real-time indicator, but the data isn&apos;t
-      validated before it appears, monitors can false-alert on debris, and not
-      every outfall is monitored.
+      Monitors on CSOs record when a discharge starts and stops - the data
+      behind the spill status here. It&apos;s near real time but unvalidated:
+      monitors can false-alert on debris, and not every outfall has one.
     </Typography>
 
     <Typography variant="subtitle2" sx={{ fontWeight: "bold", mt: 2 }}>

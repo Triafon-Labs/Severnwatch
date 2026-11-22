@@ -252,8 +252,7 @@ const SampleHistoryCard: React.FC = () => {
           <InfoPanel align="flex-start">
             <CloudOffIcon color="warning" sx={{ flexShrink: 0 }} />
             <Typography variant="body2" color="text.secondary">
-              Couldn&apos;t load the sample history right now. It&apos;ll retry
-              on the next refresh.
+              Couldn&apos;t load the sample history. Try refreshing.
             </Typography>
           </InfoPanel>
         )}

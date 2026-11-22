@@ -32,29 +32,23 @@ const passcodeMatches = (given: string, expected: string) => {
 export async function POST(request: Request) {
   const expected = process.env.UPLOAD_PASSCODE;
   if (!expected) {
-    return fail(
-      503,
-      "Uploads aren't set up yet: there's no passcode configured for this site."
-    );
+    return fail(503, "Uploads aren't set up: no passcode configured.");
   }
   if (!uploadsAvailable()) {
-    return fail(
-      503,
-      "Uploads aren't set up yet: there's no storage connected for this site."
-    );
+    return fail(503, "Uploads aren't set up: no storage connected.");
   }
 
   let form: FormData;
   try {
     form = await request.formData();
   } catch {
-    return fail(400, "That upload didn't come through properly. Try again.");
+    return fail(400, "Upload failed. Try again.");
   }
 
   const passcode = form.get("passcode");
   if (typeof passcode !== "string" || !passcodeMatches(passcode, expected)) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    return fail(401, "That passcode isn't right.");
+    return fail(401, "Wrong passcode.");
   }
 
   const file = form.get("file");
@@ -62,10 +56,7 @@ export async function POST(request: Request) {
     return fail(400, "Choose the CSV file to upload.");
   }
   if (file.size > MAX_BYTES) {
-    return fail(
-      400,
-      "That file is far bigger than an SAS export. Check it's the right one."
-    );
+    return fail(400, "That file is too big to be an SAS export.");
   }
 
   const text = await file.text();
@@ -115,10 +106,7 @@ export async function POST(request: Request) {
     await saveExport(text);
   } catch (error) {
     console.error("Saving an uploaded export failed:", error);
-    return fail(
-      500,
-      "The file checked out, but it couldn't be saved. Try again in a minute."
-    );
+    return fail(500, "Couldn't save the file. Try again in a minute.");
   }
   revalidatePath("/api/water-quality");
 
