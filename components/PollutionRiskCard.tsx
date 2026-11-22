@@ -36,7 +36,7 @@ import {
 } from "@/lib/m3-palette";
 import { useNowTicking } from "@/lib/useNowTicking";
 import { showSkeletonFor } from "@/lib/hooks";
-import SourceLiveness from "@/components/SourceLiveness";
+import { SourceAlerts } from "@/components/DataSources";
 import InfoPanel from "@/components/InfoPanel";
 import StatTile, { tileGridSx } from "@/components/StatTile";
 
@@ -183,16 +183,14 @@ const PollutionRiskCard: React.FC = () => {
   return (
     <Card>
       <CardContent>
-        <Typography variant="h5" component="h2">
+        <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
           Pollution Risk
         </Typography>
-        {/* Where Paddlecheck has its "Updated" line: a dot per source the
-            headline is drawn from, each live, behind or failed on its own
-            (components/SourceLiveness.tsx). The banners above the app bar
-            still take over once the data is stale or an update has failed. */}
-        <Box sx={{ mt: 0.25, mb: 1 }}>
-          <SourceLiveness />
-        </Box>
+        {/* A source with a problem nothing else on the page reports - rain
+            gauges gone quiet, a feed that failed. Nothing when all is well;
+            every source's state is in Settings → Info
+            (components/DataSources.tsx). */}
+        <SourceAlerts />
 
         {/* Mirrors the hero and its scale strip, so the card doesn't change
             height when the data lands. */}

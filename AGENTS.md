@@ -122,8 +122,8 @@ components/
   SettingsModal.tsx          Bottom sheet – theme, links, conditions key, deep dive, version
   DisclaimerDialog.tsx       First-run pop-up – must be accepted once per DISCLAIMER_VERSION (as in Paddlecheck)
   ConditionsKey.tsx          Legend for the status colours, map markers and chart bands
-  PollutionRiskCard.tsx      Headline pollution risk from spills, rainfall + latest sample, with the liveness row
-  SourceLiveness.tsx         A dot per source (Spills, Rain, Samples) - live, behind, failed or updating; tap for times
+  PollutionRiskCard.tsx      Headline pollution risk from spills, rainfall + latest sample, with any source alerts
+  DataSources.tsx            How live each source is: SourceAlerts (home, problems only) + DataSourcesList (Settings → Info)
   CsoListCard.tsx            "Sewage Overflows" – the network as a river diagram
   RiverSchematic.tsx         Transit-map view of the catchment, stops in downstream order
   CsoOutfallRow.tsx          One outfall as a row under its stop – where its spill is, times, map link
@@ -231,7 +231,7 @@ one fetch rather than three.
   waterQualityError: boolean
   loading: boolean           // true only when there is genuinely nothing to render
   sources: Record<"cso" | "rainfall" | "waterQuality",
-    { pending: boolean; fromSavedCopy: boolean }>  // per source - skeletons + liveness dots
+    { pending: boolean; fromSavedCopy: boolean }>  // per source - skeletons + data source status
   isRefreshing: boolean      // any fetch in flight
   isOffline: boolean
   lastFetchFailed: boolean   // a source couldn't be got from inside the cache window
@@ -273,16 +273,19 @@ samples and its own `/api/risk-history` fetch. Cards keep their fixed places
 with skeletons rather than popping in as data arrives, so nothing moves under
 the reader.
 
-Freshness is communicated by the liveness row under the Pollution Risk title
-(`components/SourceLiveness.tsx`, as in Paddlecheck): a dot per source - green
-live, amber behind, red failed, grey pulsing while it loads - and the time the
-spills and rain were fetched (the older of the two), with a popover giving the
-times. Spills go by when they were fetched; rain by its newest gauge reading
+Each source's state - green live, amber behind, red failed, grey pulsing while
+it loads - is listed under Data Sources in Settings → Info
+(`components/DataSources.tsx`), with the time the spills and rain were
+fetched. Spills go by when they were fetched; rain by its newest gauge reading
 (amber past 3 hours), since `asOf` is fresh even when the gauges are not;
-samples by the newest sample (amber past `WATER_QUALITY_STALE_DAYS`). A gauge
-row on the Rainfall card shows its own reading's age only when it trails the
-freshest gauge by an hour. Above the app bar there is also a
-banner. That banner says "Live update failed" only when the
+samples by the newest sample (amber past `WATER_QUALITY_STALE_DAYS`). The home
+page shows a source under the Pollution Risk title only when it has a problem
+nothing else there reports (rain gauges behind or missing, rain or samples
+failing to load), and nothing at all otherwise. Offline, a failed update and
+aged data are the banners'; a quiet sample is the Latest Sample card's; spills
+failing is the Pollution Risk card's own error panel. A gauge row on the
+Rainfall card shows its own reading's age only when it trails the freshest
+gauge by an hour. The banner above the app bar says "Live update failed" only when the
 last fetch couldn't get a source from inside the cache window (it fell back to
 the saved copy, or the live fallback failed too); data that is merely past
 `DATA_STALE_THRESHOLD_MS` (two windows, 30 minutes) because nobody has
