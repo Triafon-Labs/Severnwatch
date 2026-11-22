@@ -70,7 +70,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Everything works with no environment variables. The samples come from the CSV committed in `data/water-quality/`, and the spill record is kept in `data/risk-history/` (gitignored).
+Open [http://localhost:3000](http://localhost:3000). Everything works with no environment variables, apart from the sample cards: no samples are committed (the SAS exports name the volunteers), so they're empty until you upload one. The spill record is kept in `data/risk-history/` (gitignored).
 
 To try the upload page locally, put `UPLOAD_PASSCODE=anything` in `.env.local` and restart. Uploads then go to `data/water-quality/uploads/` (also gitignored).
 
@@ -106,7 +106,7 @@ The app needs a server (the API routes fetch and cache the data), so a static ho
 3. For uploads and the spill record, connect a Blob store (**Storage → Create → Blob**, **Private** access). That sets `BLOB_READ_WRITE_TOKEN` for you.
 4. For uploads, also set `UPLOAD_PASSCODE` under **Settings → Environment Variables**, then redeploy.
 
-Until steps 3 and 4 are done, `/upload` says uploads aren't set up, and the cards use the committed CSV.
+Until steps 3 and 4 are done, `/upload` says uploads aren't set up, and the sample cards are empty.
 
 The app includes [Vercel Web Analytics](https://vercel.com/docs/analytics) and [Speed Insights](https://vercel.com/docs/speed-insights). They do nothing until you enable them in the Vercel dashboard. To remove them, delete `<Analytics />` and `<SpeedInsights />` from `app/layout.tsx`. Vercel's free Hobby plan is for personal, non-commercial use; check [their terms](https://vercel.com/docs/limits/fair-use-guidelines).
 
@@ -140,7 +140,7 @@ The About section of the Settings sheet carries the credits these licences ask f
 - **Severn Trent Water**'s storm overflow data is under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Credit Severn Trent.
 - **Open-Meteo**'s free API is for [non-commercial use](https://open-meteo.com/en/terms), with data under CC BY 4.0. Credit Open-Meteo.
 - **Nominatim** place names are OpenStreetMap data under the [ODbL](https://www.openstreetmap.org/copyright), credited as "© OpenStreetMap contributors". Its [usage policy](https://operations.osmfoundation.org/policies/nominatim/) limits requests to one a second, which the app keeps to.
-- **Surfers Against Sewage** samples are volunteers' citizen science results, credited to SAS. The committed CSV has the surveyors' names and IDs blanked out. The app doesn't use them.
+- **Surfers Against Sewage** samples are volunteers' citizen science results, credited to SAS. The exports include the surveyors' names, so they're kept in the private Blob store, not in this repository. The app doesn't read or show those names.
 
 ## Licence
 

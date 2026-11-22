@@ -40,9 +40,7 @@ const successSummary = (r: Extract<UploadResponse, { ok: true }>) => {
   const latest = r.latestSampledAt
     ? ` Latest: ${formatLondonDate(Date.parse(r.latestSampledAt), { withTime: true })}.`
     : "";
-  const saved =
-    r.saved && r.added === 0 && r.updated === 0 ? " Saved to storage." : "";
-  return `${plural(r.samples, "sample")}, ${changes}.${saved}${latest}`;
+  return `${plural(r.samples, "sample")}, ${changes}.${latest}`;
 };
 
 const UploadForm: React.FC = () => {
@@ -187,7 +185,7 @@ const UploadForm: React.FC = () => {
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {!result.ok
                         ? "Not uploaded"
-                        : result.added + result.updated > 0 || result.saved
+                        : result.added + result.updated > 0
                           ? "Uploaded"
                           : "Already up to date"}
                     </Typography>

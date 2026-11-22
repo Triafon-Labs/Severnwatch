@@ -1,5 +1,3 @@
-import { readdir, readFile } from "node:fs/promises";
-import path from "node:path";
 import {
   BacteriaCount,
   CountQualifier,
@@ -11,8 +9,8 @@ import { londonWallClockToUtcMs } from "@/lib/time";
 import { listStoredExports } from "@/lib/waterQualityStore";
 
 // Reads SAS's "Water Quality Surveys" CSV export from Cartographer (one row
-// per survey, keyed by its Survey ID). Server-only: it reads the
-// filesystem, and is imported by /api/water-quality and its upload route.
+// per survey, keyed by its Survey ID). Server-only: it reads the upload
+// store, and is imported by /api/water-quality and its upload route.
 //
 // The export's shape is checked rather than trusted. A file whose columns
 // don't match is an error, not something to guess at: if SAS rename a column,
@@ -257,36 +255,12 @@ export const mergeExports = (
   };
 };
 
-// Every committed CSV in data/water-quality/ (in name order - the dated names
-// in its README make that oldest first), then every uploaded export (in
-// upload order, lib/waterQualityStore.ts). The committed files are the
-// baseline; uploads layer on top and win where they repeat a sample.
+// Every uploaded export, in upload order (lib/waterQualityStore.ts). A later
+// copy of a sample replaces an earlier one, so a corrected result wins.
 export const loadWaterQualitySamples = async (): Promise<{
   site: WaterQualitySite;
   samples: WaterQualitySample[];
-}> => {
-  // Spelled out rather than read from a constant: the bundler traces which
-  // files this route needs from the literal path, and a variable here makes
-  // it include the whole project in the server output.
-  const dir = path.join(process.cwd(), "data", "water-quality");
-  const files = (await readdir(dir))
-    .filter((f) => f.toLowerCase().endsWith(".csv"))
-    .sort();
-
-  const committed = await Promise.all(
-    files.map(async (file) =>
-      parseExport(await readFile(path.join(dir, file), "utf8"), file)
-    )
-  );
-  const uploaded = (await listStoredExports()).map(({ name, text }) =>
-    parseExport(text, name)
-  );
-  return mergeExports([...committed, ...uploaded]);
-};
-
-// The uploaded exports alone, without the committed baseline - what the
-// store already holds, so an upload can tell whether it adds anything there.
-export const loadUploadedSamples = async (): Promise<WaterQualitySample[]> =>
+}> =>
   mergeExports(
     (await listStoredExports()).map(({ name, text }) => parseExport(text, name))
-  ).samples;
+  );

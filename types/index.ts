@@ -128,7 +128,6 @@ export type UploadResponse =
       samples: number; // Grandstand Road samples in the file
       added: number; // not in the data before
       updated: number; // already there, with a different result
-      saved: boolean; // a copy was stored (false when the store already had it all)
       latestSampledAt: string | null;
     }
   | { ok: false; error: string }; // written for the tester, shown as-is

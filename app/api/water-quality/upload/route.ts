@@ -3,11 +3,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { UploadResponse } from "@/types";
 import { WATER_QUALITY_SITE_NAME } from "@/lib/config";
-import {
-  loadUploadedSamples,
-  loadWaterQualitySamples,
-  parseExport,
-} from "@/lib/waterQualityCsv";
+import { loadWaterQualitySamples, parseExport } from "@/lib/waterQualityCsv";
 import { saveExport, uploadsAvailable } from "@/lib/waterQualityStore";
 
 // Takes one SAS export from the /upload page, checks it, keeps it and has
@@ -77,14 +73,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // What this adds, against what the site shows now, and against what the
-  // store holds - the site also shows the committed CSVs, which aren't in it.
-  const [current, stored] = await Promise.all([
-    loadWaterQualitySamples(),
-    loadUploadedSamples(),
-  ]);
+  // What this adds, against what the site shows now.
+  const current = await loadWaterQualitySamples();
   const before = new Map(current.samples.map((s) => [s.id, JSON.stringify(s)]));
-  const inStore = new Map(stored.map((s) => [s.id, JSON.stringify(s)]));
   const added = parsed.samples.filter((s) => !before.has(s.id)).length;
   const updated = parsed.samples.filter(
     (s) => before.has(s.id) && before.get(s.id) !== JSON.stringify(s)
@@ -98,22 +89,15 @@ export async function POST(request: Request) {
     null
   );
 
-  // The store already has every sample, unchanged: say so without storing a
-  // duplicate. Re-uploading the same week by mistake is the likeliest slip,
-  // and keeping every copy would make the store harder to tidy if a bad
-  // upload ever needs removing. A file with nothing new for the site is
-  // still kept when the store lacks it, so samples that are only in a
-  // committed CSV get a copy in the store.
-  const alreadyStored = parsed.samples.every(
-    (s) => inStore.get(s.id) === JSON.stringify(s)
-  );
-  if (alreadyStored) {
+  // Nothing new: say so without storing a duplicate. Re-uploading the same
+  // week by mistake is the likeliest slip, and keeping every copy would make
+  // the store harder to tidy if a bad upload ever needs removing.
+  if (added === 0 && updated === 0) {
     return NextResponse.json<UploadResponse>({
       ok: true,
       samples: parsed.samples.length,
       added,
       updated,
-      saved: false,
       latestSampledAt: latest,
     });
   }
@@ -131,7 +115,6 @@ export async function POST(request: Request) {
     samples: parsed.samples.length,
     added,
     updated,
-    saved: true,
     latestSampledAt: latest,
   });
 }
