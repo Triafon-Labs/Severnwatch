@@ -392,6 +392,16 @@ rejecting commits whose first line isn't a valid Conventional Commit
 
 ---
 
+## Merging Pull Requests
+
+Squash merge every pull request into `main` – never a merge commit or a rebase merge,
+so each PR lands as one commit. That commit is what `auto-tag.yml` reads for the version
+bump and changelog, so its title must be a Conventional Commit (use the PR title, e.g.
+`fix: …`), and a `BREAKING CHANGE:` footer has to go in the squash commit's body for a
+major bump.
+
+---
+
 ## CI Pipeline
 
 - **ci.yml** – runs `lint` then `build` on every push/PR to `main` (Node 22)
