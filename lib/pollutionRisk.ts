@@ -65,32 +65,26 @@ export const RISK_LEVEL_UI: Record<
   PollutionRiskLevel,
   {
     label: string;
-    // The saturated status hue - the Conditions Key's dots and the scale
-    // strip under the hero.
+    // The status hue - the hero's fill, the Conditions Key's dots and the
+    // scale strip under the hero.
     color: string;
     onColor: string;
-    // The palette role whose M3 container pair paints the hero, so the
-    // headline reads as a tonal panel rather than a slab of saturated red.
-    tonal: "error" | "warning" | "success";
   }
 > = {
   high: {
     label: "High Risk",
     color: STATUS_COLORS.red,
     onColor: ON_STATUS_COLORS.red,
-    tonal: "error",
   },
   raised: {
     label: "Raised Risk",
     color: STATUS_COLORS.amber,
     onColor: ON_STATUS_COLORS.amber,
-    tonal: "warning",
   },
   low: {
     label: "Low Risk",
     color: STATUS_COLORS.darkGreen,
     onColor: ON_STATUS_COLORS.darkGreen,
-    tonal: "success",
   },
 };
 

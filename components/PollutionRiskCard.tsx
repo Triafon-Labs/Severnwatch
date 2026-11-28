@@ -57,11 +57,8 @@ const FACTOR_ICONS: Record<PollutionRiskFactorKey, React.ElementType> = {
   offline: CloudOffIcon,
 };
 
-// Paddlecheck's PaddlingStatusHero, with the scale as a strip underneath -
-// but on the level's tonal container pair rather than a saturated fill. The
-// headline is an estimate for most of a wet season, and a full-width slab of
-// red or amber shouted it louder than the evidence. The strip keeps the
-// saturated hues, so the level still reads at a glance.
+// Matches Paddlecheck's PaddlingStatusHero: the level as a saturated fill in
+// its status colour, with the scale as a strip underneath.
 const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
   const ui = RISK_LEVEL_UI[level];
   const Icon = RISK_ICONS[level];
@@ -73,8 +70,8 @@ const RiskHero: React.FC<{ level: PollutionRiskLevel }> = ({ level }) => {
           gap: { xs: 1.75, sm: 2.5 },
           p: { xs: 2, sm: 3 },
           borderRadius: "16px",
-          backgroundColor: `${ui.tonal}.container`,
-          color: `${ui.tonal}.onContainer`,
+          backgroundColor: ui.color,
+          color: ui.onColor,
           transition: spring(
             "background-color, color",
             m3Spring.effectsDefault
